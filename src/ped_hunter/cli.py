@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 import sys
 import time
+import traceback
 import urllib.request
 import json
 
@@ -72,9 +73,25 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _launch_gui() -> int:
-    from .app import main as gui_main
+    try:
+        from .app import main as gui_main
 
-    return gui_main()
+        return gui_main()
+    except Exception as exc:  # pragma: no cover - defensive desktop startup guard
+        log_path = Path.home() / "AppData" / "Local" / "ped-hunter" / "crash.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(traceback.format_exc(), encoding="utf-8")
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("PED Hunter crashed", f"{exc}\n\nCrash log written to:\n{log_path}")
+            root.destroy()
+        except Exception:
+            pass
+        raise
 
 
 def _seed_data(force: bool) -> int:

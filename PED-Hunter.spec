@@ -1,15 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+import sys
+
+python_root = Path(sys.base_prefix)
+tcl_root = python_root / 'tcl'
+tcl_datas = []
+for name, target in (('tcl8.6', '_tcl_data'), ('tk8.6', '_tk_data')):
+    source = tcl_root / name
+    if source.exists():
+        tcl_datas.append((str(source), target))
 
 
 a = Analysis(
     ['tools\\pyinstaller_entry.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('data/catalog', 'data/catalog')],
+    datas=[('data/catalog', 'data/catalog'), *tcl_datas],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['tools\\pyinstaller_tcl_runtime.py'],
     excludes=[],
     noarchive=False,
     optimize=0,

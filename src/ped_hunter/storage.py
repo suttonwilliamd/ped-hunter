@@ -262,9 +262,9 @@ class Store:
 _SESSION_SUMMARY_SQL = """
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
            COUNT(e.id) AS events,
-           COALESCE(SUM(CASE WHEN e.kind = 'loot' THEN json_extract(e.payload, '$.value') ELSE 0 END), 0) AS loot_value,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' THEN json_extract(e.payload, '$.shot_cost') ELSE 0 END), 0) AS hunting_cost
+           COALESCE(SUM(CASE WHEN e.kind = 'loot' AND json_valid(e.payload) THEN json_extract(e.payload, '$.value') ELSE 0 END), 0) AS loot_value,
+           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
+           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.shot_cost') ELSE 0 END), 0) AS hunting_cost
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
 """

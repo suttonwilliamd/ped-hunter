@@ -48,6 +48,22 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.net_value == 0.2398
 
 
+def test_session_summary_tolerates_malformed_legacy_payload(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
+            (session_id, None, "loot", "legacy bad row", "not json"),
+        )
+        conn.commit()
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.events == 1
+    assert summary.loot_value == 0
+
+
 def test_only_outgoing_combat_consumes_shots():
     assert _event_consumes_shot(ParsedEvent("combat", None, "", {"damage": 4}))
     assert _event_consumes_shot(ParsedEvent("combat", None, "", {"dodged": True}))
