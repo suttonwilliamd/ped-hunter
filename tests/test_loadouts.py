@@ -1,9 +1,19 @@
 from pathlib import Path
 
-from ped_hunter.app import _event_consumes_shot, _typeahead_match, calculate_loadout_cost
+from ped_hunter.app import (
+    AMP_CATEGORIES,
+    SCOPE_CATEGORIES,
+    SIGHT_CATEGORIES,
+    _attachment_in_categories,
+    _attachment_names_by_category,
+    _event_consumes_shot,
+    _typeahead_match,
+    calculate_loadout_cost,
+    streamer_metrics,
+)
 from ped_hunter.catalog import Catalog
 from ped_hunter.parser import ParsedEvent
-from ped_hunter.storage import LoadoutRecord, Store
+from ped_hunter.storage import LoadoutRecord, SessionSummary, Store
 
 
 def test_frontier_loadout_cost_matches_weapon_cost():
@@ -77,3 +87,40 @@ def test_loadout_typeahead_prefix_matching():
     assert _typeahead_match(values, "zx s") == "ZX Sinkadus"
     assert _typeahead_match(values, "ZX R") == "ZX R-Dod"
     assert _typeahead_match(values, "missing") is None
+
+
+def test_loadout_selectors_do_not_overlap_attachment_categories():
+    catalog = Catalog.load()
+    amp_names = _attachment_names_by_category(catalog, AMP_CATEGORIES)
+    scope_names = _attachment_names_by_category(catalog, SCOPE_CATEGORIES)
+    sight_names = _attachment_names_by_category(catalog, SIGHT_CATEGORIES)
+
+    assert "ZX Sinkadus" in amp_names
+    assert "ZX Sinkadus" not in scope_names
+    assert "ZX Sinkadus" not in sight_names
+    assert "ZX Eagle Eye" in scope_names
+    assert "ZX Eagle Eye" not in amp_names
+    assert "ZX R-Dod" in sight_names
+    assert "ZX R-Dod" not in amp_names
+    assert _attachment_in_categories(catalog, "ZX Eagle Eye", SCOPE_CATEGORIES)
+    assert not _attachment_in_categories(catalog, "ZX Eagle Eye", AMP_CATEGORIES)
+
+
+def test_streamer_metrics_from_session_summary():
+    metrics = streamer_metrics(
+        SessionSummary(
+            session_id="ph-test",
+            started_at="2026-01-01T00:00:00",
+            ended_at=None,
+            activity="hunt",
+            loot_value=75.0,
+            combat_damage=123.4,
+            hunting_cost=100.0,
+            net_value=-25.0,
+            events=42,
+            loadout_name="ZX Test Loadout",
+        )
+    )
+    assert metrics["return_pct"] == 75.0
+    assert metrics["net"] == -25.0
+    assert metrics["loadout"] == "ZX Test Loadout"

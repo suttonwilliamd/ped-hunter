@@ -18,6 +18,9 @@ from .storage import LoadoutRecord, SessionSummary, Store
 
 
 POLL_MS = 1000
+AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
+SCOPE_CATEGORIES = {"Scope"}
+SIGHT_CATEGORIES = {"Sight"}
 
 
 @dataclass(slots=True)
@@ -42,6 +45,7 @@ class PedHunterApp(tk.Tk):
         self.last_size = 0
         self.running = False
         self.current_log_path: Path | None = None
+        self.streamer_window: StreamerWindow | None = None
 
         self.chat_path = tk.StringVar(value=str(_default_chat_log_path()))
         self.activity = tk.StringVar(value="hunt")
@@ -145,7 +149,8 @@ class PedHunterApp(tk.Tk):
             text="A modern, local-first Entropia session cockpit inspired by LootNanny — cleaner, faster, and ready for richer catalogs.",
             style="Subtitle.TLabel",
         ).grid(row=1, column=0, sticky="w", pady=(2, 0))
-        ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=1, rowspan=2, sticky="e")
+        ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=1, rowspan=2, sticky="e", padx=(0, 8))
+        ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=2, rowspan=2, sticky="e")
 
         controls = ttk.Frame(root, style="Panel.TFrame", padding=14)
         controls.grid(row=1, column=0, sticky="ew", pady=(16, 14))
@@ -265,12 +270,14 @@ class PedHunterApp(tk.Tk):
         form.columnconfigure(1, weight=1)
 
         weapon_names = sorted(self.catalog.weapons)
-        attachment_names = ["None"] + sorted(self.catalog.attachments)
+        amp_names = ["None"] + _attachment_names_by_category(self.catalog, AMP_CATEGORIES)
+        scope_names = ["None"] + _attachment_names_by_category(self.catalog, SCOPE_CATEGORIES)
+        sight_names = ["None"] + _attachment_names_by_category(self.catalog, SIGHT_CATEGORIES)
         weapon_combo = ttk.Combobox(form, textvariable=self.loadout_weapon, values=weapon_names, state="normal")
-        amp_combo = ttk.Combobox(form, textvariable=self.loadout_amp, values=attachment_names, state="normal")
-        scope_combo = ttk.Combobox(form, textvariable=self.loadout_scope, values=attachment_names, state="normal")
-        sight_1_combo = ttk.Combobox(form, textvariable=self.loadout_sight_1, values=attachment_names, state="normal")
-        sight_2_combo = ttk.Combobox(form, textvariable=self.loadout_sight_2, values=attachment_names, state="normal")
+        amp_combo = ttk.Combobox(form, textvariable=self.loadout_amp, values=amp_names, state="normal")
+        scope_combo = ttk.Combobox(form, textvariable=self.loadout_scope, values=scope_names, state="normal")
+        sight_1_combo = ttk.Combobox(form, textvariable=self.loadout_sight_1, values=sight_names, state="normal")
+        sight_2_combo = ttk.Combobox(form, textvariable=self.loadout_sight_2, values=sight_names, state="normal")
         for combo in (weapon_combo, amp_combo, scope_combo, sight_1_combo, sight_2_combo):
             _install_combobox_typeahead(combo, on_change=self._refresh_loadout_preview)
 
@@ -313,6 +320,7 @@ class PedHunterApp(tk.Tk):
             "1.0",
             "LootNanny's Config tab made loadouts the source of truth for hunting costs: weapon + amp + scope/sights + enhancers. "
             "PED Hunter keeps that requirement but keeps the active loadout visible in the main control bar so you do not start a hunt with unknown costs. "
+            "Amplifier, scope, and sight selectors are category-specific so items like ZX Eagle Eye only appear under Scope. "
             "Damage enhancers increase weapon ammo/decay by 10% each; economy enhancers reduce weapon ammo/decay by 1% each; attachments add their own burn/decay.",
         )
         help_text.configure(state="disabled")
@@ -416,6 +424,14 @@ class PedHunterApp(tk.Tk):
         weapon = self.catalog.find_weapon(self.loadout_weapon.get().strip())
         if not weapon:
             raise ValueError("choose a known weapon")
+        if not _attachment_in_categories(self.catalog, self.loadout_amp.get(), AMP_CATEGORIES):
+            raise ValueError("amplifier must be an amp, not a scope or sight")
+        if not _attachment_in_categories(self.catalog, self.loadout_scope.get(), SCOPE_CATEGORIES):
+            raise ValueError("scope must be selected from scope items")
+        if not _attachment_in_categories(self.catalog, self.loadout_sight_1.get(), SIGHT_CATEGORIES):
+            raise ValueError("sight 1 must be selected from sight items")
+        if not _attachment_in_categories(self.catalog, self.loadout_sight_2.get(), SIGHT_CATEGORIES):
+            raise ValueError("sight 2 must be selected from sight items")
         damage = _bounded_int(self.damage_enhancers.get())
         accuracy = _bounded_int(self.accuracy_enhancers.get())
         economy = _bounded_int(self.economy_enhancers.get())
@@ -523,6 +539,14 @@ class PedHunterApp(tk.Tk):
         if path:
             self.chat_path.set(path)
 
+    def _open_streamer_window(self) -> None:
+        if self.streamer_window and self.streamer_window.winfo_exists():
+            self.streamer_window.lift()
+            self.streamer_window.focus_force()
+            return
+        self.streamer_window = StreamerWindow(self)
+        self.streamer_window.update_from_session(self.store.get_current_session())
+
     def start(self) -> None:
         if self.running:
             return
@@ -609,6 +633,8 @@ class PedHunterApp(tk.Tk):
         self._refresh_sessions(sessions)
         self._refresh_events(display.session_id if display else None)
         self._refresh_loadouts()
+        if self.streamer_window and self.streamer_window.winfo_exists():
+            self.streamer_window.update_from_session(display)
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"
@@ -685,6 +711,77 @@ class PedHunterApp(tk.Tk):
                     ", ".join(weapon.aliases),
                 ),
             )
+
+
+class StreamerWindow(tk.Toplevel):
+    """Always-on-top compact overlay inspired by LootNanny's streamer window."""
+
+    def __init__(self, app: PedHunterApp) -> None:
+        super().__init__(app)
+        self.app = app
+        self.title("PED Hunter Streamer UI")
+        self.configure(bg="#020617")
+        self.attributes("-topmost", True)
+        self.overrideredirect(True)
+        self.geometry("520x170+120+120")
+        self._drag_origin: tuple[int, int] | None = None
+        self.vars = {
+            "return": tk.StringVar(value="0.00%"),
+            "loot": tk.StringVar(value="Loot 0.00 PED"),
+            "cost": tk.StringVar(value="Cost 0.00 PED"),
+            "net": tk.StringVar(value="Net +0.00 PED"),
+            "damage": tk.StringVar(value="Damage 0.0"),
+            "events": tk.StringVar(value="Events 0"),
+            "loadout": tk.StringVar(value="No active loadout"),
+        }
+        self._build()
+        self.bind("<ButtonPress-1>", self._start_drag)
+        self.bind("<B1-Motion>", self._drag)
+        self.bind("<Escape>", lambda _event: self.destroy())
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+
+    def _build(self) -> None:
+        outer = tk.Frame(self, bg="#020617", highlightbackground="#38bdf8", highlightthickness=2, padx=14, pady=10)
+        outer.pack(fill="both", expand=True)
+        top = tk.Frame(outer, bg="#020617")
+        top.pack(fill="x")
+        tk.Label(top, textvariable=self.vars["return"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 30, "bold")).pack(side="left")
+        close = tk.Label(top, text="×", bg="#020617", fg="#94a3b8", font=("Segoe UI", 16, "bold"), cursor="hand2")
+        close.pack(side="right")
+        close.bind("<Button-1>", lambda _event: self.destroy())
+        tk.Label(outer, textvariable=self.vars["loadout"], bg="#020617", fg="#7dd3fc", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 8))
+        grid = tk.Frame(outer, bg="#020617")
+        grid.pack(fill="x")
+        for col, key in enumerate(("loot", "cost", "net")):
+            grid.columnconfigure(col, weight=1)
+            tk.Label(grid, textvariable=self.vars[key], bg="#111827", fg="#e5edf8", font=("Segoe UI", 12, "bold"), padx=10, pady=8).grid(row=0, column=col, sticky="ew", padx=(0 if col == 0 else 6, 0))
+        bottom = tk.Frame(outer, bg="#020617")
+        bottom.pack(fill="x", pady=(8, 0))
+        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10)).pack(side="left")
+        tk.Label(bottom, textvariable=self.vars["events"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10)).pack(side="right")
+
+    def update_from_session(self, session: SessionSummary | None) -> None:
+        metrics = streamer_metrics(session)
+        self.vars["return"].set(f"{metrics['return_pct']:.2f}%")
+        self.vars["loot"].set(f"Loot {metrics['loot']:.2f} PED")
+        self.vars["cost"].set(f"Cost {metrics['cost']:.2f} PED")
+        self.vars["net"].set(f"Net {metrics['net']:+.2f} PED")
+        self.vars["damage"].set(f"Damage {metrics['damage']:.1f}")
+        self.vars["events"].set(f"Events {int(metrics['events'])}")
+        self.vars["loadout"].set(str(metrics["loadout"]))
+
+    def _start_drag(self, event) -> None:
+        self._drag_origin = (event.x, event.y)
+
+    def _drag(self, event) -> None:
+        if not self._drag_origin:
+            return
+        dx, dy = self._drag_origin
+        self.geometry(f"+{event.x_root - dx}+{event.y_root - dy}")
+
+    def destroy(self) -> None:
+        self.app.streamer_window = None
+        super().destroy()
 
 
 def _default_chat_log_path() -> Path:
@@ -790,6 +887,45 @@ def _typeahead_match(values: tuple[str, ...] | list[str], prefix: str) -> str | 
         if value.casefold().startswith(normalized):
             return value
     return None
+
+
+def _attachment_names_by_category(catalog: Catalog, categories: set[str]) -> list[str]:
+    return sorted(
+        attachment.name
+        for attachment in catalog.attachments.values()
+        if attachment.category in categories
+    )
+
+
+def _attachment_in_categories(catalog: Catalog, name: str, categories: set[str]) -> bool:
+    cleaned = _clean_part(name)
+    if not cleaned:
+        return True
+    attachment = catalog.attachments.get(cleaned)
+    return bool(attachment and attachment.category in categories)
+
+
+def streamer_metrics(session: SessionSummary | None) -> dict[str, float | str]:
+    if not session:
+        return {
+            "return_pct": 0.0,
+            "loot": 0.0,
+            "cost": 0.0,
+            "net": 0.0,
+            "damage": 0.0,
+            "events": 0.0,
+            "loadout": "No active session",
+        }
+    return_pct = (session.loot_value / session.hunting_cost * 100.0) if session.hunting_cost > 0 else 0.0
+    return {
+        "return_pct": return_pct,
+        "loot": session.loot_value,
+        "cost": session.hunting_cost,
+        "net": session.net_value,
+        "damage": session.combat_damage,
+        "events": float(session.events),
+        "loadout": session.loadout_name or "No loadout snapshot",
+    }
 
 
 def _install_combobox_typeahead(combo: ttk.Combobox, *, on_change) -> None:
