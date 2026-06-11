@@ -18,6 +18,19 @@ Free, local-first Entropia Universe profit intelligence.
 - resolves community shorthand like `Frontier Rifle` to the actual starter weapon `Frontier Hunting Rifle`
 - computes derived values like cost per shot from the item catalog
 
+## Interface direction
+
+PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracker that follows chat logs and summarizes loot, combat, skills, and crafting — but updates it into a cleaner local-first desktop cockpit:
+
+- dashboard summary cards for live loot, combat damage, event count, stored sessions, and tracking state
+- clear start/stop controls with visible chat-log status
+- recent session history backed by SQLite
+- live event stream for parsed chat lines
+- catalog search with weapon cost/shot details and aliases
+- setup guidance for first-time users
+
+The goal is to keep the useful parts of LootNanny's workflow while avoiding dense legacy form layouts and making room for richer modern catalog sources.
+
 ## Quick start
 
 Download the Windows `.exe` from the latest GitHub release, or run from source:
