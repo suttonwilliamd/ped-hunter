@@ -1,0 +1,2391 @@
+{
+  "items": [
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00046,
+      "name": "Abrer Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00029,
+      "name": "Alekz Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 210,
+      "category": "BLP Amp",
+      "decay": 0.0016,
+      "name": "ArMatrix B-Amplifier 10P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 273,
+      "category": "BLP Amp",
+      "decay": 0.00208,
+      "name": "ArMatrix B-Amplifier 13P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 357,
+      "category": "BLP Amp",
+      "decay": 0.00272,
+      "name": "ArMatrix B-Amplifier 17P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 420,
+      "category": "BLP Amp",
+      "decay": 0.0032,
+      "name": "ArMatrix B-Amplifier 20P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 483,
+      "category": "BLP Amp",
+      "decay": 0.00368,
+      "name": "ArMatrix B-Amplifier 23P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 525,
+      "category": "BLP Amp",
+      "decay": 0.004,
+      "name": "ArMatrix B-Amplifier 25P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 588,
+      "category": "BLP Amp",
+      "decay": 0.00448,
+      "name": "ArMatrix B-Amplifier 28P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 693,
+      "category": "BLP Amp",
+      "decay": 0.00528,
+      "name": "ArMatrix B-Amplifier 33P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 777,
+      "category": "BLP Amp",
+      "decay": 0.00592,
+      "name": "ArMatrix B-Amplifier 37P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 882,
+      "category": "BLP Amp",
+      "decay": 0.00672,
+      "name": "ArMatrix B-Amplifier 42P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 945,
+      "category": "BLP Amp",
+      "decay": 0.0072,
+      "name": "ArMatrix B-Amplifier 45P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 84,
+      "category": "BLP Amp",
+      "decay": 0.00064,
+      "name": "ArMatrix B-Amplifier 4P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 50P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 55P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 60P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 65P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 126,
+      "category": "BLP Amp",
+      "decay": 0.00096,
+      "name": "ArMatrix B-Amplifier 6P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 70P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "BLP Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix B-Amplifier 75P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 168,
+      "category": "BLP Amp",
+      "decay": 0.00128,
+      "name": "ArMatrix B-Amplifier 8P (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 210,
+      "category": "Energy Amp",
+      "decay": 0.0016,
+      "name": "ArMatrix L-Amplifier 10B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 273,
+      "category": "Energy Amp",
+      "decay": 0.00208,
+      "name": "ArMatrix L-Amplifier 13B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 357,
+      "category": "Energy Amp",
+      "decay": 0.00272,
+      "name": "ArMatrix L-Amplifier 17B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 420,
+      "category": "Energy Amp",
+      "decay": 0.0032,
+      "name": "ArMatrix L-Amplifier 20B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 483,
+      "category": "Energy Amp",
+      "decay": 0.00368,
+      "name": "ArMatrix L-Amplifier 23B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 525,
+      "category": "Energy Amp",
+      "decay": 0.004,
+      "name": "ArMatrix L-Amplifier 25B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 588,
+      "category": "Energy Amp",
+      "decay": 0.00448,
+      "name": "ArMatrix L-Amplifier 28B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 693,
+      "category": "Energy Amp",
+      "decay": 0.00528,
+      "name": "ArMatrix L-Amplifier 33B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 777,
+      "category": "Energy Amp",
+      "decay": 0.00592,
+      "name": "ArMatrix L-Amplifier 37B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 882,
+      "category": "Energy Amp",
+      "decay": 0.00672,
+      "name": "ArMatrix L-Amplifier 42B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 945,
+      "category": "Energy Amp",
+      "decay": 0.0072,
+      "name": "ArMatrix L-Amplifier 45B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 84,
+      "category": "Energy Amp",
+      "decay": 0.00064,
+      "name": "ArMatrix L-Amplifier 4B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 50B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 55B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 60B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 65B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 126,
+      "category": "Energy Amp",
+      "decay": 0.00096,
+      "name": "ArMatrix L-Amplifier 6B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 70B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1032,
+      "category": "Energy Amp",
+      "decay": 0.00787,
+      "name": "ArMatrix L-Amplifier 75B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 168,
+      "category": "Energy Amp",
+      "decay": 0.00128,
+      "name": "ArMatrix L-Amplifier 8B (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00069,
+      "name": "Beacin Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00039,
+      "name": "Bjornir Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.03297,
+      "name": "Block Rocker BLP Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.06865,
+      "name": "Block Rocker BLP Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 500,
+      "category": "Energy Amp",
+      "decay": 0.02,
+      "name": "Boom AAC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.01437,
+      "name": "Boom ACC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1200,
+      "category": "Energy Amp",
+      "decay": 0.04751,
+      "name": "Boom BBC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "Energy Amp",
+      "decay": 0.0185,
+      "name": "Boom BCC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.00969,
+      "name": "Boom CCC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.00477,
+      "name": "Bull Tac10 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.01195,
+      "name": "Bull Tac20 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "BLP Amp",
+      "decay": 0.0093,
+      "name": "Bull Tac25 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.01139,
+      "name": "Bull Tac30 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.01095,
+      "name": "Bull Tac40 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 400,
+      "category": "BLP Amp",
+      "decay": 0.01311,
+      "name": "Bull Tac50 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 400,
+      "category": "BLP Amp",
+      "decay": 0.01779,
+      "name": "Bull Tac60 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 600,
+      "category": "BLP Amp",
+      "decay": 0.02,
+      "name": "Bull Tac70 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 700,
+      "category": "BLP Amp",
+      "decay": 0.025,
+      "name": "Bull Tac80 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 900,
+      "category": "BLP Amp",
+      "decay": 0.03207,
+      "name": "Bull TacElite (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0004,
+      "name": "Bullseye 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0005,
+      "name": "Bullseye 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0006,
+      "name": "Bullseye 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0007,
+      "name": "Bullseye 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0008,
+      "name": "Bullseye 5",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0009,
+      "name": "Bullseye 6",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.001,
+      "name": "Bullseye 7",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0011,
+      "name": "Bullseye 8",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0004,
+      "name": "Bullseye I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0005,
+      "name": "Bullseye II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Bullseye III (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Bullseye IV (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Bullseye V (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0009,
+      "name": "Bullseye VI (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.001,
+      "name": "Bullseye VII (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Bullseye VIII (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.0,
+      "name": "Bust-A-BLP Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.0,
+      "name": "Bust-A-BLP Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Castar Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 409,
+      "category": "BLP Amp",
+      "decay": 0.0022,
+      "name": "CDF BLP Power Amp 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 632,
+      "category": "BLP Amp",
+      "decay": 0.0,
+      "name": "CDF BLP Power Amp 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 810,
+      "category": "BLP Amp",
+      "decay": 0.00466,
+      "name": "CDF BLP Power Amp 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1400,
+      "category": "BLP Amp",
+      "decay": 0.0099,
+      "name": "CDF BLP Power Amp 4 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 402,
+      "category": "Energy Amp",
+      "decay": 0.0026,
+      "name": "CDF Laser Power Amp 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 530,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "CDF Laser Power Amp 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 880,
+      "category": "Energy Amp",
+      "decay": 0.0054,
+      "name": "CDF Laser Power Amp 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1722,
+      "category": "Energy Amp",
+      "decay": 0.0099,
+      "name": "CDF Laser Power Amp 4 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.0066,
+      "name": "Chahen BLP AMP V1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 68,
+      "category": "BLP Amp",
+      "decay": 0.0125,
+      "name": "Chahen BLP AMP V2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 110,
+      "category": "BLP Amp",
+      "decay": 0.0,
+      "name": "Chahen BLP AMP V3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00042,
+      "name": "Cinclar Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00051,
+      "name": "Dacascos Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 351,
+      "category": "BLP Amp",
+      "decay": 0.0,
+      "name": "DSEC BLP Amp v1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 524,
+      "category": "BLP Amp",
+      "decay": 0.0338,
+      "name": "DSEC BLP Amp v2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 312,
+      "category": "Energy Amp",
+      "decay": 0.0102,
+      "name": "DSEC Laser Amp v1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 483,
+      "category": "Energy Amp",
+      "decay": 0.03699,
+      "name": "DSEC Laser Amp v2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00096,
+      "name": "Dynera Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.00711,
+      "name": "E-Amp 11",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.01556,
+      "name": "E-Amp 12",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.0293,
+      "name": "E-Amp 13",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.04311,
+      "name": "E-Amp 14",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.05633,
+      "name": "E-Amp 15",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Ecivox Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00059,
+      "name": "Elkarr Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.016,
+      "name": "Enkidd Black Widow (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.018,
+      "name": "Enkidd Brown Recluse (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "BLP Amp",
+      "decay": 0.014,
+      "name": "Enkidd Camel Spider (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Enkidd Dismalites (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.012,
+      "name": "Enkidd Red-Back (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.01897,
+      "name": "Fi/Ra/Co Angst",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.02366,
+      "name": "Fi/Ra/Co Beast",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.02826,
+      "name": "Fi/Ra/Co Beast, SGA Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "BLP Amp",
+      "decay": 0.04522,
+      "name": "Fi/Ra/Co Cause",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 245,
+      "category": "BLP Amp",
+      "decay": 0.04102,
+      "name": "Fi/Ra/Co Cause, Adjusted",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 276,
+      "category": "BLP Amp",
+      "decay": 0.0388,
+      "name": "Fi/Ra/Co Cause, Improved",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 292,
+      "category": "BLP Amp",
+      "decay": 0.0383,
+      "name": "Fi/Ra/Co Cause, Modified",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.04,
+      "name": "Fi/Ra/Co Dante",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.0595,
+      "name": "Fi/Ra/Co Evil",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 320,
+      "category": "BLP Amp",
+      "decay": 0.0595,
+      "name": "Fi/Ra/Co Evil, Adjusted",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 354,
+      "category": "BLP Amp",
+      "decay": 0.0595,
+      "name": "Fi/Ra/Co Evil, Improved",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 386,
+      "category": "BLP Amp",
+      "decay": 0.0595,
+      "name": "Fi/Ra/Co Evil, Modified",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Flexur Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Framur Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0009,
+      "name": "Gargul Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0007,
+      "name": "Grender Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00072,
+      "name": "Hanzor Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Hawk 1k (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Hawk 2k (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Hawk 3k (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00023,
+      "name": "Headshot 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00032,
+      "name": "Headshot 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00041,
+      "name": "Headshot 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0005,
+      "name": "Headshot 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00023,
+      "name": "Headshot I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Headshot II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Headshot III (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Headshot IV (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 190,
+      "category": "Energy Amp",
+      "decay": 0.00465,
+      "name": "Hotfoot 10 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 325,
+      "category": "Energy Amp",
+      "decay": 0.0079,
+      "name": "Hotfoot 15 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 465,
+      "category": "Energy Amp",
+      "decay": 0.01066,
+      "name": "Hotfoot 20 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 565,
+      "category": "Energy Amp",
+      "decay": 0.01261,
+      "name": "Hotfoot 25 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 700,
+      "category": "Energy Amp",
+      "decay": 0.01589,
+      "name": "Hotfoot 30 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 820,
+      "category": "Energy Amp",
+      "decay": 0.01826,
+      "name": "Hotfoot 35 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 915,
+      "category": "Energy Amp",
+      "decay": 0.02077,
+      "name": "Hotfoot 40 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1055,
+      "category": "Energy Amp",
+      "decay": 0.02351,
+      "name": "Hotfoot 45 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 75,
+      "category": "Energy Amp",
+      "decay": 0.00182,
+      "name": "Hotfoot 5 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1135,
+      "category": "Energy Amp",
+      "decay": 0.02509,
+      "name": "Hotfoot 50 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00098,
+      "name": "Hunnir Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0003,
+      "name": "I.C.U Laser Sight Mk I",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00109,
+      "name": "Ignaritz Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00082,
+      "name": "Ikamar Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00126,
+      "name": "Jakth Laser Sight",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00088,
+      "name": "Jzar Precision Scope",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00058,
+      "name": "Longreach 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00066,
+      "name": "Longreach 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00075,
+      "name": "Longreach 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00083,
+      "name": "Longreach 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Longreach I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Longreach II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Longreach III (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Longreach IV (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.00889,
+      "name": "Loughlin HyperEdge M-Amp 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin HyperEdge M-Amp 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin Master M-Amp 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin Master M-Amp 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin Master M-Amp 4 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin NanoRep M-Amp 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Loughlin NanoRep M-Amp 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.0464,
+      "name": "Low Rider BLP Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.101,
+      "name": "Low Rider BLP Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0002,
+      "name": "Lucky Laser Sight Mk I",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Lucky Laser Sight Mk II",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.02331,
+      "name": "Marshall Laser Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Marshall Laser Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "BLP Amp",
+      "decay": 0.00019,
+      "name": "Mayhem B-Amplifier Alpha (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "BLP Amp",
+      "decay": 0.00019,
+      "name": "Mayhem B-Amplifier Beta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "BLP Amp",
+      "decay": 0.00019,
+      "name": "Mayhem B-Amplifier Delta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "BLP Amp",
+      "decay": 0.00019,
+      "name": "Mayhem B-Amplifier Gamma (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1080,
+      "category": "MF Amp",
+      "decay": 0.012,
+      "name": "Mayhem Kinetic Amplifier 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1260,
+      "category": "MF Amp",
+      "decay": 0.014,
+      "name": "Mayhem Kinetic Amplifier 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1440,
+      "category": "MF Amp",
+      "decay": 0.016,
+      "name": "Mayhem Kinetic Amplifier 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1620,
+      "category": "MF Amp",
+      "decay": 0.018,
+      "name": "Mayhem Kinetic Amplifier 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1800,
+      "category": "MF Amp",
+      "decay": 0.02,
+      "name": "Mayhem Kinetic Amplifier 5",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 898,
+      "category": "Energy Amp",
+      "decay": 0.00018,
+      "name": "Mayhem L-Amplifier Alpha (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "Energy Amp",
+      "decay": 0.00019,
+      "name": "Mayhem L-Amplifier Beta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "Energy Amp",
+      "decay": 0.00019,
+      "name": "Mayhem L-Amplifier Delta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 998,
+      "category": "Energy Amp",
+      "decay": 0.00019,
+      "name": "Mayhem L-Amplifier Gamma (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.00019,
+      "name": "Mayhem M-Matrix Alpha (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Mayhem M-Matrix Beta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Mayhem M-Matrix Delta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Mayhem M-Matrix Gamma (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 898,
+      "category": "MF Amp",
+      "decay": 0.00019,
+      "name": "Mayhem MF-Amplfier Alpha (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.12,
+      "name": "Mayhem Trauma Amplifier 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.14,
+      "name": "Mayhem Trauma Amplifier 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.16,
+      "name": "Mayhem Trauma Amplifier 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.18,
+      "name": "Mayhem Trauma Amplifier 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.2,
+      "name": "Mayhem Trauma Amplifier 5",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Bimodal Amplifier 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Bimodal Amplifier 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Bimodal Amplifier 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Durability Amplifier 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Durability Amplifier 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Melee Durability Amplifier 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.01,
+      "name": "Melee Durability Amplifier 92 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.00889,
+      "name": "Melee Trauma Amplifier 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.00889,
+      "name": "Melee Trauma Amplifier 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.09779,
+      "name": "Melee Trauma Amplifier 10",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.10668,
+      "name": "Melee Trauma Amplifier 10, FEN Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.01778,
+      "name": "Melee Trauma Amplifier 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.01778,
+      "name": "Melee Trauma Amplifier 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.01768,
+      "name": "Melee Trauma Amplifier 2, Adjusted",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.02667,
+      "name": "Melee Trauma Amplifier 2, FEN Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.03556,
+      "name": "Melee Trauma Amplifier 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.03556,
+      "name": "Melee Trauma Amplifier 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.04444,
+      "name": "Melee Trauma Amplifier 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.05334,
+      "name": "Melee Trauma Amplifier 5",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.06223,
+      "name": "Melee Trauma Amplifier 6",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.06108,
+      "name": "Melee Trauma Amplifier 6, Improved",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.07112,
+      "name": "Melee Trauma Amplifier 7",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.08001,
+      "name": "Melee Trauma Amplifier 8",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.07766,
+      "name": "Melee Trauma Amplifier 8, Modified",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0889,
+      "name": "Melee Trauma Amplifier 9",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Melee Amp",
+      "decay": 0.0,
+      "name": "Mestawy Melee AMP V1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 40,
+      "category": "Energy Amp",
+      "decay": 0.008,
+      "name": "Muzwed Energy AMP V1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 110,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Muzwed Energy AMP V2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 166,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Muzwed Energy AMP V3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 42,
+      "category": "MF Amp",
+      "decay": 0.00042,
+      "name": "NeoPsion Kinetic Amplifier 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 39,
+      "category": "MF Amp",
+      "decay": 0.00045,
+      "name": "NeoPsion Kinetic Amplifier 1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 84,
+      "category": "MF Amp",
+      "decay": 0.00083,
+      "name": "NeoPsion Kinetic Amplifier 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 78,
+      "category": "MF Amp",
+      "decay": 0.00088,
+      "name": "NeoPsion Kinetic Amplifier 2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 169,
+      "category": "MF Amp",
+      "decay": 0.0016,
+      "name": "NeoPsion Kinetic Amplifier 3",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 157,
+      "category": "MF Amp",
+      "decay": 0.00164,
+      "name": "NeoPsion Kinetic Amplifier 3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 253,
+      "category": "MF Amp",
+      "decay": 0.0023,
+      "name": "NeoPsion Kinetic Amplifier 4",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 235,
+      "category": "MF Amp",
+      "decay": 0.00245,
+      "name": "NeoPsion Kinetic Amplifier 4 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 380,
+      "category": "MF Amp",
+      "decay": 0.00333,
+      "name": "NeoPsion Kinetic Amplifier 5",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 353,
+      "category": "MF Amp",
+      "decay": 0.00359,
+      "name": "NeoPsion Kinetic Amplifier 5 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 570,
+      "category": "MF Amp",
+      "decay": 0.0,
+      "name": "NeoPsion Kinetic Amplifier 6",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 530,
+      "category": "MF Amp",
+      "decay": 0.00567,
+      "name": "NeoPsion Kinetic Amplifier 6 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 758,
+      "category": "MF Amp",
+      "decay": 0.0067,
+      "name": "NeoPsion Kinetic Amplifier 7",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 706,
+      "category": "MF Amp",
+      "decay": 0.0071,
+      "name": "NeoPsion Kinetic Amplifier 7 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 842,
+      "category": "MF Amp",
+      "decay": 0.00744,
+      "name": "NeoPsion Kinetic Amplifier 7, FEN Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.00652,
+      "name": "Omegaton A101",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.00521,
+      "name": "Omegaton A102",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.01606,
+      "name": "Omegaton A103",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.02039,
+      "name": "Omegaton A104",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.03012,
+      "name": "Omegaton A104, Ancient",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.02267,
+      "name": "Omegaton A104, SGA Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.0247,
+      "name": "Omegaton A105",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 228,
+      "category": "Energy Amp",
+      "decay": 0.0247,
+      "name": "Omegaton A105 Hypercharged",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 175,
+      "category": "Energy Amp",
+      "decay": 0.0247,
+      "name": "Omegaton A105 Overcharged",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 121,
+      "category": "Energy Amp",
+      "decay": 0.02476,
+      "name": "Omegaton A105, Adjusted",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 143,
+      "category": "Energy Amp",
+      "decay": 0.02473,
+      "name": "Omegaton A105, Improved",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.02902,
+      "name": "Omegaton A106",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.00521,
+      "name": "Omegaton A201",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.01164,
+      "name": "Omegaton A202",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.02243,
+      "name": "Omegaton A203",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.0331,
+      "name": "Omegaton A204",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 374,
+      "category": "Energy Amp",
+      "decay": 0.03315,
+      "name": "Omegaton A204 Hypercharged",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 242,
+      "category": "Energy Amp",
+      "decay": 0.0331,
+      "name": "Omegaton A204 Overcharged",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 121,
+      "category": "Energy Amp",
+      "decay": 0.03316,
+      "name": "Omegaton A204, Adjusted",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 143,
+      "category": "Energy Amp",
+      "decay": 0.03311,
+      "name": "Omegaton A204, Improved",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.03793,
+      "name": "Omegaton A204, SGA Edition",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 400,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Omegaton Amplifier, Modified",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 23,
+      "category": "Energy Amp",
+      "decay": 2e-05,
+      "name": "Omegaton B101 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00098,
+      "name": "Omegaton Laser Sight Mk. 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00098,
+      "name": "Omegaton Laser Sight Mk. 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00071,
+      "name": "Omegaton Ranger Scope Mk. 1",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00071,
+      "name": "Omegaton Ranger Scope Mk. 2",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "Prototype Mounted Flashlight Smuggler",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 165,
+      "category": "BLP Amp",
+      "decay": 0.00467,
+      "name": "Rage 10 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.00781,
+      "name": "Rage 15 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 415,
+      "category": "BLP Amp",
+      "decay": 0.01063,
+      "name": "Rage 20",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 415,
+      "category": "BLP Amp",
+      "decay": 0.01063,
+      "name": "Rage 20 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 515,
+      "category": "BLP Amp",
+      "decay": 0.01255,
+      "name": "Rage 25",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 515,
+      "category": "BLP Amp",
+      "decay": 0.01255,
+      "name": "Rage 25 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 590,
+      "category": "BLP Amp",
+      "decay": 0.01459,
+      "name": "Rage 30 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 650,
+      "category": "BLP Amp",
+      "decay": 0.01574,
+      "name": "Rage 35",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 650,
+      "category": "BLP Amp",
+      "decay": 0.01574,
+      "name": "Rage 35 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 725,
+      "category": "BLP Amp",
+      "decay": 0.01778,
+      "name": "Rage 40 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 860,
+      "category": "BLP Amp",
+      "decay": 0.02098,
+      "name": "Rage 45 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 70,
+      "category": "BLP Amp",
+      "decay": 0.00226,
+      "name": "Rage 5 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 935,
+      "category": "BLP Amp",
+      "decay": 0.02302,
+      "name": "Rage 50 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 500,
+      "category": "BLP Amp",
+      "decay": 0.0182,
+      "name": "RapMan (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "BLP Amp",
+      "decay": 0.01437,
+      "name": "Rapper (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "BLP Amp",
+      "decay": 0.01843,
+      "name": "Rapper Snapper (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 800,
+      "category": "BLP Amp",
+      "decay": 0.02757,
+      "name": "RapSTAR (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 700,
+      "category": "BLP Amp",
+      "decay": 0.0002,
+      "name": "RDI Binary Amplifier (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 350,
+      "category": "Energy Amp",
+      "decay": 0.0001,
+      "name": "RDI Energy Amplifier Alpha (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 700,
+      "category": "Energy Amp",
+      "decay": 0.0002,
+      "name": "RDI Energy Amplifier Beta (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.00478,
+      "name": "Road-Monkey Laser Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.03,
+      "name": "Road-Monkey Laser Amp Mk IV (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.00477,
+      "name": "Roadie BLP Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.01194,
+      "name": "Roadie BLP Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 20,
+      "category": "Energy Amp",
+      "decay": 0.00046,
+      "name": "Rookie Laser Amp (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0004,
+      "name": "S & B Mounted Light P1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "S & B Mounted Light P2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "S & B Mounted Light R1 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "S & B Mounted Light R2 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "S & B Mounted Light R3 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0,
+      "name": "S & B Mounted Light R4 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0002,
+      "name": "Seizzt Laser Sight 2000L",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00017,
+      "name": "Seizzt Laser Sight 2000L+",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0002,
+      "name": "Seizzt Ranger Scope 1800RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0002,
+      "name": "Seizzt Ranger Scope 1850RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00026,
+      "name": "Seizzt Ranger Scope 1900RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00029,
+      "name": "Seizzt Ranger Scope 1950RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00032,
+      "name": "Seizzt Ranger Scope 2500RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00037,
+      "name": "Seizzt Ranger Scope 3500RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Seizzt Ranger Scope 4000RS",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.065,
+      "name": "Shack-A-Lacka Laser Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.0234,
+      "name": "Shack-A-Lacka Laser Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 600,
+      "category": "Energy Amp",
+      "decay": 0.01975,
+      "name": "Shear Pro600 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 700,
+      "category": "Energy Amp",
+      "decay": 0.02451,
+      "name": "Shear Pro700 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 900,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Shear Pro900 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1000,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Shear ProM (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 1400,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Shear ProMC (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.00478,
+      "name": "Shear XR40 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.012,
+      "name": "Shear XR50 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.00931,
+      "name": "Shear XR55 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "Energy Amp",
+      "decay": 0.01139,
+      "name": "Shear XR60 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "Energy Amp",
+      "decay": 0.01093,
+      "name": "Shear XR70 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 400,
+      "category": "Energy Amp",
+      "decay": 0.01312,
+      "name": "Shear XR80 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 400,
+      "category": "Energy Amp",
+      "decay": 0.01779,
+      "name": "Shear XR90 (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00029,
+      "name": "Sweet Scope Mk I",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Sweet Scope Mk II",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.0,
+      "name": "Sweet Scope Mk III",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "BLP Amp",
+      "decay": 0.00969,
+      "name": "T-Rap (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Teenie Weenie Laser Amp Mk I (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.01615,
+      "name": "Teenie Weenie Laser Amp Mk II (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0003,
+      "name": "Terrus Laser Sight SE600",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00036,
+      "name": "Terrus Laser Sight SE700",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.00037,
+      "name": "Terrus Laser Sight SE800",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0004,
+      "name": "Terrus Laser Sight SE900",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 300,
+      "category": "Energy Amp",
+      "decay": 0.018,
+      "name": "Xent Tech Light Amplification Crenshaw (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 100,
+      "category": "Energy Amp",
+      "decay": 0.014,
+      "name": "Xent Tech Light Amplification Sunset (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Energy Amp",
+      "decay": 0.0,
+      "name": "Xent Tech Light Amplification Vine (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 200,
+      "category": "Energy Amp",
+      "decay": 0.016,
+      "name": "Xent Tech Light Amplification Wilshire (L)",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Scope",
+      "decay": 0.00014,
+      "name": "ZX Eagle Eye",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 0,
+      "category": "Sight",
+      "decay": 0.0002,
+      "name": "ZX R-Dod",
+      "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 40,
+      "category": "Energy Amp",
+      "decay": 0.00032,
+      "name": "ZX Sinkadus",
+      "source_name": "LootNanny legacy seed"
+    }
+  ]
+}

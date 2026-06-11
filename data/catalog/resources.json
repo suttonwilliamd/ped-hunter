@@ -1,0 +1,6679 @@
+{
+  "items": [
+    {
+      "name": "A.R.C. Armor Mold (Arm Guards)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Boots)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Gloves)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Harness)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Helmet)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Leg Guards)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. Armor Mold (Shin Guards)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "A.R.C. HK Mold",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.005
+    },
+    {
+      "name": "A.R.C. Wire Harness",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Aakas Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Aakas Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Aarkan Polymer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Accelerative Matrix Component 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Accelerative Matrix Component 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.35
+    },
+    {
+      "name": "Accelerative Matrix Component 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Acid Root",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Adamite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Adaptive Fire Rate Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Adaptor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.2
+    },
+    {
+      "name": "Adomasite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Advanced Adaptive Fuse",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.96
+    },
+    {
+      "name": "Advanced Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Advanced Cooling System Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Advanced Electronic Fluid Memory",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.26
+    },
+    {
+      "name": "Advanced Fluid Energy Source",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Advanced Heavy Springs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Advanced Leather Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Advanced Matrix",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Advanced Metal Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Advanced Mineral Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Advanced Modulator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Advanced Mountings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.6
+    },
+    {
+      "name": "Advanced Optical Wave Emitter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.89
+    },
+    {
+      "name": "Advanced Organic Wire",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.03
+    },
+    {
+      "name": "Advanced Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.095
+    },
+    {
+      "name": "Advanced Scanning Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.33
+    },
+    {
+      "name": "Advanced Security Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2108
+    },
+    {
+      "name": "Advanced Spur Gears 6k",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Advanced Stone Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Advanced Strategic Combat Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Advanced Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.3
+    },
+    {
+      "name": "Advanced Target Assessment Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "Advanced VisioMem",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07191489361702127
+    },
+    {
+      "name": "Advanced Wood Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Aegirine Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Aetherex Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 14.1
+    },
+    {
+      "name": "Agrellite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Alferix Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.85
+    },
+    {
+      "name": "Alferix Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.95
+    },
+    {
+      "name": "Alicenies Gel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Alicenies Liquid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Alien Acid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.34
+    },
+    {
+      "name": "Alien Biogenic Gel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Alien Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.46
+    },
+    {
+      "name": "Alien Resin Fluid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Alkar Lattice",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Allophyl Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Alloy Hinge",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.1
+    },
+    {
+      "name": "Alloy Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.3
+    },
+    {
+      "name": "Alternative Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Alternative Rock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Amazon Leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Ambulimax Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 12.0
+    },
+    {
+      "name": "Ammolite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Angelic Flakes",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Angelic Grit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Angelite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Angle",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.56
+    },
+    {
+      "name": "Anhydrite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Animal Adrenal Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Animal Brain Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 19.0
+    },
+    {
+      "name": "Animal Eye Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Animal Heart Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 10.0
+    },
+    {
+      "name": "Animal Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Animal Kidney Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Animal Liver Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Animal Muscle Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Animal Oil Residue",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Animal Pancreas Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Animal Spleen Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Animal Thyroid Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Antimagnetic Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Apophyllite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.61
+    },
+    {
+      "name": "Aqeeq Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Aquatic Gland",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Aragonite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Araneatrox Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 15.0
+    },
+    {
+      "name": "Arc",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Arekite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Ares Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.26
+    },
+    {
+      "name": "Ares Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.52
+    },
+    {
+      "name": "Argonaut Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.7
+    },
+    {
+      "name": "Arkace Timber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Arkace Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Arkadian Golden Key Barrel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 18.0
+    },
+    {
+      "name": "Arkadian Golden Key Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Arkadian Golden Key Codex Chamber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 40.0
+    },
+    {
+      "name": "Arkadian Golden Key Cog",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 10.0
+    },
+    {
+      "name": "Arkadian Golden Key Gears",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Arkadian Golden Key Housing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 30.0
+    },
+    {
+      "name": "Arkadian Golden Key Inner Ring",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 20.0
+    },
+    {
+      "name": "Arkadian Golden Key Interface",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 12.0
+    },
+    {
+      "name": "Arkadian Golden Key Outer Ring",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 30.0
+    },
+    {
+      "name": "Arkadian Golden Key Power Source",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.0
+    },
+    {
+      "name": "Arkadian Hornet Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Armax Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Armax Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Armax Skull",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 13.0
+    },
+    {
+      "name": "Armax Tusk",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Atacamite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Atlantasite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Atrax Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.0
+    },
+    {
+      "name": "Atrox Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 9.0
+    },
+    {
+      "name": "Aumorphite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 8.09
+    },
+    {
+      "name": "Aurilinin Gel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.04
+    },
+    {
+      "name": "Aurli Bone Piece",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.4
+    },
+    {
+      "name": "Aurli Chitin Scale",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.0
+    },
+    {
+      "name": "Aurli Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Aurli Dense Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Aurli Fangs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Aurli Shock Flesh",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.78
+    },
+    {
+      "name": "Azur Pearls",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.96
+    },
+    {
+      "name": "Azzurdite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.6
+    },
+    {
+      "name": "Bahri Claw Tips",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Bahri Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Bahri Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Balancing Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Ball Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Banite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Barite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Basic Adaptive Fuse",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Basic Auxiliary Socket",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.013333333333333334
+    },
+    {
+      "name": "Basic Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Basic Bolts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Coil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Basic Electronic Fluid Memory",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Basic Filters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Leather Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Metal Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Mineral Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Nuts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Optical Wave Emitter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.68
+    },
+    {
+      "name": "Basic Organic Wire",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.82
+    },
+    {
+      "name": "Basic Plastic Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Power System",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.020789473684210528
+    },
+    {
+      "name": "Basic Propulsion System",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 15.0
+    },
+    {
+      "name": "Basic Relay",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Basic Rings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Basic Scanning Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "Basic Screws",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Basic Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.024
+    },
+    {
+      "name": "Basic Servo",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.014285714285714285
+    },
+    {
+      "name": "Basic Sheet Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03944444444444444
+    },
+    {
+      "name": "Basic Stone Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Strategic Combat Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Basic Structure",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.024
+    },
+    {
+      "name": "Basic Target Assessment Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Basic Targeting Chip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Basic Tube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Basic Vehicle Battery",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.91
+    },
+    {
+      "name": "Basic Vehicle Gearbox",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.63
+    },
+    {
+      "name": "Basic Vehicle Servo",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.28
+    },
+    {
+      "name": "Basic Vehicle Supercharger",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.51
+    },
+    {
+      "name": "Basic Vehicle Suspension",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.76
+    },
+    {
+      "name": "Basic Wires",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Basic Wood Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Beaten Metal Robot Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Beladoth Back Spike",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.5
+    },
+    {
+      "name": "Beladoth Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Beladoth Nail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.54
+    },
+    {
+      "name": "Belkar Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Bend",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.67
+    },
+    {
+      "name": "Berycled Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Beryl Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Big Daddy's Nut Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Bigwig Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.13
+    },
+    {
+      "name": "Bigwig Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Binary Energy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Binary Fluid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Binding Epoxy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Bismuth Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Black Russian Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Blank CD",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Blausariam Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Blazar Fragment",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Block Chisel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Bloodstone Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Bloody Chainsaw Gas Cap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Blue Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Blue Energized Glass",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Blues Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Boar Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Boar Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Boar Tusk",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Bodai Filler",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Bokol Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Bokol Spinal Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.5
+    },
+    {
+      "name": "Bombardo",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Bombardo Flakes",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Bonding Liquid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Bone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Bone-in Meat",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.13
+    },
+    {
+      "name": "Bornite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Brass Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.36
+    },
+    {
+      "name": "Broken Dreams",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Broken Firestarter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Broken Scorpion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.005
+    },
+    {
+      "name": "Bronze Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Brown Snake Skin Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Brukite",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Bustamite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Busted Zyn Mordincran",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Cable Slot Adapter Component 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Cable Slot Adapter Component 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Cable Slot Adapter Component 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Caboria Cord",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Caboria Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.28
+    },
+    {
+      "name": "Caboria Shell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Caldorite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.51
+    },
+    {
+      "name": "Caldorite Texture",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.37
+    },
+    {
+      "name": "Campbell's Basic Framework",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Carabok Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Carabok Leg Fur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Caroot Lubricant",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Cat's Eye Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Caudatergus Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Cbase Robot Plastic",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.13
+    },
+    {
+      "name": "Cersumon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Cerussite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Chair Frame",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Chalinum Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.6
+    },
+    {
+      "name": "Chalmon",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.94
+    },
+    {
+      "name": "Charisma Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Cheetah Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Chilling Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Chimera Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Chimera Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Chimera Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Chlorite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Chomper Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.72
+    },
+    {
+      "name": "Chomper Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.26
+    },
+    {
+      "name": "Chrysoberyl Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Chrysoberyl Fasteners",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Citrine Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Clear Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "CND Bananas",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Cobalt Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Cobaltium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Code Demon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Cold Fabric",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.39
+    },
+    {
+      "name": "Color Enhancing Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Combibo Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.69
+    },
+    {
+      "name": "Combustor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Component Grease",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Component Widget 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 4",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 5",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 6",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 7",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Component Widget 8",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Compouned Plastic Seal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Compressed Plastic Spacers",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Concentrated Phlogiston",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Conduit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.35
+    },
+    {
+      "name": "Copper Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.48
+    },
+    {
+      "name": "Cordul Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Cornundacauda Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.35
+    },
+    {
+      "name": "Cornundos Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Corria Timber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Corria Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Couger Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Cracked Shell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Creative Juice",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Crude Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Crystal Honey",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Crystal Pede Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Crystalline Core",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.19
+    },
+    {
+      "name": "Cube Empowered Lube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Cube Enhanced Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Cube Fortified Motherboard",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Cube Infused Calcium",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Cube Infused Hormone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "CUHOF Key Pins",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Cultist Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.6
+    },
+    {
+      "name": "Cumbriz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Cute Chainsaw Gas Cap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Cyclops Arm",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Cyclops Club",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Cyclops Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Cyclops Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Cyclops Leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Cyclops Pouch",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Cyclops Wrist Guard",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Cyrene Mission Token",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Dahhar Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Dahhar Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Daikiba Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.96
+    },
+    {
+      "name": "Daikiba Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Danburite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Dark Lysterium Bar",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Dark Lysterium Cogs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Darkening Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.16
+    },
+    {
+      "name": "Daudaormur Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Decent Calcium Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Decent Magnesium Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Decent Protein Strain",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Desire  Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Devil's Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.47
+    },
+    {
+      "name": "Diagen Matrix",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Dianthus Crystal Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Dianum Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.75
+    },
+    {
+      "name": "Dianum Texture",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.45
+    },
+    {
+      "name": "Diluted Body Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Diluted Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Diluted Mineral Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Dire Weed Flaxen",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Disapointment Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Disc Brake",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Discharge Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.5
+    },
+    {
+      "name": "Discipline Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Distilled Sweat Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.11
+    },
+    {
+      "name": "Divine GPS Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Doors Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Dragon Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Dragon Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Dragon Heart",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Dragon Horn",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Drake Heart",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Drake Soul",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Dreams",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Drive Shaft",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Dromia Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Duhol Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.27
+    },
+    {
+      "name": "Duhol Strings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.22
+    },
+    {
+      "name": "Dunkel Plastix",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.1
+    },
+    {
+      "name": "Durable Coil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06588235294117648
+    },
+    {
+      "name": "Durable Hood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.041666666666666664
+    },
+    {
+      "name": "Durable Structure",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14857142857142858
+    },
+    {
+      "name": "Durulium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.4
+    },
+    {
+      "name": "Edres Varnish",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.26
+    },
+    {
+      "name": "Electric Drakescale",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Electronic Stabilizing Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Electropositive Capacitor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.032857142857142856
+    },
+    {
+      "name": "Electropositive Modulator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02095238095238095
+    },
+    {
+      "name": "Electropositive Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.041875
+    },
+    {
+      "name": "Electropositive Security Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Elvis Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Elvis Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Elvis Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Elysian Power Sphere",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Elysian Tech Chip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Empis Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.4
+    },
+    {
+      "name": "Empty Enhancer Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Energized Crystal Cell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Energy Chamber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Enhanced Adaptive Fuse",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.17
+    },
+    {
+      "name": "Enhanced Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Enhanced Electronic Fluid Memory",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.53
+    },
+    {
+      "name": "Enhanced Metal Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Enhanced Mineral Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Enhanced Mountings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.9
+    },
+    {
+      "name": "Enhanced Organic Wire",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.24
+    },
+    {
+      "name": "Enhanced Scanning Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.61
+    },
+    {
+      "name": "Enhanced Strategic Combat Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.47
+    },
+    {
+      "name": "Enhanced Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.6
+    },
+    {
+      "name": "Enhanced Target Assessment Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.41
+    },
+    {
+      "name": "Eomon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 18.66
+    },
+    {
+      "name": "Erdorium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Erdorium Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Erionite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Exarosaur Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.36
+    },
+    {
+      "name": "Exarosaur Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Explosive Projectiles",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0001
+    },
+    {
+      "name": "Extended Bolt Carriage",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Extended Breech",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.7
+    },
+    {
+      "name": "Failure Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Fairuz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Faith Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Faucervix Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Feedback Coupling",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.5
+    },
+    {
+      "name": "Feffox Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.09
+    },
+    {
+      "name": "Feran Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Feran Wing Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Ferguson's All Purpose Lube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Ferguson's Amalgam",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06714285714285714
+    },
+    {
+      "name": "Ferguson's Refined Amalgam",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "Fi/Ra/Co Cause Parts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Fi/Ra/Co Evil Parts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Fiery Drakescale",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Fine Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Fine Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Fine Lens",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Fine Textile",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Fine Wool",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Fire Root Pellet",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Firn Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.59
+    },
+    {
+      "name": "Firn Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Fish Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Flair Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Flash Suppressor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.2
+    },
+    {
+      "name": "Flesh Ripper Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 14.1
+    },
+    {
+      "name": "Flint Arrow Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Flint Axe Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Florican Mist",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.27
+    },
+    {
+      "name": "Florican Spray",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.54
+    },
+    {
+      "name": "Fluorite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Fly Amber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Focus Lens Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Focus Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Focusing Lens",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Folk Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Folk Rock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Force Nexus",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Foresight Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Formidon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.38
+    },
+    {
+      "name": "Fossil Ammonite",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Fossil Tooth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Foul Bone Buttons",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Foul Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Frakite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Frescoquda Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.62
+    },
+    {
+      "name": "Frigulerian Dust",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.44
+    },
+    {
+      "name": "Frigulite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.36
+    },
+    {
+      "name": "Frigulite Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Frosty Drakescale",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Fuel Cells",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Fugabarba Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Galaurphite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 14.735
+    },
+    {
+      "name": "Galaxy 12V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Galaxy 14V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.2
+    },
+    {
+      "name": "Galaxy 6V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Galaxy 8V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.4
+    },
+    {
+      "name": "Galaxy S1 Ion Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Galaxy S2 Ion Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Galaxy S3 Ion Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Gallard Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Galvesperdite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.365
+    },
+    {
+      "name": "Gamer Chick Trucker Cap Blueprint",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Ganganite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.36
+    },
+    {
+      "name": "Garcen Grease",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Garcen Lubricant",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Garcia Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Garcia Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Garcia Wing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Gas Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.25
+    },
+    {
+      "name": "Gas Plug",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Gazzurdite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Gazzurdite Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "GEC Coil Springs 1M",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "GEC Coil Springs 2M",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "GEC Spur Gears 1K",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "GEC Spur Gears 2K",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "GEC Spur Gears 4K",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.75
+    },
+    {
+      "name": "GEC Spur Gears 5K",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Generic Fuse",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Generic Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Generic Transformer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "GeoTrek Buttstock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "GeoTrek EnBolts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.3
+    },
+    {
+      "name": "GeoTrek Hardened Buttstock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "GeoTrek Hardened EnBolts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.4
+    },
+    {
+      "name": "GeoTrek Hardened Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.1
+    },
+    {
+      "name": "GeoTrek Super Alloy Buttstock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "GeoTrek Super Alloy EnBolts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "GeoTrek Super Alloy Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "GeoTrek Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Ghali Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Gimbals",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Girder Beams",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Glam Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "GMC Gamma Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Gold Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Gold Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Golden Chainsaw Gas Cap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Golden Shaker",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Good Calcium Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Gorbek Tallow",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Gradivore Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Gradivore Textile",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.92
+    },
+    {
+      "name": "Gray Cassette",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Greater Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Green Cassette",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Green CD",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Green Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Green Energized Glass",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Grindhouse Rodriguez Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Grindhouse Sleaze Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Grindhouse Striptease Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Grindhouse Tarantino Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Grunge Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Hadraada Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Hadraada Spinal Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Haimoros Gel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Halite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Halix Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Halix Leg Fur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Halix Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Hansidian Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Hard Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Hard Work Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Hardened Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.041428571428571426
+    },
+    {
+      "name": "Hardened Clips",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06230769230769231
+    },
+    {
+      "name": "Hardened Foil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.033
+    },
+    {
+      "name": "Hardened Metal Mountings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Hardened Metal Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Hardened Metal Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Hardened Nuts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03318181818181818
+    },
+    {
+      "name": "Hardened Pipe",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.032857142857142856
+    },
+    {
+      "name": "Hardened Screws",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Hardening Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Hareer Thread",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Harvey Wallbanger Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Hazy Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Heat Shields",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Heating Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Heavy Duty Core",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Heavy Duty Filters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Heavy-Duty Seals",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Hebredite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Hekia Timber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Hekia Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Helen Venture's Walking Stick",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Hematite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Hendrix Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Hendrix Dragon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Hendrix Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Henren Cube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.26
+    },
+    {
+      "name": "Hexra Electroplate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "High Definition GUI Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "High Grade Alloy",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12777777777777777
+    },
+    {
+      "name": "High Grade Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "High Grade Metal Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "High Grade Plugs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "High Grade Power Supply",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "High Grade Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.264
+    },
+    {
+      "name": "High Grade Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "High Grade Screws",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "High Performance Engine",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "High Performance Filters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "High Performance Vents",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "High Speed Control Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "High-Tech Talytic Converters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.8
+    },
+    {
+      "name": "Himi Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4266666666666667
+    },
+    {
+      "name": "Holly ECO P35 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Holly ECO P56 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Holly ECO P72 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Horny Devil Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Hoverboard High Power Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Hoverboard High Power Pod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Hoverboard Low Power Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Hoverboard Low Power Pod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Hoverboard Mid Power Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Hoverboard Mid Power Pod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Human Skull",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 21.0
+    },
+    {
+      "name": "Huon Foot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Huon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.6
+    },
+    {
+      "name": "Huon Tail Spike",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.8
+    },
+    {
+      "name": "Hurricane Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Hyalite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Hydrogen Gas",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Ignisium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.1
+    },
+    {
+      "name": "Imperium Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.55
+    },
+    {
+      "name": "Imperium Compression Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.55
+    },
+    {
+      "name": "Imperium Control Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.55
+    },
+    {
+      "name": "Imperium Cube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Imperium Key Cube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.525
+    },
+    {
+      "name": "Imperium Servo",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.55
+    },
+    {
+      "name": "Infected Source Code",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Inferior Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Infrasound Amplifier Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Infrasound Emitter Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Inhaler",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Insight Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Insulators",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Intensity Amplifier",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.5
+    },
+    {
+      "name": "Interactive Simplifier Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Iolite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Iridium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Iron Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.39
+    },
+    {
+      "name": "Itumatrox Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.05
+    },
+    {
+      "name": "Jagged Tooth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Jazz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Jeef Core Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Jeef Nawa Core Part",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Jeef Qaher Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.38
+    },
+    {
+      "name": "Jeef Zajer Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.48
+    },
+    {
+      "name": "Jellyworm Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.22333333333333333
+    },
+    {
+      "name": "Joplin Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Joplin Dragon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Joplin Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Joplin Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Joplin Wing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Jori Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Jori Pectoral Fin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Kadra Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.2
+    },
+    {
+      "name": "Kadra Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Kadra Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Kaisenite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Kaldon",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Kamaldon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.2
+    },
+    {
+      "name": "Kamaldon Lower Mandible",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Kamaldon Upper Mandible",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Kamikaze Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "Kanerium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.5
+    },
+    {
+      "name": "Kaz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Kevin Rudolf - In The City Flip Flop",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Kevin Rudolf - To The Sky Flip Flop",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.13
+    },
+    {
+      "name": "Khaffash Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Khorudoul Polymer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Khorum Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Kiana Ear",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Kiana Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Kiana Paw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.5
+    },
+    {
+      "name": "Kirtz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 16.8
+    },
+    {
+      "name": "Korwil Ear",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Korwil Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.4
+    },
+    {
+      "name": "Korwil Paw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.2
+    },
+    {
+      "name": "Kreltin Soft Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.5
+    },
+    {
+      "name": "L-O-V-E Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Lamp Attachments",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Langotz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.7
+    },
+    {
+      "name": "Lanorium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.66
+    },
+    {
+      "name": "Large Plug",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "Leethiz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Lemmy Hemp Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Lemmy Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Lemmy Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Lemmy Wing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Lepidocrosite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Lesser Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Lesser Elysia",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Letomie Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.02
+    },
+    {
+      "name": "Lidacon Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Life Essence",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Light Liquid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.84
+    },
+    {
+      "name": "Light Mail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Light Metal Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Light Mind Essence",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0001
+    },
+    {
+      "name": "Light Power Cell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Lightening Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Living Vortex Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Long Bigwig Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.66
+    },
+    {
+      "name": "Long Firn Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.91
+    },
+    {
+      "name": "Long Island Ice Tea Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Long Midastree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.38
+    },
+    {
+      "name": "Long Moonleaf Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Long Screws",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Long Stinktree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.52
+    },
+    {
+      "name": "Longtooth Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Longu Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Lotium Gel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Low Grade Electronic Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "Low Grade Metal Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Low Grade Motherboard",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.52
+    },
+    {
+      "name": "Low Grade Motion Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Low Grade Power Supply",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01875
+    },
+    {
+      "name": "Low Grade Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Luck Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Lulu pearl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.36
+    },
+    {
+      "name": "Lurker Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Lurker Lube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Lycan Charm Bracelets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Lysterium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Lysterium Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Lystionite Steel Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.013333333333334
+    },
+    {
+      "name": "Lytairian Dust",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.19
+    },
+    {
+      "name": "Lytairian Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.38
+    },
+    {
+      "name": "Madana Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Madana Leg Fur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Madana Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Maganite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.15
+    },
+    {
+      "name": "Magerian Mist",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Magerian Spray",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Magnetic Accelerator Power Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 15.0
+    },
+    {
+      "name": "Magtonium Dust",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.47
+    },
+    {
+      "name": "Magurg Male Pincer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Mahogany Long Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Mahogany Regular Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Mai Tai Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Maladrite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Mamnoon Mist",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.16
+    },
+    {
+      "name": "Mang Chang Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Maple Long Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Maple Regular Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Maple Short Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Marble Block",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 10.0
+    },
+    {
+      "name": "Marble Brick",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Marble Cylinder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 20.0
+    },
+    {
+      "name": "Marcimex Brain Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Marcimex Slime",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Marine Chainsaw Gas Cap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Maro Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.52
+    },
+    {
+      "name": "Material Efficiency Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Material Softener",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14
+    },
+    {
+      "name": "Mechano-Stabilizer Component 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Mechano-Stabilizer Component 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Mechano-Stabilizer Component 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Mechanomatrix Adapter Unit 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.39
+    },
+    {
+      "name": "Mechanomatrix Adapter Unit 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Mechanomatrix Adapter Unit 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.65
+    },
+    {
+      "name": "Medical Compress",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Medium Grade Metal Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.276
+    },
+    {
+      "name": "Medium Grade Motherboard",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Medium Grade Power Supply",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0475
+    },
+    {
+      "name": "Medium Grade Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Medium Grade Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.066
+    },
+    {
+      "name": "Medium Power Cell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Megan Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.54
+    },
+    {
+      "name": "Melatinum Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Melchi Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Melchi Water",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Mermoth Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.39
+    },
+    {
+      "name": "Merp Textile",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.08
+    },
+    {
+      "name": "Metal Mountings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Metal Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Metal Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.35
+    },
+    {
+      "name": "Midastree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Midastree Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Miluca Timber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Miluca Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Mind Essence",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0001
+    },
+    {
+      "name": "Minotaur Arm",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Minotaur Head",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Minotaur Horn",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Minotaur Leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Minotaur Shin Guard",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Minotaur Shoulder Pauldron",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.014923076923076923
+    },
+    {
+      "name": "Minotaur Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Modified Source Code",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Mojito Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Mokhat Jelly",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Moldavite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Molisk Enamel Buttons",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Monrian Enhanced Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.33
+    },
+    {
+      "name": "Monrian Enhanced Power System",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.1
+    },
+    {
+      "name": "Monrian Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "Monrian Power System",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Monster Truck Tire",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Monster Truck Tire Rim",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Monster Truck Wheel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Monura Female Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Monura Male Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Moonleaf Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Morpheus Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.49
+    },
+    {
+      "name": "Morrison Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Morrison Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Morrison Wing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Mortar",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.0
+    },
+    {
+      "name": "Mosquito Amber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Motorhead - Ace of Spades Album",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Motorhead - Bomber Album",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Motorhead - Motorhead Album",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Motorhead - Overkill Album",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "MOTORHEAD BEER CAN",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Motorhead Keg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "MotÃ¶rhead Security Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "MotÃ¶rhead Security Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "MotÃ¶rhead Security Horn",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Mourner Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Muscle Oil Compound B",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Nanocube",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Narcanisum Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Narcanisum Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Navi Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Nawa Drops",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Nawa Vial",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Nepotism Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "NEVERDIE - GAMER CHICK HIT SINGLE",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "NEVERDIE - NEVERDIE SINGLE",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "NEVERDIE Dragon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Nexnecis Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.98
+    },
+    {
+      "name": "Niksarium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.95
+    },
+    {
+      "name": "Nirvana Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Nissit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Nosi Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Nova Fragment",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Novaculite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Nuclear Blast Launch Codes",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Nuclear Hemp Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Nusul Ear",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Nusul Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "O Rings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Obsidian Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Oculus Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.93
+    },
+    {
+      "name": "Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Oiled Arkace Boards",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Oiled Corria Boards",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Oiled Hekia Boards",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Oiled Miluca Boards",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Okenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Old Bus Token",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Old Subway Token",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Olerin Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Onyx",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Oompa Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Oompa Warhound Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Open Source Code",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Optimism Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Orange Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Oro Cranial Blade",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Oro Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Oro Skull",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Ospra Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Ostelok Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Ostelok Lower Beak",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Ostelok Pommel Feather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Otorugi Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.4
+    },
+    {
+      "name": "Otorugi Nail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.8
+    },
+    {
+      "name": "Otorugi Shoulder Horn",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Output Amplifier Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Outstanding Calcium Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Oweko Cranial Blade",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.2
+    },
+    {
+      "name": "Oweko Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Oweko Skull",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Ozpyn Filters",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.23
+    },
+    {
+      "name": "Ozpyn Lever",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Ozpyn Matrix",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "P.I.M.P Cup",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 20.0
+    },
+    {
+      "name": "Paint Can (Black)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Paint Can (Dark Blue)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Paint Can (Dark Green)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Paint Can (Green)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Paint Can (Red)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Paint Can (White)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Paint Can (Yellow)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Pandi Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.7
+    },
+    {
+      "name": "Paneleon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Panther Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Papoo Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Papoo Palm",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.005
+    },
+    {
+      "name": "Papoo Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Papoo Tooth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Papplon",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Papplon Spray",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Partial Eye Remains",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Patience Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Pearl Sand",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.92
+    },
+    {
+      "name": "Pel Liquid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Perfect Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 14.1
+    },
+    {
+      "name": "Petonium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.37
+    },
+    {
+      "name": "Phasm Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.2
+    },
+    {
+      "name": "Phasm Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.6
+    },
+    {
+      "name": "Phenacite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Pina Colada Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Pirrel Hexaton",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Plastic Convector Panel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "Plastic Injection Mold",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Platinum Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 9.0
+    },
+    {
+      "name": "Plumatergus Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.05
+    },
+    {
+      "name": "Polished Metal Robot Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.05
+    },
+    {
+      "name": "Poly-Alloy Strap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.22
+    },
+    {
+      "name": "Polymer Rail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Pop Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Pop Dragon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Pop Hemp Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Pop Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Pop Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Power Regulator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Praetonium",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Praetonium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Prancer Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Prison Hootch",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Projector Housing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Propellant Booster",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Propellant Supercharger",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Protective Coating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Punk Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Pure Choroid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.54
+    },
+    {
+      "name": "Pure Source Code",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Purple Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Purpurite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Putty",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.78
+    },
+    {
+      "name": "Pyrite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Qaffaz Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Qaffaz Marrow",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Qaffaz Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14
+    },
+    {
+      "name": "Qaffaz Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Qasdeer Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Quantium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Quantum Chip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Quartz",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Quenta Panel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Quil Rubber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Rad Conveyor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 17.0
+    },
+    {
+      "name": "Radiator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Rainbow Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Rationalizer Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Recoil Stabiliser",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.5
+    },
+    {
+      "name": "Red Cassette",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Red CD",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Red Molten Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Redulite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.6
+    },
+    {
+      "name": "Refined Adventurine Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Refined Aegirine Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Agate Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Agrellite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Refined Amethyst Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Ammolite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Refined Angelite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Refined Anhydrite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Apatite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Apophyllite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.61
+    },
+    {
+      "name": "Refined Aragonite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Atlantasite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Azeztulite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Azurite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Barite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Refined Beryl Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Refined Bloodstone Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Refined Bornite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Bronzite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Refined Bustamite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Cacoxenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Refined Calcedony Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Refined Cats Eye Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Celestite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Cerussite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Charoite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Refined Chlorite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Chrysoberyl Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Citrine Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Refined Danburite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Epidote Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Eudialyte Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Fluorite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Halite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Refined Hematite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Hemimorphite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Howlite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Refined Hyalite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Refined Kunzite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Labradorite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Refined Lepidocrosite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Malachite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Moldavite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Muscovite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Refined Novaculite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Obsidian Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Refined Okenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Onyx Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Petalite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Purpurite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Refined Quartz Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Rhodonite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Refined Selenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Refined Sodalite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Refined Sorensens Stone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Refined Tanzanite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Tigers Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Refined Ulexite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Refined Vanadinite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Refined Wulfenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Refined Zincite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Refined Zoisite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Reflecting Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Reflective Coating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Reggea Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Regula Powder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Reinforced Bearings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2025
+    },
+    {
+      "name": "Reinforced Nuts",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Reinforced Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Reinforced Rod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.065
+    },
+    {
+      "name": "Reinforced Sheet Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.158
+    },
+    {
+      "name": "Resonation Amplifier 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Resonation Amplifier 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Resonation Amplifier 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Resonation Amplifier 4",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Resonation Amplifier 5",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Resonation Amplifier 6",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.09
+    },
+    {
+      "name": "Resonation Amplifier 7",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Resonation Amplifier 8",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Resonation Amplifier 9",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.31
+    },
+    {
+      "name": "Reward Token (Blue)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Reward Token (Green)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Reward Token (Orange)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Reward Token (Purple)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Reward Token (Red)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Reward Token (White)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Rhino Beetle Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Riptor Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Riptor Tail Segment",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Robot Adapter Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Robot Auto Adjuster",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Robot Binary Memory Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Robot Buffers",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.77
+    },
+    {
+      "name": "Robot Casing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.01
+    },
+    {
+      "name": "Robot Com Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.4
+    },
+    {
+      "name": "Robot Component Residue",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Robot Contraction Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 13.0
+    },
+    {
+      "name": "Robot Cooling Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Robot Coordination Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Robot Data Link",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.3
+    },
+    {
+      "name": "Robot Energy Source",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14
+    },
+    {
+      "name": "Robot Filter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03625
+    },
+    {
+      "name": "Robot Flare Filter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.6
+    },
+    {
+      "name": "Robot Gyro",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 13.0
+    },
+    {
+      "name": "Robot Heat Sinks",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Robot Hyper Charger",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.9
+    },
+    {
+      "name": "Robot Image Amplifier",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.1
+    },
+    {
+      "name": "Robot Laser Optics Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Robot Low-Loss Data Link",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Robot Low-Loss Link Cable",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.023958333333333335
+    },
+    {
+      "name": "Robot Optical Lens",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.89
+    },
+    {
+      "name": "Robot Optical Processor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Robot Pneumatic Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Robot Power Amplifier",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.7
+    },
+    {
+      "name": "Robot Range Finder",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.9
+    },
+    {
+      "name": "Robot Safety System",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Robot Scrap Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Robot Thermal Sensor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.35
+    },
+    {
+      "name": "Robot Tilt Compensator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 10.5
+    },
+    {
+      "name": "Robot Weapon Amplifier",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Robot Weapon Grip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.057916666666666665
+    },
+    {
+      "name": "Robot Weapon Sight",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "ROCKtropia Gold Coin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0001
+    },
+    {
+      "name": "ROCKtropia Record",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.001
+    },
+    {
+      "name": "ROCKtropia Rollies",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "ROCKtropia Telemans Coin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Rocktropia War Bond Blueprint (L)",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "ROCTEC Chair Frame",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "ROCTEC Combuster",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "ROCTEC Disc Brake",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "ROCTEC Drive Shaft",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "ROCTEC Girder Beams",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "ROCTEC Lamp Attachments",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "ROCTEC Radiator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "ROCTEC Steering Rod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "ROCTEC Vehicle Battery",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.91
+    },
+    {
+      "name": "ROCTEC Wind Screen",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Rolled Smokes",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Root Acid",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.64
+    },
+    {
+      "name": "Rosewood Long Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Rosewood Regular Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Rosewood Short Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Rotten Banana",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Rotten Banana Bunch",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Rubber Lists",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Rubberized Grommit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Rudolf Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Rudolf Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Rudolf Tail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Rugaritz Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.5
+    },
+    {
+      "name": "Rustic Chainsaw Gas Cap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Rusty Metal Robot Scrap",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.74
+    },
+    {
+      "name": "Rutol",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Sabakuma Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.33
+    },
+    {
+      "name": "Sandrunner Fuel Cells",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Scoria Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.35
+    },
+    {
+      "name": "Scoria leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Scrap Iron",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.058125
+    },
+    {
+      "name": "Scrap Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.041428571428571426
+    },
+    {
+      "name": "Sea Wraith Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.24
+    },
+    {
+      "name": "Second-Rate Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Selenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Sham Sand",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Shark Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Shark Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Shoggoth Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Short Bigwig Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.76
+    },
+    {
+      "name": "Short Firn Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Short Midastree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Short Moonleaf Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Short Stinktree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.11
+    },
+    {
+      "name": "Shub Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.03
+    },
+    {
+      "name": "Sicarius Brute Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Sicarius Commander Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Sicarius Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Silver Party Flask",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Silver Shaker",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Simple 1 Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Simple 1 Plastic Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Simple 1 Plastic Springs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Simple 2 Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Simple 2 Plastic Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.95
+    },
+    {
+      "name": "Simple 2 Plastic Springs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Simple 3 Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.1
+    },
+    {
+      "name": "Simple 3 Plastic Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.4
+    },
+    {
+      "name": "Simple 3 Plastic Springs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.3
+    },
+    {
+      "name": "Simple 4 Conductors",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Simple Habkeh",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Simple Mismar",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.21
+    },
+    {
+      "name": "Simple Mosannan",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.28
+    },
+    {
+      "name": "Skeleton Hand",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Skeleton Soul",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Skeleton Spine",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Small Bird Wing",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.38
+    },
+    {
+      "name": "Small Plugs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14
+    },
+    {
+      "name": "Snablesnot Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Snablesnot Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Snaggle Charm Bracelets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Snarksnot Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Socket 1 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 10 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 2 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 3 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 4 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 5 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 6 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 7 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 8 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Socket 9 Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Soft Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Soft Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Softening Agent",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.14
+    },
+    {
+      "name": "Solar 12V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Solar 14V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.65
+    },
+    {
+      "name": "Solar 16V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.95
+    },
+    {
+      "name": "Solar 6V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Solar 8V Gel Batteries",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Solares Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.59
+    },
+    {
+      "name": "Solis Paste",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.56
+    },
+    {
+      "name": "Somin Glue",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Songkra Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Sonic Pulse Amplifier",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Sopur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Sothorite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.27
+    },
+    {
+      "name": "Speed Metal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Spruce Long Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Spruce Regular Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Spruce Short Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Standard Compressor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.027142857142857142
+    },
+    {
+      "name": "Standard Feedback Panel",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04533333333333334
+    },
+    {
+      "name": "Standard Hinge",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.057906976744186045
+    },
+    {
+      "name": "Standard Holo Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08416666666666667
+    },
+    {
+      "name": "Standard Intelligence Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.17
+    },
+    {
+      "name": "Standard Lever",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0192
+    },
+    {
+      "name": "Standard Locks",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Standard Magnets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Standard Matrix",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05142857142857143
+    },
+    {
+      "name": "Standard Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.012857142857142857
+    },
+    {
+      "name": "Standard Rod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0284375
+    },
+    {
+      "name": "Standard Springs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.07
+    },
+    {
+      "name": "Standard Transparency Layer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.024375
+    },
+    {
+      "name": "Standard Vents",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.017142857142857144
+    },
+    {
+      "name": "Standard VisioMem",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.020555555555555556
+    },
+    {
+      "name": "Standard Wedge",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.034444444444444444
+    },
+    {
+      "name": "Star Dust",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.16
+    },
+    {
+      "name": "Starrix Quilting",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Steering Rod",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Stimulation Modulator",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Stinktree Board",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.31
+    },
+    {
+      "name": "Stinktree Veneer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Strengthened Metal Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.83
+    },
+    {
+      "name": "Strong Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Strong Magnets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Strong Sinew",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 19.0
+    },
+    {
+      "name": "Style Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Sunburst Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.77
+    },
+    {
+      "name": "Sunjoq Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Sunjoq Rock",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Super Adhesive",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Super Alloy Mountings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Super Alloy Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Super Alloy Ruds",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Super Charger Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Superior Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Surface Hardener Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Surface Toughness Component",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Survey Probe",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Suspended Life Essence",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Swamp Lurker Hide",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Swamp Lurker Oil",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Synthetic Rubber",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.57
+    },
+    {
+      "name": "System Stabilizer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "T-Angle",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.22
+    },
+    {
+      "name": "Tablet Frame",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Tabtab Cavity",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Tabtab Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "TabTab Tooth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Tail Tip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Talent Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Tantardion Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.8
+    },
+    {
+      "name": "Tantillion Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.35
+    },
+    {
+      "name": "Tears Potion",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 1",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 2",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 3",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 4",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 5",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 6",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 7",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Tech Gizmo 8",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Techno Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Teladon Foot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Teladon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.0
+    },
+    {
+      "name": "Teladon Tail Spike",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.0
+    },
+    {
+      "name": "Telfium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.42
+    },
+    {
+      "name": "Tension Straps",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Terrestrial Hormone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.32
+    },
+    {
+      "name": "Terrudite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.3
+    },
+    {
+      "name": "Tezlapod Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.69
+    },
+    {
+      "name": "Thawr Ivory",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Thawr Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "The Devils Mickey Finn",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Thermodure Robot Plastic",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.27
+    },
+    {
+      "name": "Thin Wool",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.25
+    },
+    {
+      "name": "Tiarak Elbow Spur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Tiarak Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Tiarak Nail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Tiger's Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Tight Knitted Wool Fabric Texture",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Toxic Drakescale",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Traeskeron Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Transformer",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.17
+    },
+    {
+      "name": "Tree Dragon Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Tridenite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 6.0
+    },
+    {
+      "name": "Triphased Auxiliary Socket",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05205128205128205
+    },
+    {
+      "name": "Triphased Holo Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Triphased Intelligence Module",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Triphased Power Systems",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Triphased Transmitter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Triphased Wires",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Tripudion Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Troll Bushweed",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.001
+    },
+    {
+      "name": "Trutun",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Turp Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Typonolic Gas",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Ubo Vesicle",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.04
+    },
+    {
+      "name": "Ultra Cold Fabric",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.6
+    },
+    {
+      "name": "Valurite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 18.0
+    },
+    {
+      "name": "Vampire Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Vampire Charm Bracelets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Vampire Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Vampire Fangs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Vampire Heart",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Vampire Plasma",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Veda Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Vedacore Fibre",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Vedacore Sheeting",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Vesperdite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.4
+    },
+    {
+      "name": "Vibrant Sweat",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1e-05
+    },
+    {
+      "name": "Vincent DPS P32 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Vincent DPS P43 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Vincent DPS P58 Death Vinyl",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Vixen Android Audio Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Vixen Android Audio Unit Modified",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Vixen Android Bronze Armor Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Vixen Android CPU Memory Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Vixen Android CPU Memory Unit Modified",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.2
+    },
+    {
+      "name": "Vixen Android Data Uplink Cable",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Vixen Android Defense Microchip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Vixen Android F-0-X Drive",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Vixen Android First Aid Microchip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.35
+    },
+    {
+      "name": "Vixen Android Gear",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Vixen Android Gear Modified",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Vixen Android Gold Armor Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Vixen Android Golden Arm",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Vixen Android Golden Heart",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Vixen Android Golden Leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.0
+    },
+    {
+      "name": "Vixen Android H-0-T Drive",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Vixen Android Healthbar V.D.U",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Vixen Android Intelligence Microchip",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.55
+    },
+    {
+      "name": "Vixen Android Metal Armor Plating",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.02
+    },
+    {
+      "name": "Vixen Android Night Scope V.D.U",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Vixen Android Oil Filter",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Vixen Android Power Cell",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.22
+    },
+    {
+      "name": "Vixen Android Power Transfer Cable",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Vixen Android S-E-X Drive",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 15.0
+    },
+    {
+      "name": "Vixen Android Thermal Tank V.D.U",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Vixen Android Visual Optics Unit",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Vixen Android Weapons Guidance V.D.U",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Vixen Hemp Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Vorn Plastic",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Weak Calcium Compound",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.06
+    },
+    {
+      "name": "Weak Cloth Extractor",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Weak Magnets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.12
+    },
+    {
+      "name": "Weak Protein Strain",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.41
+    },
+    {
+      "name": "Weak Sinew",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 10.0
+    },
+    {
+      "name": "Weld Filament",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.05
+    },
+    {
+      "name": "Wenrex Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.51
+    },
+    {
+      "name": "Werewolf Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.4
+    },
+    {
+      "name": "Werewolf Bone",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Werewolf Claw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Werewolf Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Werewolf Fangs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Wetski Fiberglass",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Whiskey Sour Cocktail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Wiley Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Wind Screen",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.9
+    },
+    {
+      "name": "Wolf Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Wolf Charm Bracelets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 5.0
+    },
+    {
+      "name": "Wolf Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Wolf Fangs",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Wolf Fur",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Wolf Heart",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Wolf Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Wolf Meat",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Wolf Paw",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.8
+    },
+    {
+      "name": "Wolf Wool",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Wood Shavings",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0010666666666666667
+    },
+    {
+      "name": "Wool",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.2
+    },
+    {
+      "name": "Wool Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.6
+    },
+    {
+      "name": "Wool Thread",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.75
+    },
+    {
+      "name": "Xelo Vapour",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.78
+    },
+    {
+      "name": "Xeremite Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 12.0
+    },
+    {
+      "name": "Yashib Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.65
+    },
+    {
+      "name": "Ycy Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.05
+    },
+    {
+      "name": "Yellow Cassette",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Yellow CD",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Yellow Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Yog Eyeball",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Yog Skin",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.7
+    },
+    {
+      "name": "Yog Tusk",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.1
+    },
+    {
+      "name": "Youd Bottle",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Yuka Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 8.4
+    },
+    {
+      "name": "Yuka Shoulder Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Yuka Spinal Plate",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.8
+    },
+    {
+      "name": "Yulerium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.5
+    },
+    {
+      "name": "Zadul Leather",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.45
+    },
+    {
+      "name": "Zadul Nail",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Zanderium Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 7.5
+    },
+    {
+      "name": "Zekkonian Relic",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Zinc Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.3
+    },
+    {
+      "name": "Zincalicid Energy Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.24
+    },
+    {
+      "name": "Zincite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Zir Button",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.18
+    },
+    {
+      "name": "Zircon Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.15
+    },
+    {
+      "name": "Zoldenite Crystal",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Zolphic Grease",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.08
+    },
+    {
+      "name": "Zombie Blood",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Zombie Charm Bracelets",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.0
+    },
+    {
+      "name": "Zombie Eye",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 3.0
+    },
+    {
+      "name": "Zombie Hand",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 4.0
+    },
+    {
+      "name": "Zombie Hemp Cloth",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Zombie Leg",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.0
+    },
+    {
+      "name": "Zombie Plasma",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 2.0
+    },
+    {
+      "name": "Zombie Rotting Flesh",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.5
+    },
+    {
+      "name": "Zorn Component A",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.0
+    },
+    {
+      "name": "Zorn Star Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.03
+    },
+    {
+      "name": "Zorn Star Ore",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 0.01
+    },
+    {
+      "name": "Zulax Ingot",
+      "source_name": "LootNanny legacy seed",
+      "tt_value": 1.95
+    }
+  ]
+}
