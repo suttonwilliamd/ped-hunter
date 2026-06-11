@@ -21,6 +21,8 @@ POLL_MS = 1000
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
+STREAMER_MIN_WIDTH = 620
+STREAMER_MIN_HEIGHT = 230
 
 
 @dataclass(slots=True)
@@ -800,8 +802,10 @@ class StreamerWindow(tk.Toplevel):
         self.configure(bg="#020617")
         self.attributes("-topmost", True)
         self.overrideredirect(True)
-        self.geometry("520x170+120+120")
+        self.geometry(f"{STREAMER_MIN_WIDTH}x{STREAMER_MIN_HEIGHT}+120+120")
+        self.minsize(STREAMER_MIN_WIDTH, STREAMER_MIN_HEIGHT)
         self._drag_origin: tuple[int, int] | None = None
+        self._resize_origin: tuple[int, int, int, int] | None = None
         self.vars = {
             "return": tk.StringVar(value="0.00%"),
             "loot": tk.StringVar(value="Loot 0.00 PED"),
@@ -818,24 +822,29 @@ class StreamerWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def _build(self) -> None:
-        outer = tk.Frame(self, bg="#020617", highlightbackground="#38bdf8", highlightthickness=2, padx=14, pady=10)
+        outer = tk.Frame(self, bg="#020617", highlightbackground="#38bdf8", highlightthickness=2, padx=18, pady=14)
         outer.pack(fill="both", expand=True)
         top = tk.Frame(outer, bg="#020617")
         top.pack(fill="x")
-        tk.Label(top, textvariable=self.vars["return"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 30, "bold")).pack(side="left")
+        tk.Label(top, textvariable=self.vars["return"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 34, "bold")).pack(side="left")
         close = tk.Label(top, text="×", bg="#020617", fg="#94a3b8", font=("Segoe UI", 16, "bold"), cursor="hand2")
         close.pack(side="right")
         close.bind("<Button-1>", lambda _event: self.destroy())
-        tk.Label(outer, textvariable=self.vars["loadout"], bg="#020617", fg="#7dd3fc", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 8))
+        tk.Label(outer, textvariable=self.vars["loadout"], bg="#020617", fg="#7dd3fc", font=("Segoe UI", 11, "bold"), wraplength=560, justify="left").pack(anchor="w", fill="x", pady=(0, 12))
         grid = tk.Frame(outer, bg="#020617")
-        grid.pack(fill="x")
+        grid.pack(fill="both", expand=True)
         for col, key in enumerate(("loot", "cost", "net")):
             grid.columnconfigure(col, weight=1)
-            tk.Label(grid, textvariable=self.vars[key], bg="#111827", fg="#e5edf8", font=("Segoe UI", 12, "bold"), padx=10, pady=8).grid(row=0, column=col, sticky="ew", padx=(0 if col == 0 else 6, 0))
+            tk.Label(grid, textvariable=self.vars[key], bg="#111827", fg="#e5edf8", font=("Segoe UI", 14, "bold"), padx=12, pady=12).grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0))
         bottom = tk.Frame(outer, bg="#020617")
-        bottom.pack(fill="x", pady=(8, 0))
-        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10)).pack(side="left")
-        tk.Label(bottom, textvariable=self.vars["events"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10)).pack(side="right")
+        bottom.pack(fill="x", pady=(12, 0))
+        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 11)).pack(side="left")
+        resize = tk.Label(bottom, text="◢", bg="#020617", fg="#38bdf8", font=("Segoe UI", 14, "bold"), cursor="size_nw_se")
+        resize.pack(side="right", padx=(10, 0))
+        resize.bind("<ButtonPress-1>", self._start_resize)
+        resize.bind("<B1-Motion>", self._resize)
+        resize.bind("<ButtonRelease-1>", self._stop_resize)
+        tk.Label(bottom, textvariable=self.vars["events"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 11)).pack(side="right")
 
     def update_from_session(self, session: SessionSummary | None) -> None:
         metrics = streamer_metrics(session)
@@ -855,6 +864,23 @@ class StreamerWindow(tk.Toplevel):
             return
         dx, dy = self._drag_origin
         self.geometry(f"+{event.x_root - dx}+{event.y_root - dy}")
+
+    def _start_resize(self, event) -> str:
+        self._resize_origin = (event.x_root, event.y_root, self.winfo_width(), self.winfo_height())
+        return "break"
+
+    def _resize(self, event) -> str:
+        if not self._resize_origin:
+            return "break"
+        start_x, start_y, start_width, start_height = self._resize_origin
+        width = max(STREAMER_MIN_WIDTH, start_width + (event.x_root - start_x))
+        height = max(STREAMER_MIN_HEIGHT, start_height + (event.y_root - start_y))
+        self.geometry(f"{width}x{height}")
+        return "break"
+
+    def _stop_resize(self, _event) -> str:
+        self._resize_origin = None
+        return "break"
 
     def destroy(self) -> None:
         self.app.streamer_window = None
