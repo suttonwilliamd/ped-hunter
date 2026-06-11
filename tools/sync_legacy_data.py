@@ -7,6 +7,14 @@ import json
 import urllib.request
 
 RAW_BASE = "https://raw.githubusercontent.com/euloggeradmin/LootNanny/main/data/raw/"
+FRONTIER_HUNTING_RIFLE = {
+    "name": "Frontier Hunting Rifle",
+    "category": "Rifle",
+    "ammo": 100,
+    "decay": 0.0002,
+    "aliases": ["Frontier Rifle"],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+}
 
 
 def download(name: str) -> dict:
@@ -34,14 +42,7 @@ def main() -> int:
 
     # The Frontier starter rifle is distinct from the older EWE LC-100 Frontier
     # and is not currently present in the legacy LootNanny seed files.
-    weapons.append({
-        "name": "Frontier Hunting Rifle",
-        "category": "Rifle",
-        "ammo": 100,
-        "decay": 0.0002,
-        "aliases": ["Frontier Rifle"],
-        "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
-    })
+    weapons.append(FRONTIER_HUNTING_RIFLE.copy())
 
     attachments = []
     for source_name in ["attachments.json", "scopes.json", "sights.json"]:

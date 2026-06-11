@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 import json
+import sys
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +64,7 @@ class Catalog:
 
     @classmethod
     def load(cls, root: Path | None = None) -> "Catalog":
-        root = root or Path(__file__).resolve().parents[2] / "data" / "catalog"
+        root = root or _default_catalog_root()
         weapons, aliases = _load_weapons(root / "weapons.json")
         attachments = _load_attachment_records(root / "attachments.json")
         resources = _load_resource_records(root / "resources.json")
@@ -103,6 +104,14 @@ def _load_json(path: Path) -> Any:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _default_catalog_root() -> Path:
+    """Return the catalog root for source checkouts and PyInstaller bundles."""
+    bundled_root = getattr(sys, "_MEIPASS", None)
+    if bundled_root:
+        return Path(bundled_root) / "data" / "catalog"
+    return Path(__file__).resolve().parents[2] / "data" / "catalog"
 
 
 def _load_weapons(path: Path) -> tuple[dict[str, WeaponRecord], dict[str, str]]:

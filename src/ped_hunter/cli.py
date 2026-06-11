@@ -13,6 +13,14 @@ from .parser import parse_line
 from .storage import Store
 
 LOOTNANNY_RAW_BASE = "https://raw.githubusercontent.com/euloggeradmin/LootNanny/main/data/raw/"
+FRONTIER_HUNTING_RIFLE = {
+    "name": "Frontier Hunting Rifle",
+    "category": "Rifle",
+    "ammo": 100,
+    "decay": 0.0002,
+    "aliases": ["Frontier Rifle"],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -166,19 +174,17 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
 
     weapon_items = []
     for name, item in weapons.items():
-        aliases = []
-        if name == "EWE LC-100 Frontier":
-            aliases.append("Frontier Rifle")
         weapon_items.append(
             {
                 "name": name,
                 "category": item["type"],
                 "ammo": int(item["ammo"]),
                 "decay": float(item["decay"]),
-                "aliases": aliases,
+                "aliases": [],
                 "source_name": "LootNanny legacy seed",
             }
         )
+    weapon_items.append(FRONTIER_HUNTING_RIFLE.copy())
 
     attachment_items = []
     for source in (attachments, scopes, sights):
@@ -201,7 +207,7 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
         {"name": name, "materials": materials, "source_name": "LootNanny legacy seed"}
         for name, materials in crafting.items()
     ]
-    aliases = {"Frontier Rifle": "EWE LC-100 Frontier"}
+    aliases = {"Frontier Rifle": "Frontier Hunting Rifle"}
     return {
         "weapons.json": {"items": sorted(weapon_items, key=lambda x: x["name"].casefold())},
         "attachments.json": {"items": sorted(attachment_items, key=lambda x: x["name"].casefold())},

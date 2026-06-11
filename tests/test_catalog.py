@@ -1,4 +1,5 @@
 from ped_hunter.catalog import Catalog
+from ped_hunter.cli import _normalize
 
 
 def test_frontier_alias_resolves():
@@ -18,3 +19,25 @@ def test_frontier_hunting_rifle_is_distinct_from_ewe_frontier():
     assert frontier is not None
     assert ewe is not None
     assert frontier.name != ewe.name
+
+
+def test_cli_seed_normalization_keeps_frontier_hunting_rifle_distinct():
+    normalized = _normalize(
+        {
+            "weapons.json": {
+                "data": {
+                    "EWE LC-100 Frontier": {"type": "Carbine", "ammo": 1030, "decay": 0.0087}
+                }
+            },
+            "attachments.json": {"data": {}},
+            "scopes.json": {"data": {}},
+            "sights.json": {"data": {}},
+            "resources.json": {"data": {}},
+            "crafting.json": {"data": {}},
+        }
+    )
+
+    weapons = {item["name"]: item for item in normalized["weapons.json"]["items"]}
+    assert normalized["aliases.json"] == {"Frontier Rifle": "Frontier Hunting Rifle"}
+    assert weapons["EWE LC-100 Frontier"]["aliases"] == []
+    assert weapons["Frontier Hunting Rifle"]["aliases"] == ["Frontier Rifle"]

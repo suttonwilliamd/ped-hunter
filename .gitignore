@@ -1,8 +1,5 @@
+build/
+dist/
+*.egg-info/
 __pycache__/
-*.pyc
-.venv/
-.env
-*.sqlite3
-*.db
-AppData/
-.DS_Store
+.pytest_cache/

@@ -20,6 +20,8 @@ Free, local-first Entropia Universe profit intelligence.
 
 ## Quick start
 
+Download the Windows `.exe` from the latest GitHub release, or run from source:
+
 1. Install Python 3.11+
 2. Create the normalized catalog:
 
@@ -50,6 +52,16 @@ ped-hunter stats
 ```bash
 ped-hunter weapon "Frontier Rifle"
 ```
+
+## Building the Windows executable
+
+Release executables are built with PyInstaller:
+
+```bash
+python -m PyInstaller PED-Hunter.spec
+```
+
+The spec bundles `data/catalog/` so catalog lookups work from the standalone `.exe`.
 
 ## Data source
 
