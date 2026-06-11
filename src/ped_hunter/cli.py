@@ -148,7 +148,11 @@ def _stats(db_path: Path | None, limit: int) -> int:
         return 0
     for s in sessions:
         status = "active" if s.ended_at is None else "ended"
-        print(f"{s.session_id} | {status} | {s.activity} | events={s.events} | loot={s.loot_value:.2f} PED | combat={s.combat_damage:.2f}")
+        print(
+            f"{s.session_id} | {status} | {s.activity} | events={s.events} | "
+            f"loot={s.loot_value:.2f} PED | cost={s.hunting_cost:.2f} PED | "
+            f"net={s.net_value:+.2f} PED | combat={s.combat_damage:.2f}"
+        )
     return 0
 
 

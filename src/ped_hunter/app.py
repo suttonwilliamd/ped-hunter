@@ -14,7 +14,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .catalog import Catalog, WeaponRecord
 from .parser import ParsedEvent, parse_line
-from .storage import SessionSummary, Store
+from .storage import LoadoutRecord, SessionSummary, Store
 
 
 POLL_MS = 1000
@@ -48,6 +48,18 @@ class PedHunterApp(tk.Tk):
         self.status_text = tk.StringVar(value="Ready — choose a chat log and start tracking")
         self.session_text = tk.StringVar(value="No active session")
         self.catalog_query = tk.StringVar(value="Frontier Rifle")
+        self.active_loadout_text = tk.StringVar(value="No active loadout — configure one before hunting")
+        self.loadout_name = tk.StringVar(value="Starter rifle")
+        self.loadout_weapon = tk.StringVar(value="Frontier Rifle")
+        self.loadout_amp = tk.StringVar(value="None")
+        self.loadout_scope = tk.StringVar(value="None")
+        self.loadout_sight_1 = tk.StringVar(value="None")
+        self.loadout_sight_2 = tk.StringVar(value="None")
+        self.damage_enhancers = tk.StringVar(value="0")
+        self.accuracy_enhancers = tk.StringVar(value="0")
+        self.economy_enhancers = tk.StringVar(value="0")
+        self.loadout_preview = tk.StringVar(value="Cost/shot: —")
+        self.selected_loadout_id: int | None = None
 
         self.metric_cards: dict[str, MetricCard] = {}
         self._configure_theme()
@@ -147,21 +159,25 @@ class PedHunterApp(tk.Tk):
         self.start_button.grid(row=0, column=5, padx=(0, 8))
         self.stop_button = ttk.Button(controls, text="Stop", command=self.stop, state="disabled")
         self.stop_button.grid(row=0, column=6)
-        ttk.Label(controls, textvariable=self.status_text, style="Status.TLabel").grid(row=1, column=0, columnspan=7, sticky="w", pady=(10, 0))
+        ttk.Label(controls, textvariable=self.active_loadout_text, style="PanelMuted.TLabel").grid(row=1, column=0, columnspan=7, sticky="w", pady=(10, 0))
+        ttk.Label(controls, textvariable=self.status_text, style="Status.TLabel").grid(row=2, column=0, columnspan=7, sticky="w", pady=(6, 0))
 
         notebook = ttk.Notebook(root)
         notebook.grid(row=2, column=0, sticky="nsew")
         self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=14)
         self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=14)
+        self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=14)
         self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=14)
         self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=14)
         notebook.add(self.dashboard_tab, text="Dashboard")
         notebook.add(self.events_tab, text="Events")
+        notebook.add(self.loadouts_tab, text="Loadouts")
         notebook.add(self.catalog_tab, text="Catalog")
         notebook.add(self.setup_tab, text="Setup")
 
         self._build_dashboard_tab()
         self._build_events_tab()
+        self._build_loadouts_tab()
         self._build_catalog_tab()
         self._build_setup_tab()
 
@@ -176,9 +192,9 @@ class PedHunterApp(tk.Tk):
         for i in range(5):
             cards.columnconfigure(i, weight=1, uniform="cards")
         self._add_metric_card(cards, 0, "loot", "0.00 PED", "Loot return")
-        self._add_metric_card(cards, 1, "damage", "0.0", "Damage dealt")
-        self._add_metric_card(cards, 2, "events", "0", "Events parsed")
-        self._add_metric_card(cards, 3, "sessions", "0", "Stored runs")
+        self._add_metric_card(cards, 1, "cost", "0.00 PED", "Hunting cost")
+        self._add_metric_card(cards, 2, "net", "0.00 PED", "Net TT")
+        self._add_metric_card(cards, 3, "damage", "0.0", "Damage dealt")
         self._add_metric_card(cards, 4, "status", "Idle", "Tracker state")
 
         content = ttk.Frame(tab, style="Root.TFrame")
@@ -190,8 +206,8 @@ class PedHunterApp(tk.Tk):
         recent_panel = self._panel(content, "Recent sessions", 0, 0)
         self.sessions_tree = self._tree(
             recent_panel,
-            columns=("started", "activity", "loot", "damage", "events", "status"),
-            headings=("Started", "Activity", "Loot", "Damage", "Events", "Status"),
+            headings=("Started", "Activity", "Loadout", "Loot", "Cost", "Net", "Events", "Status"),
+            columns=("started", "activity", "loadout", "loot", "cost", "net", "events", "status"),
         )
 
         insight_panel = self._panel(content, "Design direction", 0, 1)
@@ -228,6 +244,71 @@ class PedHunterApp(tk.Tk):
             columns=("time", "kind", "summary"),
             headings=("Time", "Kind", "Summary"),
         )
+
+    def _build_loadouts_tab(self) -> None:
+        tab = self.loadouts_tab
+        tab.columnconfigure(0, weight=1)
+        tab.columnconfigure(1, weight=1)
+        tab.rowconfigure(0, weight=1)
+
+        list_panel = self._panel(tab, "Saved loadouts", 0, 0)
+        self.loadouts_tree = self._tree(
+            list_panel,
+            columns=("active", "name", "weapon", "amp", "enh", "cost"),
+            headings=("Active", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
+        )
+        self.loadouts_tree.bind("<<TreeviewSelect>>", lambda _event: self._load_selected_loadout())
+
+        editor = self._panel(tab, "Loadout builder", 0, 1)
+        form = ttk.Frame(editor, style="Panel.TFrame")
+        form.grid(row=0, column=0, sticky="nsew")
+        form.columnconfigure(1, weight=1)
+
+        weapon_names = sorted(self.catalog.weapons)
+        attachment_names = ["None"] + sorted(self.catalog.attachments)
+        rows = [
+            ("Name", ttk.Entry(form, textvariable=self.loadout_name)),
+            ("Weapon", ttk.Combobox(form, textvariable=self.loadout_weapon, values=weapon_names, state="normal")),
+            ("Amplifier", ttk.Combobox(form, textvariable=self.loadout_amp, values=attachment_names, state="normal")),
+            ("Scope", ttk.Combobox(form, textvariable=self.loadout_scope, values=attachment_names, state="normal")),
+            ("Sight 1", ttk.Combobox(form, textvariable=self.loadout_sight_1, values=attachment_names, state="normal")),
+            ("Sight 2", ttk.Combobox(form, textvariable=self.loadout_sight_2, values=attachment_names, state="normal")),
+            ("Damage enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.damage_enhancers, width=8)),
+            ("Accuracy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.accuracy_enhancers, width=8)),
+            ("Economy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.economy_enhancers, width=8)),
+        ]
+        for r, (label, widget) in enumerate(rows):
+            ttk.Label(form, text=label, style="PanelMuted.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10), pady=5)
+            widget.grid(row=r, column=1, sticky="ew", pady=5)
+            if hasattr(widget, "bind"):
+                widget.bind("<KeyRelease>", lambda _event: self._refresh_loadout_preview())
+                widget.bind("<<ComboboxSelected>>", lambda _event: self._refresh_loadout_preview())
+
+        ttk.Label(form, textvariable=self.loadout_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold")).grid(row=len(rows), column=0, columnspan=2, sticky="w", pady=(12, 8))
+        buttons = ttk.Frame(form, style="Panel.TFrame")
+        buttons.grid(row=len(rows) + 1, column=0, columnspan=2, sticky="ew")
+        ttk.Button(buttons, text="Save & activate", command=lambda: self._save_loadout(make_active=True), style="Accent.TButton").pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text="Save", command=lambda: self._save_loadout(make_active=False)).pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text="Delete", command=self._delete_selected_loadout).pack(side="left")
+
+        help_text = tk.Text(
+            editor,
+            height=8,
+            wrap="word",
+            bg="#0b1220",
+            fg=self.colors["text"],
+            relief="flat",
+            font=("Segoe UI", 9),
+        )
+        help_text.grid(row=1, column=0, sticky="ew", pady=(16, 0))
+        help_text.insert(
+            "1.0",
+            "LootNanny's Config tab made loadouts the source of truth for hunting costs: weapon + amp + scope/sights + enhancers. "
+            "PED Hunter keeps that requirement but keeps the active loadout visible in the main control bar so you do not start a hunt with unknown costs. "
+            "Damage enhancers increase weapon ammo/decay by 10% each; economy enhancers reduce weapon ammo/decay by 1% each; attachments add their own burn/decay.",
+        )
+        help_text.configure(state="disabled")
+        self._refresh_loadout_preview()
 
     def _build_catalog_tab(self) -> None:
         tab = self.catalog_tab
@@ -310,6 +391,122 @@ class PedHunterApp(tk.Tk):
             tree.column(col, width=120, minwidth=70, stretch=True)
         return tree
 
+    def _refresh_loadout_preview(self) -> None:
+        try:
+            loadout = self._loadout_from_form()
+        except ValueError as exc:
+            self.loadout_preview.set(f"Loadout needs attention: {exc}")
+            return
+        self.loadout_preview.set(
+            f"Ammo burn: {loadout.ammo_burn} • Decay: {loadout.decay:.5f} PED • Cost/shot: {loadout.cost_per_shot:.5f} PED"
+        )
+
+    def _loadout_from_form(self) -> LoadoutRecord:
+        name = self.loadout_name.get().strip()
+        if not name:
+            raise ValueError("name is required")
+        weapon = self.catalog.find_weapon(self.loadout_weapon.get().strip())
+        if not weapon:
+            raise ValueError("choose a known weapon")
+        damage = _bounded_int(self.damage_enhancers.get())
+        accuracy = _bounded_int(self.accuracy_enhancers.get())
+        economy = _bounded_int(self.economy_enhancers.get())
+        ammo, decay = calculate_loadout_cost(
+            catalog=self.catalog,
+            weapon_name=weapon.name,
+            amp=_clean_part(self.loadout_amp.get()),
+            scope=_clean_part(self.loadout_scope.get()),
+            sight_1=_clean_part(self.loadout_sight_1.get()),
+            sight_2=_clean_part(self.loadout_sight_2.get()),
+            damage_enhancers=damage,
+            economy_enhancers=economy,
+        )
+        return LoadoutRecord(
+            id=self.selected_loadout_id,
+            name=name,
+            weapon=weapon.name,
+            amp=_clean_part(self.loadout_amp.get()),
+            scope=_clean_part(self.loadout_scope.get()),
+            sight_1=_clean_part(self.loadout_sight_1.get()),
+            sight_2=_clean_part(self.loadout_sight_2.get()),
+            damage_enhancers=damage,
+            accuracy_enhancers=accuracy,
+            economy_enhancers=economy,
+            ammo_burn=ammo,
+            decay=decay,
+            cost_per_shot=decay + (ammo / 10_000.0),
+        )
+
+    def _save_loadout(self, *, make_active: bool) -> None:
+        try:
+            loadout = self._loadout_from_form()
+        except ValueError as exc:
+            messagebox.showerror("PED Hunter", str(exc))
+            return
+        loadout_id = self.store.save_loadout(loadout, make_active=make_active)
+        self.selected_loadout_id = loadout_id
+        self.status_text.set(f"Saved loadout: {loadout.name}")
+        self._refresh_loadouts()
+        self._refresh_all()
+
+    def _delete_selected_loadout(self) -> None:
+        if self.selected_loadout_id is None:
+            return
+        self.store.delete_loadout(self.selected_loadout_id)
+        self.selected_loadout_id = None
+        self.status_text.set("Deleted loadout")
+        self._refresh_loadouts()
+        self._refresh_all()
+
+    def _load_selected_loadout(self) -> None:
+        selection = self.loadouts_tree.selection()
+        if not selection:
+            return
+        values = self.loadouts_tree.item(selection[0], "values")
+        if not values:
+            return
+        loadout_id = int(self.loadouts_tree.set(selection[0], "id")) if "id" in self.loadouts_tree["columns"] else None
+        for loadout in self.store.list_loadouts():
+            if loadout.name == values[1]:
+                self._populate_loadout_form(loadout)
+                return
+        if loadout_id is not None:
+            self.selected_loadout_id = loadout_id
+
+    def _populate_loadout_form(self, loadout: LoadoutRecord) -> None:
+        self.selected_loadout_id = loadout.id
+        self.loadout_name.set(loadout.name)
+        self.loadout_weapon.set(loadout.weapon)
+        self.loadout_amp.set(loadout.amp or "None")
+        self.loadout_scope.set(loadout.scope or "None")
+        self.loadout_sight_1.set(loadout.sight_1 or "None")
+        self.loadout_sight_2.set(loadout.sight_2 or "None")
+        self.damage_enhancers.set(str(loadout.damage_enhancers))
+        self.accuracy_enhancers.set(str(loadout.accuracy_enhancers))
+        self.economy_enhancers.set(str(loadout.economy_enhancers))
+        self._refresh_loadout_preview()
+
+    def _refresh_loadouts(self) -> None:
+        self.loadouts_tree.delete(*self.loadouts_tree.get_children())
+        active = self.store.get_active_loadout()
+        if active:
+            self.active_loadout_text.set(f"Active loadout: {active.name} • {active.weapon} • {active.cost_per_shot:.5f} PED/shot")
+        else:
+            self.active_loadout_text.set("No active loadout — configure one before hunting for accurate costs")
+        for loadout in self.store.list_loadouts():
+            self.loadouts_tree.insert(
+                "",
+                "end",
+                values=(
+                    "✓" if loadout.active else "",
+                    loadout.name,
+                    loadout.weapon,
+                    loadout.amp or "—",
+                    f"D{loadout.damage_enhancers}/A{loadout.accuracy_enhancers}/E{loadout.economy_enhancers}",
+                    f"{loadout.cost_per_shot:.5f}",
+                ),
+            )
+
     def _browse_log(self) -> None:
         path = filedialog.askopenfilename(
             title="Select Entropia chat.log",
@@ -327,8 +524,16 @@ class PedHunterApp(tk.Tk):
             self.status_text.set(f"Chat log not found: {path}")
             return
 
+        active_loadout = self.store.get_active_loadout()
+        if self.activity.get() == "hunt" and not active_loadout:
+            if not messagebox.askyesno(
+                "PED Hunter",
+                "No active loadout is configured. Hunting costs will be incomplete. Start anyway?",
+            ):
+                return
+
         self.current_log_path = path
-        self.session_id = self.store.start_session(self.activity.get())
+        self.session_id = self.store.start_session(self.activity.get(), active_loadout)
         self.last_size = path.stat().st_size
         self.running = True
         self.start_button.configure(state="disabled")
@@ -375,10 +580,14 @@ class PedHunterApp(tk.Tk):
         if not self.session_id:
             return
         parsed = 0
+        active_loadout = self.store.get_active_loadout()
         for raw in lines:
             event = parse_line(raw)
             if not event:
                 continue
+            if active_loadout and _event_consumes_shot(event):
+                event.payload["shot_cost"] = active_loadout.cost_per_shot
+                event.payload["loadout"] = active_loadout.name
             self.store.add_event(self.session_id, event.to_row())
             parsed += 1
         if parsed:
@@ -391,22 +600,25 @@ class PedHunterApp(tk.Tk):
         self._refresh_metrics(display, sessions)
         self._refresh_sessions(sessions)
         self._refresh_events(display.session_id if display else None)
+        self._refresh_loadouts()
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"
         self.metric_cards["status"].value.set(state)
-        self.metric_cards["sessions"].value.set(str(len(sessions)))
         if not session:
             self.session_text.set("No sessions yet — start a run to begin collecting data")
             self.metric_cards["loot"].value.set("0.00 PED")
+            self.metric_cards["cost"].value.set("0.00 PED")
+            self.metric_cards["net"].value.set("0.00 PED")
             self.metric_cards["damage"].value.set("0.0")
-            self.metric_cards["events"].value.set("0")
             return
         status = "active" if session.ended_at is None else "ended"
-        self.session_text.set(f"{session.session_id} • {session.activity} • {status} • started {session.started_at}")
+        loadout = f" • {session.loadout_name}" if session.loadout_name else ""
+        self.session_text.set(f"{session.session_id} • {session.activity}{loadout} • {status} • started {session.started_at}")
         self.metric_cards["loot"].value.set(f"{session.loot_value:.2f} PED")
+        self.metric_cards["cost"].value.set(f"{session.hunting_cost:.2f} PED")
+        self.metric_cards["net"].value.set(f"{session.net_value:+.2f} PED")
         self.metric_cards["damage"].value.set(f"{session.combat_damage:.1f}")
-        self.metric_cards["events"].value.set(str(session.events))
 
     def _refresh_sessions(self, sessions: list[SessionSummary]) -> None:
         self.sessions_tree.delete(*self.sessions_tree.get_children())
@@ -417,8 +629,10 @@ class PedHunterApp(tk.Tk):
                 values=(
                     session.started_at,
                     session.activity,
+                    session.loadout_name or "—",
                     f"{session.loot_value:.2f} PED",
-                    f"{session.combat_damage:.1f}",
+                    f"{session.hunting_cost:.2f} PED",
+                    f"{session.net_value:+.2f} PED",
                     session.events,
                     "active" if session.ended_at is None else "ended",
                 ),
@@ -493,13 +707,14 @@ def _summarize_event(row: dict[str, object]) -> str:
     if kind == "loot":
         return f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {float(payload.get('value', 0) or 0):.2f} PED"
     if kind == "combat":
+        cost = f" • {float(payload['shot_cost']):.5f} PED" if "shot_cost" in payload else ""
         if "damage" in payload:
-            return f"Damage dealt: {payload['damage']}"
+            return f"Damage dealt: {payload['damage']}{cost}"
         if "damage_taken" in payload:
             return f"Damage taken: {payload['damage_taken']}"
         if "healed" in payload:
             return f"Healed: {payload['healed']}"
-        return ", ".join(k for k, v in payload.items() if v) or "Combat event"
+        return (", ".join(k for k, v in payload.items() if v and k not in {"shot_cost", "loadout"}) or "Combat event") + cost
     if kind == "weapon":
         return f"Equipped {payload.get('weapon', '?')}"
     if kind == "skill":
@@ -507,6 +722,55 @@ def _summarize_event(row: dict[str, object]) -> str:
     if kind == "craft":
         return f"{payload.get('result', '?')} {payload.get('item', '')}".strip()
     return str(row.get("raw_message") or "")
+
+
+def calculate_loadout_cost(
+    *,
+    catalog: Catalog,
+    weapon_name: str,
+    amp: str = "",
+    scope: str = "",
+    sight_1: str = "",
+    sight_2: str = "",
+    damage_enhancers: int = 0,
+    economy_enhancers: int = 0,
+) -> tuple[int, float]:
+    weapon = catalog.find_weapon(weapon_name)
+    if not weapon:
+        raise ValueError(f"Unknown weapon: {weapon_name}")
+    multiplier = (1 + (0.1 * damage_enhancers)) * (1 - (0.01 * economy_enhancers))
+    ammo = weapon.ammo * multiplier
+    decay = weapon.decay * multiplier
+    for part in (amp, scope, sight_1, sight_2):
+        if not part:
+            continue
+        attachment = catalog.attachments.get(part)
+        if attachment:
+            ammo += attachment.ammo
+            decay += attachment.decay
+    return int(ammo), float(decay)
+
+
+def _clean_part(value: str) -> str:
+    value = value.strip()
+    return "" if value.casefold() in {"", "none", "unamped", "—"} else value
+
+
+def _bounded_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        return 0
+    return max(0, min(10, parsed))
+
+
+def _event_consumes_shot(event: ParsedEvent) -> bool:
+    if event.kind != "combat":
+        return False
+    # LootNanny charged cost for outgoing attacks. In PED Hunter's parser those
+    # are damage events or creature dodges; incoming misses/damage/heals do not
+    # consume weapon ammo.
+    return "damage" in event.payload or bool(event.payload.get("dodged"))
 
 
 def main() -> int:
