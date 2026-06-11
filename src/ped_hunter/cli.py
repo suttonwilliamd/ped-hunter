@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 import time
 import urllib.request
 import json
@@ -49,6 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        argv = ["gui"]
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -61,10 +67,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "weapon":
         return _weapon_lookup(args.query)
     if args.cmd == "gui":
-        from .app import main as gui_main
-
-        return gui_main()
+        return _launch_gui()
     return 1
+
+
+def _launch_gui() -> int:
+    from .app import main as gui_main
+
+    return gui_main()
 
 
 def _seed_data(force: bool) -> int:

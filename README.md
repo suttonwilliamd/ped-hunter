@@ -22,6 +22,8 @@ Free, local-first Entropia Universe profit intelligence.
 
 Download the Windows `.exe` from the latest GitHub release, or run from source:
 
+Running `PED-Hunter.exe` with no arguments opens the dashboard. Command-line subcommands are still available from a terminal.
+
 1. Install Python 3.11+
 2. Create the normalized catalog:
 

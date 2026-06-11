@@ -1,4 +1,5 @@
 from ped_hunter.catalog import Catalog
+from ped_hunter import cli
 from ped_hunter.cli import _normalize
 
 
@@ -41,3 +42,17 @@ def test_cli_seed_normalization_keeps_frontier_hunting_rifle_distinct():
     assert normalized["aliases.json"] == {"Frontier Rifle": "Frontier Hunting Rifle"}
     assert weapons["EWE LC-100 Frontier"]["aliases"] == []
     assert weapons["Frontier Hunting Rifle"]["aliases"] == ["Frontier Rifle"]
+
+
+def test_cli_no_args_launches_gui_by_default(monkeypatch):
+    launched = False
+
+    def fake_launch_gui():
+        nonlocal launched
+        launched = True
+        return 0
+
+    monkeypatch.setattr(cli, "_launch_gui", fake_launch_gui)
+
+    assert cli.main([]) == 0
+    assert launched
