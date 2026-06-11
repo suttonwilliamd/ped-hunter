@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ped_hunter.app import _event_consumes_shot, calculate_loadout_cost
+from ped_hunter.app import _event_consumes_shot, _typeahead_match, calculate_loadout_cost
 from ped_hunter.catalog import Catalog
 from ped_hunter.parser import ParsedEvent
 from ped_hunter.storage import LoadoutRecord, Store
@@ -69,3 +69,11 @@ def test_only_outgoing_combat_consumes_shots():
     assert _event_consumes_shot(ParsedEvent("combat", None, "", {"dodged": True}))
     assert not _event_consumes_shot(ParsedEvent("combat", None, "", {"damage_taken": 4}))
     assert not _event_consumes_shot(ParsedEvent("loot", None, "", {"value": 1}))
+
+
+def test_loadout_typeahead_prefix_matching():
+    values = ["None", "ZX Eagle Eye", "ZX R-Dod", "ZX Sinkadus"]
+    assert _typeahead_match(values, "z") == "ZX Eagle Eye"
+    assert _typeahead_match(values, "zx s") == "ZX Sinkadus"
+    assert _typeahead_match(values, "ZX R") == "ZX R-Dod"
+    assert _typeahead_match(values, "missing") is None

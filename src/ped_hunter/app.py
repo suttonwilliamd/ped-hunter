@@ -266,13 +266,21 @@ class PedHunterApp(tk.Tk):
 
         weapon_names = sorted(self.catalog.weapons)
         attachment_names = ["None"] + sorted(self.catalog.attachments)
+        weapon_combo = ttk.Combobox(form, textvariable=self.loadout_weapon, values=weapon_names, state="normal")
+        amp_combo = ttk.Combobox(form, textvariable=self.loadout_amp, values=attachment_names, state="normal")
+        scope_combo = ttk.Combobox(form, textvariable=self.loadout_scope, values=attachment_names, state="normal")
+        sight_1_combo = ttk.Combobox(form, textvariable=self.loadout_sight_1, values=attachment_names, state="normal")
+        sight_2_combo = ttk.Combobox(form, textvariable=self.loadout_sight_2, values=attachment_names, state="normal")
+        for combo in (weapon_combo, amp_combo, scope_combo, sight_1_combo, sight_2_combo):
+            _install_combobox_typeahead(combo, on_change=self._refresh_loadout_preview)
+
         rows = [
             ("Name", ttk.Entry(form, textvariable=self.loadout_name)),
-            ("Weapon", ttk.Combobox(form, textvariable=self.loadout_weapon, values=weapon_names, state="normal")),
-            ("Amplifier", ttk.Combobox(form, textvariable=self.loadout_amp, values=attachment_names, state="normal")),
-            ("Scope", ttk.Combobox(form, textvariable=self.loadout_scope, values=attachment_names, state="normal")),
-            ("Sight 1", ttk.Combobox(form, textvariable=self.loadout_sight_1, values=attachment_names, state="normal")),
-            ("Sight 2", ttk.Combobox(form, textvariable=self.loadout_sight_2, values=attachment_names, state="normal")),
+            ("Weapon", weapon_combo),
+            ("Amplifier", amp_combo),
+            ("Scope", scope_combo),
+            ("Sight 1", sight_1_combo),
+            ("Sight 2", sight_2_combo),
             ("Damage enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.damage_enhancers, width=8)),
             ("Accuracy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.accuracy_enhancers, width=8)),
             ("Economy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.economy_enhancers, width=8)),
@@ -771,6 +779,61 @@ def _event_consumes_shot(event: ParsedEvent) -> bool:
     # are damage events or creature dodges; incoming misses/damage/heals do not
     # consume weapon ammo.
     return "damage" in event.payload or bool(event.payload.get("dodged"))
+
+
+def _typeahead_match(values: tuple[str, ...] | list[str], prefix: str) -> str | None:
+    """Return the first combobox value whose visible text starts with prefix."""
+    normalized = prefix.casefold().strip()
+    if not normalized:
+        return None
+    for value in values:
+        if value.casefold().startswith(normalized):
+            return value
+    return None
+
+
+def _install_combobox_typeahead(combo: ttk.Combobox, *, on_change) -> None:
+    """Add predictable LootNanny-style first-letter/prefix navigation.
+
+    Tk's native combobox behavior varies depending on focus/dropdown state. This
+    handler keeps a short-lived typed prefix so clicking Amplifier and pressing
+    "z" jumps to the Z entries, while typing "zx s" resolves to ZX Sinkadus.
+    """
+    combo._ped_typeahead = ""  # type: ignore[attr-defined]
+    combo._ped_typeahead_after = None  # type: ignore[attr-defined]
+
+    def clear_prefix() -> None:
+        combo._ped_typeahead = ""  # type: ignore[attr-defined]
+        combo._ped_typeahead_after = None  # type: ignore[attr-defined]
+
+    def on_key(event) -> str | None:
+        key = getattr(event, "keysym", "")
+        char = getattr(event, "char", "") or ""
+        if key in {"BackSpace", "Delete", "Left", "Right", "Home", "End", "Tab", "Return", "Escape"}:
+            return None
+        if not char or not char.isprintable():
+            return None
+
+        pending = getattr(combo, "_ped_typeahead_after", None)
+        if pending:
+            combo.after_cancel(pending)
+        combo._ped_typeahead = f"{getattr(combo, '_ped_typeahead', '')}{char}"  # type: ignore[attr-defined]
+        combo._ped_typeahead_after = combo.after(900, clear_prefix)  # type: ignore[attr-defined]
+
+        values = tuple(combo.cget("values") or ())
+        match = _typeahead_match(values, combo._ped_typeahead)  # type: ignore[attr-defined]
+        if match is None and len(combo._ped_typeahead) > 1:  # type: ignore[attr-defined]
+            combo._ped_typeahead = char  # type: ignore[attr-defined]
+            match = _typeahead_match(values, char)
+        if match is None:
+            return None
+        combo.set(match)
+        combo.icursor(tk.END)
+        combo.selection_clear()
+        on_change()
+        return "break"
+
+    combo.bind("<KeyPress>", on_key, add="+")
 
 
 def main() -> int:
