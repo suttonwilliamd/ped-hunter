@@ -23,15 +23,25 @@ def main() -> int:
 
     weapons = []
     for name, item in payloads["weapons.json"]["data"].items():
-        aliases = ["Frontier Rifle"] if name == "EWE LC-100 Frontier" else []
         weapons.append({
             "name": name,
             "category": item["type"],
             "ammo": int(item["ammo"]),
             "decay": float(item["decay"]),
-            "aliases": aliases,
+            "aliases": [],
             "source_name": "LootNanny legacy seed",
         })
+
+    # The Frontier starter rifle is distinct from the older EWE LC-100 Frontier
+    # and is not currently present in the legacy LootNanny seed files.
+    weapons.append({
+        "name": "Frontier Hunting Rifle",
+        "category": "Rifle",
+        "ammo": 100,
+        "decay": 0.0002,
+        "aliases": ["Frontier Rifle"],
+        "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    })
 
     attachments = []
     for source_name in ["attachments.json", "scopes.json", "sights.json"]:
@@ -57,10 +67,10 @@ def main() -> int:
     (out / "attachments.json").write_text(json.dumps({"items": sorted(attachments, key=lambda x: x["name"].casefold())}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     (out / "resources.json").write_text(json.dumps({"items": sorted(resources, key=lambda x: x["name"].casefold())}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     (out / "crafting.json").write_text(json.dumps({"items": sorted(crafting, key=lambda x: x["name"].casefold())}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    (out / "aliases.json").write_text(json.dumps({"Frontier Rifle": "EWE LC-100 Frontier"}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+    (out / "aliases.json").write_text(json.dumps({"Frontier Rifle": "Frontier Hunting Rifle"}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
 
     print(f"Wrote normalized catalog to {out}")
-    print("Frontier Rifle alias -> EWE LC-100 Frontier")
+    print("Frontier Rifle alias -> Frontier Hunting Rifle")
     return 0
 
 

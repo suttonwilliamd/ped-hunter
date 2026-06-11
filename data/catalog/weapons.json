@@ -7641,9 +7641,7 @@
       "source_name": "LootNanny legacy seed"
     },
     {
-      "aliases": [
-        "Frontier Rifle"
-      ],
+      "aliases": [],
       "ammo": 1030,
       "category": "Carbine",
       "decay": 0.0087,
@@ -8329,6 +8327,16 @@
       "decay": 0.0,
       "name": "FreanD Gamma BLP Pistol, SGA Edition",
       "source_name": "LootNanny legacy seed"
+    },
+    {
+      "aliases": [
+        "Frontier Rifle"
+      ],
+      "ammo": 100,
+      "category": "Rifle",
+      "decay": 0.0002,
+      "name": "Frontier Hunting Rifle",
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
     },
     {
       "aliases": [],

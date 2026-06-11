@@ -15,7 +15,7 @@ Free, local-first Entropia Universe profit intelligence.
 - tracks Entropia chat logs for loot, combat, crafting, and skill events
 - stores sessions in SQLite
 - seeds item/resource/crafting catalogs from the legacy LootNanny data files
-- resolves community shorthand like `Frontier Rifle` to the canonical legacy entry `EWE LC-100 Frontier`
+- resolves community shorthand like `Frontier Rifle` to the actual starter weapon `Frontier Hunting Rifle`
 - computes derived values like cost per shot from the item catalog
 
 ## Quick start
@@ -56,13 +56,14 @@ ped-hunter weapon "Frontier Rifle"
 The seed catalog is imported from the legacy LootNanny database files at:
 https://github.com/euloggeradmin/LootNanny
 
-The canonical Frontier-series entry currently used in the seed catalog is:
+The legacy LootNanny seed set does not currently include the newer Frontier starter rifle, so PED Hunter adds a supplemental weapon entry backed by EntropiaWiki and Entropia Nexus:
 
-- `EWE LC-100 Frontier`
+- `Frontier Hunting Rifle`
+- Sources: [EntropiaWiki weapon id 3070](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3070), [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle)
 
-For convenience, PED Hunter also adds the alias:
+For convenience, PED Hunter also accepts the shorthand:
 
-- `Frontier Rifle` → `EWE LC-100 Frontier`
+- `Frontier Rifle` → `Frontier Hunting Rifle`
 
 ## Notes
 
