@@ -10,6 +10,9 @@ tcl_dir = bundle_root / "_tcl_data"
 tk_dir = bundle_root / "_tk_data"
 
 if tcl_dir.exists():
-    os.environ["TCL_LIBRARY"] = str(tcl_dir)
+    # Tcl accepts Windows paths, but in one-file bundles the backslash form can
+    # still be reported as an unusable braced path by Tcl's init search. Forward
+    # slashes are the most reliable representation on Windows.
+    os.environ["TCL_LIBRARY"] = tcl_dir.as_posix()
 if tk_dir.exists():
-    os.environ["TK_LIBRARY"] = str(tk_dir)
+    os.environ["TK_LIBRARY"] = tk_dir.as_posix()
