@@ -7,6 +7,7 @@ from ped_hunter.app import (
     _attachment_in_categories,
     _attachment_names_by_category,
     _event_consumes_shot,
+    _loot_event_points,
     _typeahead_match,
     calculate_loadout_cost,
     streamer_metrics,
@@ -72,6 +73,38 @@ def test_session_summary_tolerates_malformed_legacy_payload(tmp_path: Path):
     assert summary is not None
     assert summary.events == 1
     assert summary.loot_value == 0
+
+
+def test_store_quarantines_and_recreates_malformed_database(tmp_path: Path):
+    db_path = tmp_path / "ped.sqlite3"
+    db_path.write_bytes(b"this is not a sqlite database")
+
+    store = Store(db_path)
+
+    assert store.recovery_message is not None
+    backups = list(tmp_path.glob("ped.sqlite3.corrupt-*.bak"))
+    assert len(backups) == 1
+    assert backups[0].read_bytes() == b"this is not a sqlite database"
+    assert store.list_recent_sessions() == []
+
+
+def test_loot_event_points_are_chronological_and_skip_bad_rows(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "loot", "timestamp": "t1", "raw_message": "loot", "payload": {"item_name": "Animal Oil", "value": 0.06}})
+    store.add_event(session_id, {"kind": "combat", "timestamp": "t2", "raw_message": "hit", "payload": {"damage": 2}})
+    store.add_event(session_id, {"kind": "loot", "timestamp": "t3", "raw_message": "loot", "payload": {"item_name": "Shrapnel", "value": 1.25}})
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
+            (session_id, "t4", "loot", "legacy bad row", "not json"),
+        )
+        conn.commit()
+
+    assert _loot_event_points(store, session_id) == [
+        ("t1", 0.06, "(Animal Oil)"),
+        ("t3", 1.25, "(Shrapnel)"),
+    ]
 
 
 def test_only_outgoing_combat_consumes_shots():

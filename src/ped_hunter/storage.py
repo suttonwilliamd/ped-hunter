@@ -1,11 +1,13 @@
 """SQLite storage for PED Hunter."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import json
 import sqlite3
+from typing import Iterator
 import uuid
 
 
@@ -44,6 +46,7 @@ class LoadoutRecord:
 class Store:
     def __init__(self, db_path: Path | str | None = None) -> None:
         self.db_path = Path(db_path) if db_path else self.default_db_path()
+        self.recovery_message: str | None = None
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._ensure_schema()
 
@@ -52,12 +55,28 @@ class Store:
         root = Path.home() / "AppData" / "Local" / "ped-hunter"
         return root / "ped-hunter.sqlite3"
 
-    def connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def _ensure_schema(self) -> None:
+        try:
+            self._ensure_schema_once()
+            self._verify_integrity()
+        except sqlite3.DatabaseError as exc:
+            if not _is_malformed_database_error(exc):
+                raise
+            backup_path = self._quarantine_malformed_database()
+            self.recovery_message = f"Recovered from malformed database; backup saved to {backup_path}"
+            self._ensure_schema_once()
+            self._verify_integrity()
+
+    def _ensure_schema_once(self) -> None:
         with self.connect() as conn:
             conn.executescript(
                 """
@@ -106,6 +125,24 @@ class Store:
             self._ensure_column(conn, "sessions", "loadout_id", "INTEGER")
             self._ensure_column(conn, "sessions", "loadout_snapshot", "TEXT")
             conn.commit()
+
+    def _verify_integrity(self) -> None:
+        with self.connect() as conn:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+        result = str(row[0] if row else "")
+        if result.casefold() != "ok":
+            raise sqlite3.DatabaseError(f"database integrity check failed: {result}")
+
+    def _quarantine_malformed_database(self) -> Path:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_path = _unique_backup_path(self.db_path, timestamp)
+        if self.db_path.exists():
+            self.db_path.replace(backup_path)
+        for suffix in ("-wal", "-shm"):
+            sidecar = Path(f"{self.db_path}{suffix}")
+            if sidecar.exists():
+                sidecar.replace(_unique_backup_path(sidecar, timestamp))
+        return backup_path
 
     @staticmethod
     def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -350,3 +387,20 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "decay": loadout.decay,
         "cost_per_shot": loadout.cost_per_shot,
     }
+
+
+def _is_malformed_database_error(exc: sqlite3.DatabaseError) -> bool:
+    message = str(exc).casefold()
+    return "malformed" in message or "integrity check failed" in message or "not a database" in message
+
+
+def _unique_backup_path(path: Path, timestamp: str) -> Path:
+    candidate = path.with_name(f"{path.name}.corrupt-{timestamp}.bak")
+    if not candidate.exists():
+        return candidate
+    index = 2
+    while True:
+        candidate = path.with_name(f"{path.name}.corrupt-{timestamp}-{index}.bak")
+        if not candidate.exists():
+            return candidate
+        index += 1

@@ -242,8 +242,21 @@ class PedHunterApp(tk.Tk):
     def _build_events_tab(self) -> None:
         tab = self.events_tab
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(0, weight=1)
-        panel = self._panel(tab, "Live event stream", 0, 0)
+        tab.rowconfigure(0, weight=2)
+        tab.rowconfigure(1, weight=3)
+        chart_panel = self._panel(tab, "Loot event chart", 0, 0)
+        self.loot_chart_canvas = tk.Canvas(
+            chart_panel,
+            bg="#0b1220",
+            highlightthickness=1,
+            highlightbackground=self.colors["border"],
+            relief="flat",
+            height=210,
+        )
+        self.loot_chart_canvas.grid(row=0, column=0, sticky="nsew")
+        self.loot_chart_canvas.bind("<Configure>", lambda _event: self._draw_loot_chart())
+
+        panel = self._panel(tab, "Live event stream", 1, 0)
         self.events_tree = self._tree(
             panel,
             columns=("time", "kind", "summary"),
@@ -632,6 +645,7 @@ class PedHunterApp(tk.Tk):
         self._refresh_metrics(display, sessions)
         self._refresh_sessions(sessions)
         self._refresh_events(display.session_id if display else None)
+        self._refresh_loot_chart(display.session_id if display else None)
         self._refresh_loadouts()
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
@@ -678,6 +692,69 @@ class PedHunterApp(tk.Tk):
             return
         for row in _recent_events(self.store, session_id, limit=80):
             self.events_tree.insert("", "end", values=(row["timestamp"] or "", row["kind"], _summarize_event(row)))
+
+    def _refresh_loot_chart(self, session_id: str | None) -> None:
+        self.loot_chart_points = _loot_event_points(self.store, session_id, limit=160) if session_id else []
+        self._draw_loot_chart()
+
+    def _draw_loot_chart(self) -> None:
+        canvas = self.loot_chart_canvas
+        canvas.delete("all")
+        width = max(canvas.winfo_width(), 1)
+        height = max(canvas.winfo_height(), 1)
+        pad_left = 56
+        pad_right = 18
+        pad_top = 22
+        pad_bottom = 38
+        plot_w = max(width - pad_left - pad_right, 1)
+        plot_h = max(height - pad_top - pad_bottom, 1)
+        colors = self.colors
+        canvas.create_rectangle(0, 0, width, height, fill="#0b1220", outline="")
+        points = getattr(self, "loot_chart_points", [])
+        if not points:
+            canvas.create_text(
+                width / 2,
+                height / 2,
+                text="No loot events yet — start a run and loot events will plot here.",
+                fill=colors["muted"],
+                font=("Segoe UI", 10),
+                width=max(width - 40, 100),
+            )
+            return
+
+        max_value = max(value for _, value, _ in points) or 1.0
+        tick_values = [0, max_value / 2, max_value]
+        for tick in tick_values:
+            y = pad_top + plot_h - (tick / max_value * plot_h)
+            canvas.create_line(pad_left, y, width - pad_right, y, fill="#1f2a3d")
+            canvas.create_text(pad_left - 8, y, text=f"{tick:.2f}", anchor="e", fill=colors["muted"], font=("Segoe UI", 8))
+        canvas.create_text(10, pad_top - 4, text="PED", anchor="w", fill=colors["muted"], font=("Segoe UI", 8, "bold"))
+
+        count = len(points)
+        step = plot_w / max(count - 1, 1)
+        radius = 4 if count < 60 else 3
+        line_points: list[float] = []
+        for index, (_timestamp, value, label) in enumerate(points):
+            x = pad_left + (step * index if count > 1 else plot_w / 2)
+            y = pad_top + plot_h - (value / max_value * plot_h)
+            line_points.extend([x, y])
+            canvas.create_line(x, pad_top + plot_h, x, y, fill="#075985", width=2)
+            canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=colors["accent"], outline="#e0f2fe")
+            if count <= 28:
+                canvas.create_text(x, pad_top + plot_h + 8, text=str(index + 1), anchor="n", fill=colors["muted"], font=("Segoe UI", 8))
+            if value == max_value:
+                canvas.create_text(x, max(y - 10, 8), text=f"{value:.2f}", anchor="s", fill=colors["text"], font=("Segoe UI", 8, "bold"))
+        if len(line_points) >= 4:
+            canvas.create_line(*line_points, fill="#7dd3fc", width=2, smooth=False)
+        total = sum(value for _, value, _ in points)
+        canvas.create_text(
+            width - pad_right,
+            height - 12,
+            text=f"{count} loot events • {total:.2f} PED total • latest: {points[-1][1]:.2f} PED {points[-1][2]}",
+            anchor="e",
+            fill=colors["muted"],
+            font=("Segoe UI", 9),
+        )
 
     def _search_catalog(self) -> None:
         self.catalog_tree.delete(*self.catalog_tree.get_children())
@@ -801,6 +878,41 @@ def _recent_events(store: Store, session_id: str, limit: int = 50) -> list[dict[
             (session_id, limit),
         ).fetchall()
     return [dict(row) for row in reversed(rows)]
+
+
+def _loot_event_points(store: Store, session_id: str | None, limit: int = 160) -> list[tuple[str, float, str]]:
+    """Return chronological loot values suitable for plotting.
+
+    Each point is (timestamp, value_in_ped, short_item_label). Malformed legacy
+    payloads and loot rows without a numeric value are skipped so the chart keeps
+    drawing even when older local data contains bad JSON.
+    """
+    if not session_id:
+        return []
+    with store.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT timestamp, payload
+            FROM events
+            WHERE session_id = ? AND kind = 'loot'
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (session_id, limit),
+        ).fetchall()
+    points: list[tuple[str, float, str]] = []
+    for row in reversed(rows):
+        try:
+            payload = json.loads(str(row["payload"] or "{}"))
+            value = float(payload.get("value", 0) or 0)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if value <= 0:
+            continue
+        item_name = str(payload.get("item_name") or "loot")
+        label = f"({item_name})" if item_name and item_name != "loot" else ""
+        points.append((str(row["timestamp"] or ""), value, label))
+    return points
 
 
 def _summarize_event(row: dict[str, object]) -> str:
