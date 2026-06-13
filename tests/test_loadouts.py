@@ -59,6 +59,22 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.net_value == 0.2398
 
 
+def test_store_can_resume_ended_session(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.end_session(session_id)
+    ended = store.get_session(session_id)
+    assert ended is not None
+    assert ended.ended_at is not None
+
+    store.resume_session(session_id)
+
+    resumed = store.get_session(session_id)
+    assert resumed is not None
+    assert resumed.ended_at is None
+    assert store.get_current_session().session_id == session_id
+
+
 def test_session_summary_tolerates_malformed_legacy_payload(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")

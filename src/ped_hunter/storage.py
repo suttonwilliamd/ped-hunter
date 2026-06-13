@@ -173,6 +173,12 @@ class Store:
             )
             conn.commit()
 
+    def resume_session(self, session_id: str) -> None:
+        """Reopen a saved session so new events can be appended to it."""
+        with self.connect() as conn:
+            conn.execute("UPDATE sessions SET ended_at = NULL WHERE id = ?", (session_id,))
+            conn.commit()
+
     def add_event(self, session_id: str, event: dict) -> None:
         payload = json.dumps(event.get("payload", {}), ensure_ascii=False)
         timestamp = event.get("timestamp")
@@ -282,6 +288,18 @@ class Store:
         if not row:
             return None
         return _session_from_row(row)
+
+    def get_session(self, session_id: str) -> SessionSummary | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                _SESSION_SUMMARY_SQL + """
+                WHERE s.id = ?
+                GROUP BY s.id
+                LIMIT 1
+                """,
+                (session_id,),
+            ).fetchone()
+        return _session_from_row(row) if row else None
 
     def list_recent_sessions(self, limit: int = 5) -> list[SessionSummary]:
         with self.connect() as conn:
