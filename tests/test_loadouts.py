@@ -59,6 +59,34 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.net_value == 0.2398
 
 
+def test_lifetime_totals_are_weighted_across_all_sessions(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    large_session = store.start_session("hunt")
+    store.add_event(large_session, {"kind": "combat", "raw_message": "cost", "payload": {"damage": 1, "shot_cost": 100.0}})
+    store.add_event(large_session, {"kind": "loot", "raw_message": "loot", "payload": {"value": 90.0}})
+    store.end_session(large_session)
+
+    small_session = store.start_session("hunt")
+    store.add_event(small_session, {"kind": "combat", "raw_message": "cost", "payload": {"damage": 1, "shot_cost": 10.0}})
+    store.add_event(small_session, {"kind": "loot", "raw_message": "loot", "payload": {"value": 20.0}})
+    store.end_session(small_session)
+
+    totals = store.lifetime_totals()
+
+    assert totals.session_count == 2
+    assert totals.active_count == 0
+    assert totals.total_cost == 110.0
+    assert totals.total_loot == 110.0
+    assert totals.total_net == 0.0
+    assert totals.overall_return_pct == 100.0
+    assert totals.avg_return_pct == 145.0
+    assert totals.avg_profit_per_run == 0.0
+    assert totals.best_session is not None
+    assert totals.best_session.session_id == small_session
+    assert totals.worst_session is not None
+    assert totals.worst_session.session_id == large_session
+
+
 def test_store_can_resume_ended_session(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")

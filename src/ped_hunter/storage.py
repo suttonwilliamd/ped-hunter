@@ -43,6 +43,21 @@ class LoadoutRecord:
     active: bool = False
 
 
+@dataclass(slots=True)
+class LifetimeTotals:
+    session_count: int
+    active_count: int
+    total_loot: float
+    total_cost: float
+    total_net: float
+    total_events: int
+    overall_return_pct: float
+    avg_return_pct: float
+    avg_profit_per_run: float
+    best_session: SessionSummary | None = None
+    worst_session: SessionSummary | None = None
+
+
 class Store:
     def __init__(self, db_path: Path | str | None = None) -> None:
         self.db_path = Path(db_path) if db_path else self.default_db_path()
@@ -312,6 +327,39 @@ class Store:
                 (limit,),
             ).fetchall()
         return [_session_from_row(row) for row in rows]
+
+    def list_all_sessions(self) -> list[SessionSummary]:
+        """Return every stored session newest-first for aggregate reporting."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                _SESSION_SUMMARY_SQL + """
+                GROUP BY s.id
+                ORDER BY s.started_at DESC
+                """
+            ).fetchall()
+        return [_session_from_row(row) for row in rows]
+
+    def lifetime_totals(self) -> LifetimeTotals:
+        """Return meaningful all-session PED totals and averages."""
+        sessions = self.list_all_sessions()
+        total_loot = sum(session.loot_value for session in sessions)
+        total_cost = sum(session.hunting_cost for session in sessions)
+        total_net = total_loot - total_cost
+        sessions_with_cost = [session for session in sessions if session.hunting_cost > 0]
+        return_pcts = [session.loot_value / session.hunting_cost * 100.0 for session in sessions_with_cost]
+        return LifetimeTotals(
+            session_count=len(sessions),
+            active_count=sum(1 for session in sessions if session.ended_at is None),
+            total_loot=total_loot,
+            total_cost=total_cost,
+            total_net=total_net,
+            total_events=sum(session.events for session in sessions),
+            overall_return_pct=(total_loot / total_cost * 100.0) if total_cost > 0 else 0.0,
+            avg_return_pct=(sum(return_pcts) / len(return_pcts)) if return_pcts else 0.0,
+            avg_profit_per_run=(total_net / len(sessions)) if sessions else 0.0,
+            best_session=max(sessions, key=lambda session: session.net_value) if sessions else None,
+            worst_session=min(sessions, key=lambda session: session.net_value) if sessions else None,
+        )
 
 
 _SESSION_SUMMARY_SQL = """
