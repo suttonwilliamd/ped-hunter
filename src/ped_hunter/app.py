@@ -900,7 +900,7 @@ class PedHunterApp(tk.Tk):
     def _refresh_all(self) -> None:
         current = self.store.get_current_session()
         sessions = self.store.list_recent_sessions(20)
-        display = current or (sessions[0] if sessions else None)
+        display = self._display_session(current, sessions)
         self._refresh_metrics(display, sessions)
         self._refresh_lifetime_totals()
         self._refresh_sessions(sessions)
@@ -909,6 +909,13 @@ class PedHunterApp(tk.Tk):
         self._refresh_loadouts()
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
+
+    def _display_session(self, current: SessionSummary | None, sessions: list[SessionSummary]) -> SessionSummary | None:
+        if self.session_id:
+            resumed_or_active = self.store.get_session(self.session_id)
+            if resumed_or_active:
+                return resumed_or_active
+        return current or (sessions[0] if sessions else None)
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"

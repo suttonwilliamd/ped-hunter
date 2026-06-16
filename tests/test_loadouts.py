@@ -1,7 +1,9 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 from ped_hunter.app import (
     AMP_CATEGORIES,
+    PedHunterApp,
     SCOPE_CATEGORIES,
     SIGHT_CATEGORIES,
     _attachment_in_categories,
@@ -101,6 +103,21 @@ def test_store_can_resume_ended_session(tmp_path: Path):
     assert resumed is not None
     assert resumed.ended_at is None
     assert store.get_current_session().session_id == session_id
+
+
+def test_display_session_prefers_explicit_resumed_session(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    resumed_id = store.start_session("hunt")
+    store.add_event(resumed_id, {"kind": "loot", "raw_message": "old", "payload": {"value": 1.0}})
+    other_active_id = store.start_session("hunt")
+    store.add_event(other_active_id, {"kind": "loot", "raw_message": "new", "payload": {"value": 9.0}})
+    app_like = SimpleNamespace(session_id=resumed_id, store=store)
+
+    display = PedHunterApp._display_session(app_like, store.get_session(other_active_id), store.list_recent_sessions())
+
+    assert display is not None
+    assert display.session_id == resumed_id
+    assert display.loot_value == 1.0
 
 
 def test_session_summary_tolerates_malformed_legacy_payload(tmp_path: Path):
