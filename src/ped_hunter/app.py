@@ -55,8 +55,13 @@ class PedHunterApp(tk.Tk):
         self.status_text = tk.StringVar(value="Ready — choose a chat log and start tracking")
         self.session_text = tk.StringVar(value="No active session")
         self.catalog_query = tk.StringVar(value="Frontier Rifle")
+        blueprint_names = sorted(self.catalog.blueprints)
+        self.crafting_blueprint = tk.StringVar(value=blueprint_names[0] if blueprint_names else "")
+        self.crafting_attempts = tk.StringVar(value="1")
+        self.crafting_preview = tk.StringVar(value="Select a blueprint to preview material TT cost.")
         self.active_loadout_title = tk.StringVar(value="No active setup")
         self.active_loadout_details = tk.StringVar(value="Configure and activate a hunting setup before starting for accurate costs.")
+
         self.active_loadout_text = tk.StringVar(value="No active setup — configure one before tracking")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
         self.hero_net = tk.StringVar(value="+0.00 PED")
@@ -235,17 +240,20 @@ class PedHunterApp(tk.Tk):
         self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
+        self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         notebook.add(self.dashboard_tab, text="Dashboard")
         notebook.add(self.events_tab, text="Events")
         notebook.add(self.loadouts_tab, text="Setups")
+        notebook.add(self.manufacturing_tab, text="Manufacturing")
         notebook.add(self.catalog_tab, text="Catalog")
         notebook.add(self.setup_tab, text="Help")
 
         self._build_dashboard_tab()
         self._build_events_tab()
         self._build_loadouts_tab()
+        self._build_manufacturing_tab()
         self._build_catalog_tab()
         self._build_setup_tab()
         self.bind("<Configure>", self._on_resize)
@@ -517,6 +525,53 @@ class PedHunterApp(tk.Tk):
         )
         help_text.configure(state="disabled")
         self._refresh_loadout_preview()
+
+    def _build_manufacturing_tab(self) -> None:
+        tab = self.manufacturing_tab
+        tab.columnconfigure(0, weight=2)
+        tab.columnconfigure(1, weight=1)
+        tab.rowconfigure(0, weight=1)
+
+        builder = self._panel(tab, "Blueprint material cost", 0, 0)
+        form = ttk.Frame(builder, style="Panel.TFrame")
+        form.grid(row=0, column=0, sticky="nsew")
+        form.columnconfigure(1, weight=1)
+
+        blueprint_names = sorted(self.catalog.blueprints)
+        blueprint_combo = ttk.Combobox(form, textvariable=self.crafting_blueprint, values=blueprint_names, state="normal")
+        _install_combobox_typeahead(blueprint_combo, on_change=self._refresh_crafting_preview)
+        attempts_spin = ttk.Spinbox(form, from_=1, to=1000000, textvariable=self.crafting_attempts, width=10, command=self._refresh_crafting_preview)
+        blueprint_combo.bind("<KeyRelease>", lambda _event: self._refresh_crafting_preview())
+        blueprint_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_crafting_preview())
+        attempts_spin.bind("<KeyRelease>", lambda _event: self._refresh_crafting_preview())
+
+        ttk.Label(form, text="Blueprint", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10), pady=5)
+        blueprint_combo.grid(row=0, column=1, sticky="ew", pady=5)
+        ttk.Label(form, text="Attempts", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=5)
+        attempts_spin.grid(row=1, column=1, sticky="w", pady=5)
+        ttk.Label(form, textvariable=self.crafting_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold"), wraplength=620).grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 8))
+        ttk.Button(form, text="Add material cost to active session", command=self._add_crafting_cost_to_session, style="Accent.TButton").grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
+
+        help_panel = self._panel(tab, "How manufacturing offsets loot", 0, 1)
+        help_text = tk.Text(
+            help_panel,
+            height=14,
+            wrap="word",
+            bg=self.colors["panel_2"],
+            fg=self.colors["text"],
+            relief="flat",
+            font=("Segoe UI", 9),
+            padx=12,
+            pady=10,
+        )
+        help_text.grid(row=0, column=0, sticky="nsew")
+        help_text.insert(
+            "1.0",
+            "Choose a blueprint and enter the number of manufacturing attempts. PED Hunter totals the TT value of the required materials per click, multiplies by attempts, and records that input cost as a crafting event on the active session.\n\n"
+            "This mirrors LootNanny's manufacturing flow: crafting returns can still be parsed as loot/output, while the material spend is added to session cost so return %, net PED, streamer overlay, and lifetime totals stay honest.",
+        )
+        help_text.configure(state="disabled")
+        self._refresh_crafting_preview()
 
     def _build_catalog_tab(self) -> None:
         tab = self.catalog_tab
@@ -896,6 +951,53 @@ class PedHunterApp(tk.Tk):
             parsed += 1
         if parsed:
             self.status_text.set(f"Parsed {parsed} new event{'s' if parsed != 1 else ''}")
+
+    def _refresh_crafting_preview(self) -> None:
+        try:
+            attempts = _positive_int(self.crafting_attempts.get())
+            per_attempt, _materials = calculate_blueprint_material_cost(self.catalog, self.crafting_blueprint.get())
+        except ValueError as exc:
+            self.crafting_preview.set(f"Blueprint needs attention: {exc}")
+            return
+        total = per_attempt * attempts
+        self.crafting_preview.set(f"Material TT: {per_attempt:.2f} PED/attempt • {attempts:,} attempts = {total:.2f} PED input")
+
+    def _add_crafting_cost_to_session(self) -> None:
+        current = self.store.get_current_session()
+        session_id = self.session_id or (current.session_id if current else None)
+        if not session_id:
+            messagebox.showinfo("PED Hunter", "Start or resume a session before adding manufacturing material cost.")
+            return
+
+        try:
+            attempts = _positive_int(self.crafting_attempts.get())
+            per_attempt, materials = calculate_blueprint_material_cost(self.catalog, self.crafting_blueprint.get())
+        except ValueError as exc:
+            messagebox.showerror("PED Hunter", str(exc))
+            self._refresh_crafting_preview()
+            return
+        total = per_attempt * attempts
+        blueprint = self.catalog.find_blueprint(self.crafting_blueprint.get())
+        blueprint_name = blueprint.name if blueprint else self.crafting_blueprint.get().strip()
+        self.store.add_event(
+            session_id,
+            {
+                "kind": "craft",
+                "raw_message": f"Manufacturing cost: {attempts} x {blueprint_name} = {total:.2f} PED",
+                "payload": {
+                    "blueprint": blueprint_name,
+                    "attempts": attempts,
+                    "cost_per_attempt": per_attempt,
+                    "total_cost": total,
+                    "materials": [
+                        {"name": name, "quantity": quantity, "tt_value": tt_value, "total": line_total}
+                        for name, quantity, tt_value, line_total in materials
+                    ],
+                },
+            },
+        )
+        self.status_text.set(f"Added {total:.2f} PED manufacturing cost for {attempts:,} attempt{'s' if attempts != 1 else ''}")
+        self._refresh_all()
 
     def _refresh_all(self) -> None:
         current = self.store.get_current_session()
@@ -1291,6 +1393,10 @@ def _summarize_event(row: dict[str, object]) -> str:
     if kind == "skill":
         return f"{payload.get('skill', '?')} +{payload.get('xp', '?')} XP"
     if kind == "craft":
+        if "total_cost" in payload:
+            attempts = int(payload.get("attempts", 1) or 1)
+            blueprint = payload.get("blueprint", "Blueprint")
+            return f"Crafting input: {attempts:,} x {blueprint} — {float(payload.get('total_cost', 0) or 0):.2f} PED"
         return f"{payload.get('result', '?')} {payload.get('item', '')}".strip()
     return str(row.get("raw_message") or "")
 
@@ -1321,6 +1427,38 @@ def calculate_loadout_cost(
             decay += attachment.decay
     return int(ammo), float(decay)
 
+
+def calculate_blueprint_material_cost(catalog: Catalog, blueprint_name: str) -> tuple[float, list[tuple[str, int, float, float]]]:
+    blueprint = catalog.find_blueprint(blueprint_name)
+    if not blueprint:
+        raise ValueError("choose a known blueprint")
+    materials: list[tuple[str, int, float, float]] = []
+    missing: list[str] = []
+    total = 0.0
+    for material_name, quantity in blueprint.materials:
+        resource = catalog.resources.get(material_name)
+        if resource is None:
+            missing.append(material_name)
+            continue
+        line_total = quantity * resource.tt_value
+        materials.append((material_name, quantity, resource.tt_value, line_total))
+        total += line_total
+    if missing:
+        names = ", ".join(missing[:5])
+        if len(missing) > 5:
+            names += f", +{len(missing) - 5} more"
+        raise ValueError(f"missing TT values for blueprint materials: {names}")
+    return total, materials
+
+
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value.replace(",", "").strip())
+    except ValueError:
+        raise ValueError("attempts must be a whole number") from None
+    if parsed < 1:
+        raise ValueError("attempts must be at least 1")
+    return parsed
 
 def _clean_part(value: str) -> str:
     value = value.strip()

@@ -11,10 +11,11 @@ from ped_hunter.app import (
     _event_consumes_shot,
     _loot_event_points,
     _typeahead_match,
+    calculate_blueprint_material_cost,
     calculate_loadout_cost,
     streamer_metrics,
 )
-from ped_hunter.catalog import Catalog
+from ped_hunter.catalog import BlueprintRecord, Catalog, ResourceRecord
 from ped_hunter.parser import ParsedEvent
 from ped_hunter.storage import LoadoutRecord, SessionSummary, Store
 
@@ -39,6 +40,32 @@ def test_damage_and_economy_enhancers_follow_lootnanny_formula():
     assert round(decay, 6) == 0.000228
 
 
+def test_blueprint_material_cost_sums_material_tt_values():
+    catalog = Catalog(
+        weapons={},
+        attachments={},
+        resources={
+            "Metal Residue": ResourceRecord("Metal Residue", 0.01),
+            "Lysterium Ingot": ResourceRecord("Lysterium Ingot", 0.03),
+        },
+        blueprints={
+            "Test Widget Blueprint": BlueprintRecord(
+                "Test Widget Blueprint",
+                (("Metal Residue", 10), ("Lysterium Ingot", 2)),
+            )
+        },
+        aliases={},
+    )
+
+    per_attempt, materials = calculate_blueprint_material_cost(catalog, "widget")
+
+    assert round(per_attempt, 2) == 0.16
+    assert materials == [
+        ("Metal Residue", 10, 0.01, 0.1),
+        ("Lysterium Ingot", 2, 0.03, 0.06),
+    ]
+
+
 def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     loadout = LoadoutRecord(
@@ -59,6 +86,20 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.loadout_name == "Test Frontier"
     assert summary.hunting_cost == 0.0102
     assert summary.net_value == 0.2398
+
+
+def test_store_summarizes_crafting_material_costs(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "craft", "raw_message": "craft cost", "payload": {"blueprint": "Widget Blueprint", "attempts": 3, "total_cost": 12.0}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "loot", "payload": {"value": 5.0}})
+
+    summary = store.get_current_session()
+
+    assert summary is not None
+    assert summary.hunting_cost == 12.0
+    assert summary.loot_value == 5.0
+    assert summary.net_value == -7.0
 
 
 def test_lifetime_totals_are_weighted_across_all_sessions(tmp_path: Path):

@@ -96,6 +96,18 @@ class Catalog:
             return self.weapons.get(resolved)
         return None
 
+    def find_blueprint(self, query: str) -> BlueprintRecord | None:
+        key = query.casefold().strip()
+        if not key:
+            return None
+        for name, blueprint in self.blueprints.items():
+            if name.casefold() == key:
+                return blueprint
+        for name, blueprint in self.blueprints.items():
+            if key in name.casefold():
+                return blueprint
+        return None
+
     def _weapon_key_map(self) -> dict[str, str]:
         return {name.casefold(): name for name in self.weapons}
 
