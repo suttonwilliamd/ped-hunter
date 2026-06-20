@@ -102,6 +102,20 @@ def test_store_summarizes_crafting_material_costs(tmp_path: Path):
     assert summary.net_value == -7.0
 
 
+def test_store_excludes_universal_ammo_conversion_from_session_loot(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 1, "shot_cost": 10.0}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "real loot", "payload": {"item_name": "Shrapnel", "value": 25.0}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
+
+    summary = store.get_current_session()
+
+    assert summary is not None
+    assert summary.loot_value == 25.0
+    assert summary.net_value == 15.0
+
+
 def test_store_summarizes_session_skill_gains_like_lootnanny(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")
@@ -217,10 +231,11 @@ def test_loot_event_points_are_chronological_and_skip_bad_rows(tmp_path: Path):
     store.add_event(session_id, {"kind": "loot", "timestamp": "t1", "raw_message": "loot", "payload": {"item_name": "Animal Oil", "value": 0.06}})
     store.add_event(session_id, {"kind": "combat", "timestamp": "t2", "raw_message": "hit", "payload": {"damage": 2}})
     store.add_event(session_id, {"kind": "loot", "timestamp": "t3", "raw_message": "loot", "payload": {"item_name": "Shrapnel", "value": 1.25}})
+    store.add_event(session_id, {"kind": "loot", "timestamp": "t4", "raw_message": "conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
     with store.connect() as conn:
         conn.execute(
             "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
-            (session_id, "t4", "loot", "legacy bad row", "not json"),
+            (session_id, "t5", "loot", "legacy bad row", "not json"),
         )
         conn.commit()
 

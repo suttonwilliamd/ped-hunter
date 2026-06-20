@@ -9,6 +9,11 @@ def test_parse_loot_line():
     assert event.payload["value"] == 0.06
 
 
+def test_parse_skips_universal_ammo_conversion():
+    event = parse_line("2026-06-20 04:10:06 [System] [] You received Universal Ammo x (2930954) Value: 293.09 PED")
+    assert event is None
+
+
 def test_parse_lootnanny_skill_gain_formats():
     lines = [
         ("2026-06-11 20:10:01 [System] [] You have gained 0.1234 experience in your Anatomy skill", "Anatomy", 0.1234),

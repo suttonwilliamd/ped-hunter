@@ -1425,6 +1425,8 @@ def _loot_event_points(store: Store, session_id: str | None, limit: int = 160) -
         if value <= 0:
             continue
         item_name = str(payload.get("item_name") or "loot")
+        if item_name.strip().casefold() == "universal ammo":
+            continue
         label = f"({item_name})" if item_name and item_name != "loot" else ""
         points.append((str(row["timestamp"] or ""), value, label))
     return points

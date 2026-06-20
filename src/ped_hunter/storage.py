@@ -415,7 +415,13 @@ class Store:
 _SESSION_SUMMARY_SQL = """
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
            COUNT(e.id) AS events,
-           COALESCE(SUM(CASE WHEN e.kind = 'loot' AND json_valid(e.payload) THEN json_extract(e.payload, '$.value') ELSE 0 END), 0) AS loot_value,
+           COALESCE(SUM(CASE
+               WHEN e.kind = 'loot'
+                    AND json_valid(e.payload)
+                    AND COALESCE(lower(trim(json_extract(e.payload, '$.item_name'))), '') != 'universal ammo'
+               THEN json_extract(e.payload, '$.value')
+               ELSE 0
+           END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
            COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.shot_cost')

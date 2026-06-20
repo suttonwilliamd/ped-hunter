@@ -65,12 +65,18 @@ def parse_line(line: str) -> ParsedEvent | None:
             continue
 
         if kind == "loot":
+            item_name = match.group(1).strip()
+            if item_name.casefold() == "universal ammo":
+                # Universal Ammo appears when shrapnel is converted at 101% and
+                # is not newly looted return. Counting it inflates session profit
+                # by the entire converted ammo balance.
+                return None
             return ParsedEvent(
                 kind="loot",
                 timestamp=timestamp,
                 raw_message=line,
                 payload={
-                    "item_name": match.group(1),
+                    "item_name": item_name,
                     "quantity": int(match.group(2)),
                     "value": float(match.group(3)),
                     "is_personal": True,
