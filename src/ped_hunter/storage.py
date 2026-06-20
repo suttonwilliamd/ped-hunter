@@ -58,6 +58,14 @@ class LifetimeTotals:
     worst_session: SessionSummary | None = None
 
 
+@dataclass(slots=True)
+class SkillGainSummary:
+    skill: str
+    xp: float
+    procs: int
+    proc_pct: float
+
+
 class Store:
     def __init__(self, db_path: Path | str | None = None) -> None:
         self.db_path = Path(db_path) if db_path else self.default_db_path()
@@ -360,6 +368,48 @@ class Store:
             best_session=max(sessions, key=lambda session: session.net_value) if sessions else None,
             worst_session=min(sessions, key=lambda session: session.net_value) if sessions else None,
         )
+
+    def skill_gains_for_session(self, session_id: str) -> list[SkillGainSummary]:
+        """Return LootNanny-style skill gain totals for a session.
+
+        Skill events are stored as JSON payloads with ``skill`` and ``xp`` keys.
+        Malformed legacy payloads are skipped so one bad local row does not break
+        the session view.
+        """
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT payload
+                FROM events
+                WHERE session_id = ? AND kind = 'skill'
+                """,
+                (session_id,),
+            ).fetchall()
+
+        totals: dict[str, float] = {}
+        procs: dict[str, int] = {}
+        for row in rows:
+            try:
+                payload = json.loads(str(row["payload"] or "{}"))
+                skill = str(payload.get("skill") or "").strip()
+                xp = float(payload.get("xp", 0) or 0)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if not skill:
+                continue
+            totals[skill] = totals.get(skill, 0.0) + xp
+            procs[skill] = procs.get(skill, 0) + 1
+
+        total_procs = sum(procs.values())
+        return [
+            SkillGainSummary(
+                skill=skill,
+                xp=xp,
+                procs=procs[skill],
+                proc_pct=(procs[skill] / total_procs * 100.0) if total_procs else 0.0,
+            )
+            for skill, xp in sorted(totals.items(), key=lambda item: item[1], reverse=True)
+        ]
 
 
 _SESSION_SUMMARY_SQL = """

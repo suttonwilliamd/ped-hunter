@@ -102,6 +102,27 @@ def test_store_summarizes_crafting_material_costs(tmp_path: Path):
     assert summary.net_value == -7.0
 
 
+def test_store_summarizes_session_skill_gains_like_lootnanny(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "skill", "raw_message": "anatomy", "payload": {"skill": "Anatomy", "xp": 0.25}})
+    store.add_event(session_id, {"kind": "skill", "raw_message": "rifle", "payload": {"skill": "Rifle", "xp": 0.75}})
+    store.add_event(session_id, {"kind": "skill", "raw_message": "anatomy again", "payload": {"skill": "Anatomy", "xp": 0.50}})
+    with store.connect() as conn:
+        conn.execute(
+            "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
+            (session_id, None, "skill", "legacy bad row", "not json"),
+        )
+        conn.commit()
+
+    gains = store.skill_gains_for_session(session_id)
+
+    assert [(gain.skill, round(gain.xp, 4), gain.procs, round(gain.proc_pct)) for gain in gains] == [
+        ("Anatomy", 0.75, 2, 67),
+        ("Rifle", 0.75, 1, 33),
+    ]
+
+
 def test_lifetime_totals_are_weighted_across_all_sessions(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     large_session = store.start_session("hunt")

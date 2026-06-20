@@ -26,6 +26,7 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 - clear start/stop controls with visible chat-log status
 - recent session history backed by SQLite
 - live event stream for parsed chat lines
+- LootNanny-style session skill-gain summary with total XP, procs, and proc share by skill
 - loadout builder inspired by LootNanny's Config flow so hunt costs are based on weapon, amp, scope/sights, and enhancers
 - catalog search with weapon cost/shot details and aliases
 - setup guidance for first-time users

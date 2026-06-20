@@ -71,6 +71,9 @@ class PedHunterApp(tk.Tk):
         self.hero_events = tk.StringVar(value="Events 0")
         self.hero_state = tk.StringVar(value="Idle")
         self.hero_session = tk.StringVar(value="No active session — start a run to begin collecting data")
+        self.skill_total_text = tk.StringVar(value="0.0000 XP")
+        self.skill_proc_text = tk.StringVar(value="0 skill gains")
+        self.skill_summary_text = tk.StringVar(value="No skill gains recorded for this session yet.")
         self.lifetime_summary_text = tk.StringVar(value="No completed runs yet — start tracking to build your lifetime stats.")
         self.lifetime_vars = {
             "total_cost": tk.StringVar(value="0.00 PED"),
@@ -239,12 +242,14 @@ class PedHunterApp(tk.Tk):
         notebook.grid(row=3, column=0, sticky="nsew")
         self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
+        self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         notebook.add(self.dashboard_tab, text="Dashboard")
         notebook.add(self.events_tab, text="Events")
+        notebook.add(self.skills_tab, text="Skills")
         notebook.add(self.loadouts_tab, text="Setups")
         notebook.add(self.manufacturing_tab, text="Manufacturing")
         notebook.add(self.catalog_tab, text="Catalog")
@@ -252,6 +257,7 @@ class PedHunterApp(tk.Tk):
 
         self._build_dashboard_tab()
         self._build_events_tab()
+        self._build_skills_tab()
         self._build_loadouts_tab()
         self._build_manufacturing_tab()
         self._build_catalog_tab()
@@ -447,6 +453,31 @@ class PedHunterApp(tk.Tk):
             columns=("time", "kind", "summary"),
             headings=("Time", "Kind", "Summary"),
         )
+
+    def _build_skills_tab(self) -> None:
+        tab = self.skills_tab
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(1, weight=1)
+
+        summary_panel = self._panel(tab, "Session skill gain summary", 0, 0)
+        summary_panel.columnconfigure(0, weight=1)
+        summary_panel.columnconfigure(1, weight=1)
+        ttk.Label(summary_panel, textvariable=self.skill_summary_text, style="PanelMuted.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        self._add_skill_card(summary_panel, self.skill_total_text, "TOTAL SKILL GAIN", 1, 0)
+        self._add_skill_card(summary_panel, self.skill_proc_text, "SKILL GAIN PROCS", 1, 1)
+
+        table_panel = self._panel(tab, "Skill gains by skill", 1, 0)
+        self.skills_tree = self._tree(
+            table_panel,
+            columns=("skill", "xp", "procs", "proc_pct"),
+            headings=("Skill", "Value", "Procs", "Proc %"),
+        )
+
+    def _add_skill_card(self, parent: ttk.Frame, value: tk.StringVar, label: str, row: int, column: int) -> None:
+        frame = ttk.Frame(parent, style="Card.TFrame", padding=(10, 8))
+        frame.grid(row=row, column=column, sticky="ew", padx=(0 if column == 0 else 8, 0))
+        ttk.Label(frame, text=label, style="CardLabel.TLabel").pack(anchor="w")
+        ttk.Label(frame, textvariable=value, style="CardValue.TLabel").pack(anchor="w", pady=(3, 0))
 
     def _build_loadouts_tab(self) -> None:
         tab = self.loadouts_tab
@@ -1007,6 +1038,7 @@ class PedHunterApp(tk.Tk):
         self._refresh_lifetime_totals()
         self._refresh_sessions(sessions)
         self._refresh_events(display.session_id if display else None)
+        self._refresh_skills(display.session_id if display else None)
         self._refresh_loot_chart(display.session_id if display else None)
         self._refresh_loadouts()
         if self.streamer_window and self.streamer_window.winfo_exists():
@@ -1110,6 +1142,33 @@ class PedHunterApp(tk.Tk):
             return
         for index, row in enumerate(_recent_events(self.store, session_id, limit=80)):
             self.events_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",), values=(row["timestamp"] or "", row["kind"], _summarize_event(row)))
+
+    def _refresh_skills(self, session_id: str | None) -> None:
+        self.skills_tree.delete(*self.skills_tree.get_children())
+        if not session_id:
+            self.skill_total_text.set("0.0000 XP")
+            self.skill_proc_text.set("0 skill gains")
+            self.skill_summary_text.set("No session selected — start or select a run to see skill gains.")
+            return
+
+        gains = self.store.skill_gains_for_session(session_id)
+        total_xp = sum(gain.xp for gain in gains)
+        total_procs = sum(gain.procs for gain in gains)
+        self.skill_total_text.set(f"{total_xp:.4f} XP")
+        self.skill_proc_text.set(f"{total_procs} skill gain{'s' if total_procs != 1 else ''}")
+        if gains:
+            self.skill_summary_text.set(
+                f"LootNanny-style per-session totals for {len(gains)} skill{'s' if len(gains) != 1 else ''}, sorted by XP gained."
+            )
+        else:
+            self.skill_summary_text.set("No skill gains recorded for this session yet.")
+        for index, gain in enumerate(gains):
+            self.skills_tree.insert(
+                "",
+                "end",
+                tags=("even" if index % 2 == 0 else "odd",),
+                values=(gain.skill, f"{gain.xp:.4f}", gain.procs, f"{gain.proc_pct:.0f}%"),
+            )
 
     def _refresh_loot_chart(self, session_id: str | None) -> None:
         self.loot_chart_points = _loot_event_points(self.store, session_id, limit=160) if session_id else []

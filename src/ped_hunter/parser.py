@@ -21,7 +21,9 @@ PATTERNS = {
     "heal": re.compile(r"\[System\] \[\]\s*You\s+healed\s+yourself\s+([\d.]+)\s+points"),
     "weapon": re.compile(r"\[System\] \[\]\s*You\s+equipped\s+(.+)$"),
     "skill": re.compile(r"\[System\] \[\]\s*You\s+have\s+gained\s+([\d.]+)\s+experience\s+in\s+your\s+(.+?)\s+skill"),
+    "skill_gain": re.compile(r"\[System\] \[\]\s*You\s+have\s+gained\s+([\d.]+)\s+(.+)$"),
     "skill_alt": re.compile(r"\[System\] \[\]\s*You\s+gained\s+([\d.]+)\s+(.+)$"),
+    "skill_improved": re.compile(r"\[System\] \[\]\s*Your\s+(.+?)\s+has\s+improved\s+by\s+([\d.]+)$"),
     "craft_success": re.compile(r"\[System\] \[\]\s*You\s+successfully\s+crafted\s+(.+)$"),
     "craft_fail": re.compile(r"\[System\] \[\]\s*You\s+failed\s+to\s+craft\s+(.+)$"),
     "picked_up": re.compile(r"\[System\] \[\]\s*Picked up (.+?)(?: \((\d+)\))?$"),
@@ -96,10 +98,10 @@ def parse_line(line: str) -> ParsedEvent | None:
             return ParsedEvent(kind="combat", timestamp=timestamp, raw_message=line, payload={"evaded": True})
         if kind == "weapon":
             return ParsedEvent(kind="weapon", timestamp=timestamp, raw_message=line, payload={"weapon": match.group(1)})
-        if kind == "skill":
-            return ParsedEvent(kind="skill", timestamp=timestamp, raw_message=line, payload={"skill": match.group(2), "xp": float(match.group(1))})
-        if kind == "skill_alt":
-            return ParsedEvent(kind="skill", timestamp=timestamp, raw_message=line, payload={"skill": match.group(2), "xp": float(match.group(1))})
+        if kind in {"skill", "skill_gain", "skill_alt"}:
+            return ParsedEvent(kind="skill", timestamp=timestamp, raw_message=line, payload={"skill": match.group(2).strip(), "xp": float(match.group(1))})
+        if kind == "skill_improved":
+            return ParsedEvent(kind="skill", timestamp=timestamp, raw_message=line, payload={"skill": match.group(1).strip(), "xp": float(match.group(2))})
         if kind == "craft_success":
             return ParsedEvent(kind="craft", timestamp=timestamp, raw_message=line, payload={"result": "success", "item": match.group(1)})
         if kind == "craft_fail":
