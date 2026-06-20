@@ -29,6 +29,9 @@ PATTERNS = {
     "picked_up": re.compile(r"\[System\] \[\]\s*Picked up (.+?)(?: \((\d+)\))?$"),
 }
 
+CONVERSION_OUTPUT_ITEM_NAMES = {"oil", "universal ammo"}
+CONVERSION_OUTPUT_ITEM_SUFFIXES = (" ingot",)
+
 
 @dataclass(slots=True)
 class ParsedEvent:
@@ -66,10 +69,7 @@ def parse_line(line: str) -> ParsedEvent | None:
 
         if kind == "loot":
             item_name = match.group(1).strip()
-            if item_name.casefold() == "universal ammo":
-                # Universal Ammo appears when shrapnel is converted at 101% and
-                # is not newly looted return. Counting it inflates session profit
-                # by the entire converted ammo balance.
+            if is_conversion_output_item(item_name):
                 return None
             return ParsedEvent(
                 kind="loot",
@@ -117,3 +117,14 @@ def parse_line(line: str) -> ParsedEvent | None:
             return ParsedEvent(kind="loot", timestamp=timestamp, raw_message=line, payload={"item_name": match.group(1), "quantity": qty, "value": 0.0, "picked_up": True})
 
     return None
+
+
+def is_conversion_output_item(item_name: str) -> bool:
+    """Return True for inventory conversion outputs, not newly earned loot.
+
+    Entropia reports some refiner/ammo conversions as ordinary-looking
+    ``You received ... Value: X PED`` lines. Those transform existing inventory
+    value, so counting them as session return inflates profit.
+    """
+    normalized = " ".join(item_name.strip().casefold().split())
+    return normalized in CONVERSION_OUTPUT_ITEM_NAMES or normalized.endswith(CONVERSION_OUTPUT_ITEM_SUFFIXES)

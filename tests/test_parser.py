@@ -9,9 +9,22 @@ def test_parse_loot_line():
     assert event.payload["value"] == 0.06
 
 
-def test_parse_skips_universal_ammo_conversion():
-    event = parse_line("2026-06-20 04:10:06 [System] [] You received Universal Ammo x (2930954) Value: 293.09 PED")
-    assert event is None
+def test_refiner_and_conversion_outputs_are_not_loot():
+    lines = [
+        "2026-06-20 08:30:06 [System] [] You received Oil x (107) Value: 2.14 PED",
+        "2026-06-20 08:30:13 [System] [] You received Lysterium Ingot x (267) Value: 8.01 PED",
+        "2026-06-20 04:10:06 [System] [] You received Universal Ammo x (2930954) Value: 293.09 PED",
+    ]
+
+    assert [parse_line(line) for line in lines] == [None, None, None]
+
+
+def test_refiner_filter_does_not_block_oil_residue_loot():
+    event = parse_line("2026-06-11 20:10:00 [System] [] You received Animal Oil Residue x (3) Value: 0.06 PED")
+
+    assert event is not None
+    assert event.kind == "loot"
+    assert event.payload["item_name"] == "Animal Oil Residue"
 
 
 def test_parse_lootnanny_skill_gain_formats():

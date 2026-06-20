@@ -418,7 +418,10 @@ _SESSION_SUMMARY_SQL = """
            COALESCE(SUM(CASE
                WHEN e.kind = 'loot'
                     AND json_valid(e.payload)
-                    AND COALESCE(lower(trim(json_extract(e.payload, '$.item_name'))), '') != 'universal ammo'
+                    AND NOT (
+                        lower(trim(COALESCE(json_extract(e.payload, '$.item_name'), ''))) IN ('oil', 'universal ammo')
+                        OR lower(trim(COALESCE(json_extract(e.payload, '$.item_name'), ''))) LIKE '% ingot'
+                    )
                THEN json_extract(e.payload, '$.value')
                ELSE 0
            END), 0) AS loot_value,

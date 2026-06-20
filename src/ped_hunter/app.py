@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .catalog import Catalog, WeaponRecord
-from .parser import ParsedEvent, parse_line
+from .parser import ParsedEvent, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
@@ -1425,7 +1425,7 @@ def _loot_event_points(store: Store, session_id: str | None, limit: int = 160) -
         if value <= 0:
             continue
         item_name = str(payload.get("item_name") or "loot")
-        if item_name.strip().casefold() == "universal ammo":
+        if is_conversion_output_item(item_name):
             continue
         label = f"({item_name})" if item_name and item_name != "loot" else ""
         points.append((str(row["timestamp"] or ""), value, label))

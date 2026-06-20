@@ -79,13 +79,29 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     loadout.id = store.save_loadout(loadout, make_active=True)
     session_id = store.start_session("hunt", loadout)
     store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.0102}})
-    store.add_event(session_id, {"kind": "loot", "raw_message": "loot", "payload": {"value": 0.25}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "loot", "payload": {"item_name": "Animal Oil Residue", "value": 0.25}})
 
     summary = store.get_current_session()
     assert summary is not None
     assert summary.loadout_name == "Test Frontier"
     assert summary.hunting_cost == 0.0102
     assert summary.net_value == 0.2398
+
+
+def test_store_excludes_legacy_refiner_conversion_rows_from_profit(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "loot", "raw_message": "real loot", "payload": {"item_name": "Animal Oil Residue", "value": 0.25}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "refined oil", "payload": {"item_name": "Oil", "value": 2.14}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "refined lyst", "payload": {"item_name": "Lysterium Ingot", "value": 8.01}})
+    store.add_event(session_id, {"kind": "loot", "raw_message": "ammo conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
+
+    summary = store.get_current_session()
+
+    assert summary is not None
+    assert summary.events == 4
+    assert summary.loot_value == 0.25
+    assert summary.net_value == 0.25
 
 
 def test_store_summarizes_crafting_material_costs(tmp_path: Path):
@@ -232,10 +248,12 @@ def test_loot_event_points_are_chronological_and_skip_bad_rows(tmp_path: Path):
     store.add_event(session_id, {"kind": "combat", "timestamp": "t2", "raw_message": "hit", "payload": {"damage": 2}})
     store.add_event(session_id, {"kind": "loot", "timestamp": "t3", "raw_message": "loot", "payload": {"item_name": "Shrapnel", "value": 1.25}})
     store.add_event(session_id, {"kind": "loot", "timestamp": "t4", "raw_message": "conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
+    store.add_event(session_id, {"kind": "loot", "timestamp": "t5", "raw_message": "refined oil", "payload": {"item_name": "Oil", "value": 2.14}})
+    store.add_event(session_id, {"kind": "loot", "timestamp": "t6", "raw_message": "refined lyst", "payload": {"item_name": "Lysterium Ingot", "value": 8.01}})
     with store.connect() as conn:
         conn.execute(
             "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
-            (session_id, "t5", "loot", "legacy bad row", "not json"),
+            (session_id, "t7", "loot", "legacy bad row", "not json"),
         )
         conn.commit()
 
