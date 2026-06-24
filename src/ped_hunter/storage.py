@@ -47,6 +47,7 @@ class LoadoutRecord:
     repair_decay_per_shot: float = 0.0
     repair_budget: float = 0.0
     repair_budget_known: bool = False
+    repair_items: list[dict[str, object]] | None = None
 
 
 @dataclass(slots=True)
@@ -534,6 +535,7 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "repair_decay_per_shot": loadout.repair_decay_per_shot,
         "repair_budget": loadout.repair_budget,
         "repair_budget_known": loadout.repair_budget_known,
+        "repair_items": loadout.repair_items or [],
     }
 
 

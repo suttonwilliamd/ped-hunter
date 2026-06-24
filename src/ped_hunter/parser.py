@@ -27,6 +27,7 @@ PATTERNS = {
     "craft_success": re.compile(r"\[System\] \[\]\s*You\s+successfully\s+crafted\s+(.+)$"),
     "craft_fail": re.compile(r"\[System\] \[\]\s*You\s+failed\s+to\s+craft\s+(.+)$"),
     "picked_up": re.compile(r"\[System\] \[\]\s*Picked up (.+?)(?: \((\d+)\))?$"),
+    "item_damaged": re.compile(r"\[System\] \[\]\s*The item is damaged\.?$"),
 }
 
 CONVERSION_OUTPUT_ITEM_NAMES = {"oil", "universal ammo"}
@@ -115,6 +116,8 @@ def parse_line(line: str) -> ParsedEvent | None:
         if kind == "picked_up":
             qty = int(match.group(2) or 1)
             return ParsedEvent(kind="loot", timestamp=timestamp, raw_message=line, payload={"item_name": match.group(1), "quantity": qty, "value": 0.0, "picked_up": True})
+        if kind == "item_damaged":
+            return ParsedEvent(kind="equipment", timestamp=timestamp, raw_message=line, payload={"item_damaged": True})
 
     return None
 

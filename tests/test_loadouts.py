@@ -14,8 +14,10 @@ from ped_hunter.app import (
     calculate_blueprint_material_cost,
     calculate_gun_amp_repair_budget,
     calculate_gun_amp_repair_decay,
+    durability_color,
     calculate_loadout_cost,
     format_repair_radar,
+    repair_durability_status,
     streamer_metrics,
     with_repair_estimates,
 )
@@ -99,8 +101,48 @@ def test_repair_radar_uses_full_tt_gun_amp_budget_for_new_sessions(tmp_path: Pat
     assert summary.repair_shots == 100
     assert round(summary.repair_decay, 5) == 0.052
     radar = format_repair_radar(summary)
-    assert "97.9% gun+amp TT left" in radar
-    assert "~4,705 shots to empty" in radar
+    assert "Amp durability 93.6%" in radar
+    assert "~1,459 shots left" in radar
+    status = repair_durability_status(summary)
+    assert status["label"] == "Amp"
+    assert round(float(status["percent"]), 1) == 93.6
+    assert status["shots_left"] == 1459
+
+
+def test_repair_radar_calibrates_amp_bottleneck_from_real_run(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Starter rifle",
+            weapon="Frontier Hunting Rifle",
+            amp="ZX Sinkadus",
+            ammo_burn=140,
+            decay=0.00052,
+            cost_per_shot=0.01452,
+        ),
+    )
+    session_id = store.start_session("hunt", loadout)
+    for _ in range(1562):
+        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+
+    summary = store.get_current_session()
+    assert summary is not None
+    status = repair_durability_status(summary)
+    assert status["label"] == "Amp"
+    assert round(float(status["percent"]), 1) == 0.0
+    assert status["shots_left"] == 0
+    items = {item["role"]: item for item in status["items"]}
+    assert round(float(items["Gun"]["percent"]), 1) == 84.4
+    assert round(summary.repair_decay, 2) == 0.81
+
+
+def test_durability_color_gradient_reaches_requested_stops():
+    assert durability_color(100) == "#22c55e"
+    assert durability_color(0) == "#000000"
+    assert durability_color(5) != durability_color(50)
 
 
 def test_store_summarizes_loadout_shot_costs(tmp_path: Path):

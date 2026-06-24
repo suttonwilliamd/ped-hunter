@@ -39,3 +39,11 @@ def test_parse_lootnanny_skill_gain_formats():
         assert event is not None
         assert event.kind == "skill"
         assert event.payload == {"skill": skill, "xp": xp}
+
+
+def test_parse_item_damaged_marker():
+    event = parse_line("2026-06-24 07:17:49 [System] [] The item is damaged.")
+
+    assert event is not None
+    assert event.kind == "equipment"
+    assert event.payload == {"item_damaged": True}

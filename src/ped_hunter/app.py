@@ -22,9 +22,9 @@ AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
 STREAMER_DEFAULT_WIDTH = 460
-STREAMER_DEFAULT_HEIGHT = 220
+STREAMER_DEFAULT_HEIGHT = 245
 STREAMER_MIN_WIDTH = 360
-STREAMER_MIN_HEIGHT = 190
+STREAMER_MIN_HEIGHT = 210
 
 
 @dataclass(slots=True)
@@ -1299,7 +1299,10 @@ class StreamerWindow(tk.Toplevel):
             "events": tk.StringVar(value="Events 0"),
             "damage": tk.StringVar(value="Damage 0.0"),
             "loadout": tk.StringVar(value="No active loadout"),
+            "durability": tk.StringVar(value="Durability —"),
         }
+        self.durability_pct = 0.0
+        self.durability_color = "#111827"
         self._build()
         self.bind("<ButtonPress-1>", self._start_drag)
         self.bind("<B1-Motion>", self._drag)
@@ -1324,13 +1327,20 @@ class StreamerWindow(tk.Toplevel):
         self.return_label.pack(anchor="w")
 
         stats = tk.Frame(self.outer, bg="#020617")
-        stats.pack(fill="x", pady=(10, 0))
+        stats.pack(fill="x", pady=(8, 0))
         for col, key in enumerate(("loot", "cost", "events")):
             stats.columnconfigure(col, weight=1)
             tk.Label(stats, textvariable=self.vars[key], bg="#0f1726", fg="#e5edf8", font=("Segoe UI", 9, "bold"), padx=8, pady=7).grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0))
 
+        durability = tk.Frame(self.outer, bg="#020617")
+        durability.pack(fill="x", pady=(8, 0))
+        tk.Label(durability, textvariable=self.vars["durability"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 8, "bold")).pack(anchor="w")
+        self.durability_bar = tk.Canvas(durability, height=14, bg="#020617", highlightthickness=0)
+        self.durability_bar.pack(fill="x", pady=(3, 0))
+        self.durability_bar.bind("<Configure>", lambda _event: self._draw_durability_bar())
+
         bottom = tk.Frame(self.outer, bg="#020617")
-        bottom.pack(fill="x", pady=(8, 0))
+        bottom.pack(fill="x", pady=(7, 0))
         tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 8), wraplength=330, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
         tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 8)).pack(side="left", padx=(8, 0))
         resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 11, "bold"), cursor="size_nw_se")
@@ -1351,8 +1361,28 @@ class StreamerWindow(tk.Toplevel):
         self.vars["events"].set(f"Events {int(float(metrics['events']))}")
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
+        durability = repair_durability_status(session)
+        self.durability_pct = durability["percent"]
+        self.durability_color = durability_color(self.durability_pct)
+        self.vars["durability"].set(durability["streamer_text"])
+        self._draw_durability_bar()
         self.net_label.configure(fg=color)
         self.return_label.configure(fg=color)
+
+    def _draw_durability_bar(self) -> None:
+        canvas = self.durability_bar
+        if not hasattr(self, "durability_bar"):
+            return
+        width = max(canvas.winfo_width(), 1)
+        height = max(canvas.winfo_height(), 1)
+        pct = max(0.0, min(100.0, self.durability_pct))
+        canvas.delete("all")
+        canvas.create_rectangle(0, 0, width, height, fill="#111827", outline="#1f2937", width=1)
+        fill_width = int((width - 2) * pct / 100.0)
+        if fill_width > 0:
+            canvas.create_rectangle(1, 1, fill_width + 1, height - 1, fill=self.durability_color, outline="")
+        if pct <= 0:
+            canvas.create_text(width / 2, height / 2, text="AMP EMPTY", fill="#e5e7eb", font=("Segoe UI", 7, "bold"))
 
     def _start_drag(self, event) -> None:
         self._drag_origin = (event.x, event.y)
@@ -1507,59 +1537,154 @@ def calculate_gun_amp_repair_decay(
     economy_enhancers: int = 0,
 ) -> float:
     """Return repair-terminal decay per outgoing shot for the gun + amp only."""
+    return sum(float(item["decay_per_shot"]) for item in calculate_gun_amp_repair_items(
+        catalog=catalog,
+        weapon_name=weapon_name,
+        amp=amp,
+        damage_enhancers=damage_enhancers,
+        economy_enhancers=economy_enhancers,
+    ))
+
+
+def calculate_gun_amp_repair_items(
+    *,
+    catalog: Catalog,
+    weapon_name: str,
+    amp: str = "",
+    damage_enhancers: int = 0,
+    economy_enhancers: int = 0,
+) -> list[dict[str, object]]:
+    """Return per-item repair budgets so the lowest-durability item can be shown."""
     weapon = catalog.find_weapon(weapon_name)
     if not weapon:
         raise ValueError(f"Unknown weapon: {weapon_name}")
     multiplier = (1 + (0.1 * damage_enhancers)) * (1 - (0.01 * economy_enhancers))
-    repair_decay = weapon.decay * multiplier
+    items: list[dict[str, object]] = [
+        {
+            "role": "Gun",
+            "name": weapon.name,
+            "decay_per_shot": float(weapon.decay * multiplier),
+            "budget": max(0.0, weapon.max_tt - weapon.min_tt) if weapon.max_tt is not None else 0.0,
+            "budget_known": weapon.max_tt is not None,
+        }
+    ]
     attachment = catalog.attachments.get(amp) if amp else None
     if attachment:
-        repair_decay += attachment.decay
-    return float(repair_decay)
+        items.append(
+            {
+                "role": "Amp",
+                "name": attachment.name,
+                "decay_per_shot": float(attachment.decay),
+                "budget": max(0.0, attachment.max_tt - attachment.min_tt) if attachment.max_tt is not None else 0.0,
+                "budget_known": attachment.max_tt is not None,
+            }
+        )
+    return items
 
 
 def calculate_gun_amp_repair_budget(catalog: Catalog, weapon_name: str, amp: str = "") -> tuple[float, bool]:
     """Return the full-to-min TT buffer for the gun + amp when catalog TT data is known."""
-    budget = 0.0
-    known = True
-    weapon = catalog.find_weapon(weapon_name)
-    if not weapon or weapon.max_tt is None:
-        known = False
-    else:
-        budget += max(0.0, weapon.max_tt - weapon.min_tt)
-    if amp:
-        attachment = catalog.attachments.get(amp)
-        if not attachment or attachment.max_tt is None:
-            known = False
-        else:
-            budget += max(0.0, attachment.max_tt - attachment.min_tt)
-    return budget, known
+    items = calculate_gun_amp_repair_items(catalog=catalog, weapon_name=weapon_name, amp=amp)
+    return sum(float(item["budget"]) for item in items), all(bool(item["budget_known"]) for item in items)
 
 
 def with_repair_estimates(catalog: Catalog, loadout: LoadoutRecord) -> LoadoutRecord:
-    loadout.repair_decay_per_shot = calculate_gun_amp_repair_decay(
+    loadout.repair_items = calculate_gun_amp_repair_items(
         catalog=catalog,
         weapon_name=loadout.weapon,
         amp=loadout.amp,
         damage_enhancers=loadout.damage_enhancers,
         economy_enhancers=loadout.economy_enhancers,
     )
-    loadout.repair_budget, loadout.repair_budget_known = calculate_gun_amp_repair_budget(catalog, loadout.weapon, loadout.amp)
+    loadout.repair_decay_per_shot = sum(float(item["decay_per_shot"]) for item in loadout.repair_items)
+    loadout.repair_budget = sum(float(item["budget"]) for item in loadout.repair_items)
+    loadout.repair_budget_known = all(bool(item["budget_known"]) for item in loadout.repair_items)
     return loadout
+
+
+def repair_durability_status(session: SessionSummary | None) -> dict[str, object]:
+    if not session:
+        return {"percent": 0.0, "label": "Durability", "streamer_text": "Durability —", "shots_left": None}
+    snapshot = session.loadout_snapshot or {}
+    items = snapshot.get("repair_items") or []
+    if not isinstance(items, list):
+        items = []
+    statuses: list[dict[str, object]] = []
+    for item in items:
+        if not isinstance(item, dict) or not item.get("budget_known"):
+            continue
+        budget = float(item.get("budget", 0) or 0)
+        decay = float(item.get("decay_per_shot", 0) or 0)
+        if budget <= 0 or decay <= 0:
+            continue
+        used = session.repair_shots * decay
+        remaining = max(0.0, budget - used)
+        statuses.append(
+            {
+                "role": str(item.get("role") or "Item"),
+                "name": str(item.get("name") or "Item"),
+                "percent": remaining / budget * 100.0,
+                "remaining": remaining,
+                "budget": budget,
+                "shots_left": int(remaining / decay),
+            }
+        )
+    if not statuses:
+        budget = float(snapshot.get("repair_budget", 0) or 0)
+        known = bool(snapshot.get("repair_budget_known")) and budget > 0
+        if known:
+            used = max(0.0, session.repair_decay)
+            remaining = max(0.0, budget - used)
+            pct = remaining / budget * 100.0
+            return {"percent": pct, "label": "Loadout", "streamer_text": f"Loadout durability {pct:.1f}%", "shots_left": None}
+        return {
+            "percent": 0.0,
+            "label": "Durability",
+            "streamer_text": f"Durability unknown • {session.repair_shots:,} shots tracked",
+            "shots_left": None,
+        }
+    bottleneck = min(statuses, key=lambda item: float(item["percent"]))
+    pct = float(bottleneck["percent"])
+    role = str(bottleneck["role"])
+    shots_left = int(bottleneck["shots_left"])
+    return {
+        "percent": pct,
+        "label": role,
+        "streamer_text": f"{role} durability {pct:.1f}% • ~{shots_left:,} shots left",
+        "shots_left": shots_left,
+        "items": statuses,
+    }
+
+
+def durability_color(percent: float) -> str:
+    stops = [(100.0, (34, 197, 94)), (60.0, (234, 179, 8)), (30.0, (249, 115, 22)), (10.0, (239, 68, 68)), (0.0, (0, 0, 0))]
+    pct = max(0.0, min(100.0, percent))
+    for index in range(len(stops) - 1):
+        hi_pct, hi_rgb = stops[index]
+        lo_pct, lo_rgb = stops[index + 1]
+        if lo_pct <= pct <= hi_pct:
+            span = hi_pct - lo_pct or 1.0
+            t = (pct - lo_pct) / span
+            rgb = tuple(round(lo + ((hi - lo) * t)) for hi, lo in zip(hi_rgb, lo_rgb))
+            return "#%02x%02x%02x" % rgb
+    return "#000000"
 
 
 def format_repair_radar(session: SessionSummary | None) -> str:
     if not session:
         return "Repair radar: start a fresh run at 100% gun + amp TT"
     snapshot = session.loadout_snapshot or {}
+    status = repair_durability_status(session)
+    used = max(0.0, session.repair_decay)
+    if "items" in status:
+        return f"Repair radar: {status['streamer_text']} • {used:.4f} PED gun+amp decay across {session.repair_shots:,} shots"
     budget = float(snapshot.get("repair_budget", 0) or 0)
     known = bool(snapshot.get("repair_budget_known")) and budget > 0
-    per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
-    used = max(0.0, session.repair_decay)
     if not known:
         return f"Repair radar: {session.repair_shots:,} shots since 100% • {used:.4f} PED gun+amp decay accrued"
     remaining = max(0.0, budget - used)
     remaining_pct = remaining / budget * 100.0
+    per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
     shots_left = int(remaining / per_shot) if per_shot > 0 else 0
     return (
         f"Repair radar: {remaining_pct:.1f}% gun+amp TT left • "
