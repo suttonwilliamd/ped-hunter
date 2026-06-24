@@ -47,8 +47,10 @@ class PedHunterApp(tk.Tk):
         self.catalog = Catalog.load()
         self.session_id: str | None = None
         self.last_size = 0
+        self._last_ingested_log_line: str | None = None
         self.running = False
         self.current_log_path: Path | None = None
+
         self.streamer_window: StreamerWindow | None = None
 
         self.chat_path = tk.StringVar(value=str(_default_chat_log_path()))
@@ -868,6 +870,7 @@ class PedHunterApp(tk.Tk):
 
         active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
+        self._last_ingested_log_line = None
         self.session_id = self.store.start_session("hunt", active_loadout)
         self.last_size = path.stat().st_size
         self.running = True
@@ -905,6 +908,7 @@ class PedHunterApp(tk.Tk):
             self.store.resume_session(session_id)
 
         self.current_log_path = path
+        self._last_ingested_log_line = None
         self.session_id = session_id
         self.last_size = path.stat().st_size
         self.running = True
@@ -989,6 +993,9 @@ class PedHunterApp(tk.Tk):
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)
         for raw in lines:
+            if _is_duplicate_log_line(self._last_ingested_log_line, raw):
+                continue
+            normalized_raw = raw.strip()
             event = parse_line(raw)
             if not event:
                 continue
@@ -1016,6 +1023,8 @@ class PedHunterApp(tk.Tk):
                 else:
                     event.payload.update({"estimated_cost": 0.0, "estimation": "missing_active_loadout", "resets_durability": True})
             self.store.add_event(self.session_id, event.to_row())
+            if normalized_raw:
+                self._last_ingested_log_line = normalized_raw
             parsed += 1
         if parsed:
             self.status_text.set(f"Parsed {parsed} new event{'s' if parsed != 1 else ''}")
@@ -1784,6 +1793,11 @@ def _event_consumes_shot(event: ParsedEvent) -> bool:
     # are damage events or creature dodges; incoming misses/damage/heals do not
     # consume weapon ammo.
     return "damage" in event.payload or bool(event.payload.get("dodged"))
+
+
+def _is_duplicate_log_line(previous_line: str | None, raw_line: str) -> bool:
+    normalized = raw_line.strip()
+    return bool(normalized) and normalized == previous_line
 
 
 def _typeahead_match(values: tuple[str, ...] | list[str], prefix: str) -> str | None:

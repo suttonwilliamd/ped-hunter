@@ -462,6 +462,12 @@ class Store:
 
 
 _SESSION_SUMMARY_SQL = """
+    WITH last_repair AS (
+        SELECT session_id, MAX(id) AS last_repair_id
+        FROM events
+        WHERE kind = 'repair'
+        GROUP BY session_id
+    )
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
            COUNT(e.id) AS events,
            COALESCE(SUM(CASE
@@ -475,8 +481,18 @@ _SESSION_SUMMARY_SQL = """
                ELSE 0
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) AND json_type(e.payload, '$.shot_cost') IS NOT NULL THEN 1 ELSE 0 END), 0) AS repair_shots,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.repair_decay') ELSE 0 END), 0) AS repair_decay,
+           COALESCE(SUM(CASE
+               WHEN e.kind = 'combat' AND json_valid(e.payload)
+                    AND e.id > COALESCE(last_repair.last_repair_id, 0)
+                    AND json_type(e.payload, '$.shot_cost') IS NOT NULL
+               THEN 1 ELSE 0
+           END), 0) AS repair_shots,
+           COALESCE(SUM(CASE
+               WHEN e.kind = 'combat' AND json_valid(e.payload)
+                    AND e.id > COALESCE(last_repair.last_repair_id, 0)
+               THEN json_extract(e.payload, '$.repair_decay')
+               ELSE 0
+           END), 0) AS repair_decay,
            COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
                    COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
@@ -486,6 +502,7 @@ _SESSION_SUMMARY_SQL = """
            END), 0) AS hunting_cost
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
+    LEFT JOIN last_repair ON last_repair.session_id = s.id
 """
 
 
