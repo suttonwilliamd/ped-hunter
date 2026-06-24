@@ -12,8 +12,12 @@ from ped_hunter.app import (
     _loot_event_points,
     _typeahead_match,
     calculate_blueprint_material_cost,
+    calculate_gun_amp_repair_budget,
+    calculate_gun_amp_repair_decay,
     calculate_loadout_cost,
+    format_repair_radar,
     streamer_metrics,
+    with_repair_estimates,
 )
 from ped_hunter.catalog import BlueprintRecord, Catalog, ResourceRecord
 from ped_hunter.parser import ParsedEvent
@@ -64,6 +68,39 @@ def test_blueprint_material_cost_sums_material_tt_values():
         ("Metal Residue", 10, 0.01, 0.1),
         ("Lysterium Ingot", 2, 0.03, 0.06),
     ]
+
+
+
+def test_repair_radar_uses_full_tt_gun_amp_budget_for_new_sessions(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Starter rifle",
+            weapon="Frontier Hunting Rifle",
+            amp="ZX Sinkadus",
+            ammo_burn=140,
+            decay=0.00052,
+            cost_per_shot=0.01452,
+        ),
+    )
+
+    assert round(calculate_gun_amp_repair_decay(catalog=catalog, weapon_name="Frontier Hunting Rifle", amp="ZX Sinkadus"), 5) == 0.00052
+    assert calculate_gun_amp_repair_budget(catalog, "Frontier Hunting Rifle", "ZX Sinkadus") == (2.499, True)
+
+    session_id = store.start_session("hunt", loadout)
+    for _ in range(100):
+        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.repair_shots == 100
+    assert round(summary.repair_decay, 5) == 0.052
+    radar = format_repair_radar(summary)
+    assert "97.9% gun+amp TT left" in radar
+    assert "~4,705 shots to empty" in radar
 
 
 def test_store_summarizes_loadout_shot_costs(tmp_path: Path):

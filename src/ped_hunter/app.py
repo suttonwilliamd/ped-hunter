@@ -63,6 +63,7 @@ class PedHunterApp(tk.Tk):
         self.active_loadout_details = tk.StringVar(value="Configure and activate a hunting setup before starting for accurate costs.")
 
         self.active_loadout_text = tk.StringVar(value="No active setup — configure one before tracking")
+        self.repair_radar_text = tk.StringVar(value="Repair radar: start a fresh run at 100% gun + amp TT")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
         self.hero_net = tk.StringVar(value="+0.00 PED")
         self.hero_return = tk.StringVar(value="0.00% Return")
@@ -286,6 +287,8 @@ class PedHunterApp(tk.Tk):
         self.hero_return_label.grid(row=3, column=0, sticky="w")
         self.hero_loadout_label = ttk.Label(left, textvariable=self.active_loadout_text, style="HeroSetup.TLabel", wraplength=540)
         self.hero_loadout_label.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+        self.hero_repair_label = ttk.Label(left, textvariable=self.repair_radar_text, style="HeroSetup.TLabel", wraplength=540)
+        self.hero_repair_label.grid(row=5, column=0, sticky="ew", pady=(2, 0))
 
         self.hero_right = ttk.Frame(hero, style="Hero.TFrame")
         right = self.hero_right
@@ -371,6 +374,7 @@ class PedHunterApp(tk.Tk):
         if hasattr(self, "hero_session_label"):
             self.hero_session_label.configure(wraplength=wrap)
             self.hero_loadout_label.configure(wraplength=wrap)
+            self.hero_repair_label.configure(wraplength=wrap)
         if hasattr(self, "status_label"):
             if width < 1080:
                 self.status_label.grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
@@ -862,6 +866,7 @@ class PedHunterApp(tk.Tk):
             self.status_text.set("No active setup — activate one before starting")
             return
 
+        active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
         self.session_id = self.store.start_session("hunt", active_loadout)
         self.last_size = path.stat().st_size
@@ -976,7 +981,9 @@ class PedHunterApp(tk.Tk):
             if not event:
                 continue
             if active_loadout and _event_consumes_shot(event):
+                active_loadout = with_repair_estimates(self.catalog, active_loadout)
                 event.payload["shot_cost"] = active_loadout.cost_per_shot
+                event.payload["repair_decay"] = active_loadout.repair_decay_per_shot
                 event.payload["loadout"] = active_loadout.name
             self.store.add_event(self.session_id, event.to_row())
             parsed += 1
@@ -1062,6 +1069,7 @@ class PedHunterApp(tk.Tk):
             self.hero_loot.set("Loot 0.00 PED")
             self.hero_cost.set("Cost 0.00 PED")
             self.hero_events.set("Events 0")
+            self.repair_radar_text.set("Repair radar: start a fresh run at 100% gun + amp TT")
             self._set_hero_profit_style("neutral")
             return
         status = "active" if session.ended_at is None else "ended"
@@ -1074,6 +1082,7 @@ class PedHunterApp(tk.Tk):
         self.hero_loot.set(f"Loot {session.loot_value:.2f} PED")
         self.hero_cost.set(f"Cost {session.hunting_cost:.2f} PED")
         self.hero_events.set(f"Events {session.events}")
+        self.repair_radar_text.set(format_repair_radar(session))
         self._set_hero_profit_style(_profit_state(session.net_value))
 
     def _refresh_lifetime_totals(self) -> None:
@@ -1487,6 +1496,75 @@ def calculate_loadout_cost(
             ammo += attachment.ammo
             decay += attachment.decay
     return int(ammo), float(decay)
+
+
+def calculate_gun_amp_repair_decay(
+    *,
+    catalog: Catalog,
+    weapon_name: str,
+    amp: str = "",
+    damage_enhancers: int = 0,
+    economy_enhancers: int = 0,
+) -> float:
+    """Return repair-terminal decay per outgoing shot for the gun + amp only."""
+    weapon = catalog.find_weapon(weapon_name)
+    if not weapon:
+        raise ValueError(f"Unknown weapon: {weapon_name}")
+    multiplier = (1 + (0.1 * damage_enhancers)) * (1 - (0.01 * economy_enhancers))
+    repair_decay = weapon.decay * multiplier
+    attachment = catalog.attachments.get(amp) if amp else None
+    if attachment:
+        repair_decay += attachment.decay
+    return float(repair_decay)
+
+
+def calculate_gun_amp_repair_budget(catalog: Catalog, weapon_name: str, amp: str = "") -> tuple[float, bool]:
+    """Return the full-to-min TT buffer for the gun + amp when catalog TT data is known."""
+    budget = 0.0
+    known = True
+    weapon = catalog.find_weapon(weapon_name)
+    if not weapon or weapon.max_tt is None:
+        known = False
+    else:
+        budget += max(0.0, weapon.max_tt - weapon.min_tt)
+    if amp:
+        attachment = catalog.attachments.get(amp)
+        if not attachment or attachment.max_tt is None:
+            known = False
+        else:
+            budget += max(0.0, attachment.max_tt - attachment.min_tt)
+    return budget, known
+
+
+def with_repair_estimates(catalog: Catalog, loadout: LoadoutRecord) -> LoadoutRecord:
+    loadout.repair_decay_per_shot = calculate_gun_amp_repair_decay(
+        catalog=catalog,
+        weapon_name=loadout.weapon,
+        amp=loadout.amp,
+        damage_enhancers=loadout.damage_enhancers,
+        economy_enhancers=loadout.economy_enhancers,
+    )
+    loadout.repair_budget, loadout.repair_budget_known = calculate_gun_amp_repair_budget(catalog, loadout.weapon, loadout.amp)
+    return loadout
+
+
+def format_repair_radar(session: SessionSummary | None) -> str:
+    if not session:
+        return "Repair radar: start a fresh run at 100% gun + amp TT"
+    snapshot = session.loadout_snapshot or {}
+    budget = float(snapshot.get("repair_budget", 0) or 0)
+    known = bool(snapshot.get("repair_budget_known")) and budget > 0
+    per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
+    used = max(0.0, session.repair_decay)
+    if not known:
+        return f"Repair radar: {session.repair_shots:,} shots since 100% • {used:.4f} PED gun+amp decay accrued"
+    remaining = max(0.0, budget - used)
+    remaining_pct = remaining / budget * 100.0
+    shots_left = int(remaining / per_shot) if per_shot > 0 else 0
+    return (
+        f"Repair radar: {remaining_pct:.1f}% gun+amp TT left • "
+        f"{remaining:.2f}/{budget:.2f} PED remaining • ~{shots_left:,} shots to empty"
+    )
 
 
 def calculate_blueprint_material_cost(catalog: Catalog, blueprint_name: str) -> tuple[float, list[tuple[str, int, float, float]]]:

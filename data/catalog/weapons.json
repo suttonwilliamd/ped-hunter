@@ -8336,7 +8336,9 @@
       "category": "Rifle",
       "decay": 0.0002,
       "name": "Frontier Hunting Rifle",
-      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+      "max_tt": 2.0,
+      "min_tt": 0.0
     },
     {
       "aliases": [],

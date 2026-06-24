@@ -22,7 +22,10 @@ FRONTIER_HUNTING_RIFLE = {
     "decay": 0.0002,
     "aliases": ["Frontier Rifle"],
     "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    "max_tt": 2.0,
+    "min_tt": 0.0,
 }
+ZX_SINKADUS_TT = {"max_tt": 0.5, "min_tt": 0.001}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -220,15 +223,16 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
     attachment_items = []
     for source in (attachments, scopes, sights):
         for name, item in source.items():
-            attachment_items.append(
-                {
-                    "name": name,
-                    "category": item["type"],
-                    "ammo": int(item["ammo"]),
-                    "decay": float(item["decay"]),
-                    "source_name": "LootNanny legacy seed",
-                }
-            )
+            record = {
+                "name": name,
+                "category": item["type"],
+                "ammo": int(item["ammo"]),
+                "decay": float(item["decay"]),
+                "source_name": "LootNanny legacy seed",
+            }
+            if name == "ZX Sinkadus":
+                record.update(ZX_SINKADUS_TT)
+            attachment_items.append(record)
 
     resource_items = [
         {"name": name, "tt_value": float(value), "source_name": "LootNanny legacy seed"}

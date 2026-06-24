@@ -17,6 +17,8 @@ class WeaponRecord:
     decay: float
     aliases: tuple[str, ...] = field(default_factory=tuple)
     source_name: str = "LootNanny legacy seed"
+    max_tt: float | None = None
+    min_tt: float = 0.0
 
     @property
     def cost_per_shot(self) -> float:
@@ -30,6 +32,8 @@ class AttachmentRecord:
     ammo: int
     decay: float
     source_name: str = "LootNanny legacy seed"
+    max_tt: float | None = None
+    min_tt: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +142,8 @@ def _load_weapons(path: Path) -> tuple[dict[str, WeaponRecord], dict[str, str]]:
             decay=float(item["decay"]),
             aliases=tuple(item.get("aliases", [])),
             source_name=item.get("source_name", "LootNanny legacy seed"),
+            max_tt=float(item["max_tt"]) if item.get("max_tt") is not None else None,
+            min_tt=float(item.get("min_tt", 0) or 0),
         )
         weapons[record.name] = record
         for alias in record.aliases:
@@ -155,6 +161,8 @@ def _load_attachment_records(path: Path) -> dict[str, AttachmentRecord]:
             ammo=int(item["ammo"]),
             decay=float(item["decay"]),
             source_name=item.get("source_name", "LootNanny legacy seed"),
+            max_tt=float(item["max_tt"]) if item.get("max_tt") is not None else None,
+            min_tt=float(item.get("min_tt", 0) or 0),
         )
         attachments[record.name] = record
     return attachments

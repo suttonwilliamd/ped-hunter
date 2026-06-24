@@ -2385,7 +2385,9 @@
       "category": "Energy Amp",
       "decay": 0.00032,
       "name": "ZX Sinkadus",
-      "source_name": "LootNanny legacy seed"
+      "source_name": "LootNanny legacy seed",
+      "max_tt": 0.5,
+      "min_tt": 0.001
     }
   ]
 }

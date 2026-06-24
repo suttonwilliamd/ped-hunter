@@ -23,6 +23,9 @@ class SessionSummary:
     net_value: float
     events: int
     loadout_name: str | None = None
+    loadout_snapshot: dict[str, object] | None = None
+    repair_shots: int = 0
+    repair_decay: float = 0.0
 
 
 @dataclass(slots=True)
@@ -41,6 +44,9 @@ class LoadoutRecord:
     decay: float = 0.0
     cost_per_shot: float = 0.0
     active: bool = False
+    repair_decay_per_shot: float = 0.0
+    repair_budget: float = 0.0
+    repair_budget_known: bool = False
 
 
 @dataclass(slots=True)
@@ -426,6 +432,8 @@ _SESSION_SUMMARY_SQL = """
                ELSE 0
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
+           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) AND json_type(e.payload, '$.shot_cost') IS NOT NULL THEN 1 ELSE 0 END), 0) AS repair_shots,
+           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.repair_decay') ELSE 0 END), 0) AS repair_decay,
            COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.shot_cost')
                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
@@ -440,11 +448,16 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
     loot_value = float(row["loot_value"] or 0)
     hunting_cost = float(row["hunting_cost"] or 0)
     loadout_name = None
+    loadout_snapshot = None
     if row["loadout_snapshot"]:
         try:
-            loadout_name = json.loads(row["loadout_snapshot"]).get("name")
+            loaded_snapshot = json.loads(row["loadout_snapshot"])
+            if isinstance(loaded_snapshot, dict):
+                loadout_snapshot = loaded_snapshot
+                loadout_name = str(loaded_snapshot.get("name") or "") or None
         except json.JSONDecodeError:
             loadout_name = None
+            loadout_snapshot = None
     return SessionSummary(
         session_id=row["id"],
         started_at=row["started_at"],
@@ -456,6 +469,9 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         net_value=loot_value - hunting_cost,
         events=int(row["events"] or 0),
         loadout_name=loadout_name,
+        loadout_snapshot=loadout_snapshot,
+        repair_shots=int(row["repair_shots"] or 0),
+        repair_decay=float(row["repair_decay"] or 0),
     )
 
 
@@ -515,6 +531,9 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "ammo_burn": loadout.ammo_burn,
         "decay": loadout.decay,
         "cost_per_shot": loadout.cost_per_shot,
+        "repair_decay_per_shot": loadout.repair_decay_per_shot,
+        "repair_budget": loadout.repair_budget,
+        "repair_budget_known": loadout.repair_budget_known,
     }
 
 
