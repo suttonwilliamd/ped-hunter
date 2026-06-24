@@ -882,9 +882,9 @@ class PedHunterApp(tk.Tk):
         if self.running:
             messagebox.showinfo("PED Hunter", "Stop the active session before resuming another one.")
             return
-        session_id = self._selected_session_id()
+        session_id = self._resume_session_id()
         if not session_id:
-            messagebox.showinfo("PED Hunter", "Select a session in Recent sessions first.")
+            messagebox.showinfo("PED Hunter", "No saved sessions are available to resume yet.")
             return
         path = Path(self.chat_path.get().strip().strip('"'))
         if not path.exists():
@@ -918,6 +918,17 @@ class PedHunterApp(tk.Tk):
     def _selected_session_id(self) -> str | None:
         selection = self.sessions_tree.selection()
         return selection[0] if selection else None
+
+    def _resume_session_id(self) -> str | None:
+        """Return the explicitly selected session, or default to the newest recent session."""
+        selected = self._selected_session_id()
+        if selected:
+            return selected
+        children = self.sessions_tree.get_children()
+        if children:
+            return children[0]
+        sessions = self.store.list_recent_sessions(1)
+        return sessions[0].session_id if sessions else None
 
     def _on_session_selected(self) -> None:
         session_id = self._selected_session_id()
@@ -1124,6 +1135,7 @@ class PedHunterApp(tk.Tk):
             self.hero_return_label.configure(style=f"HeroReturn{suffix}.TLabel")
 
     def _refresh_sessions(self, sessions: list[SessionSummary]) -> None:
+        previous_selection = self._selected_session_id()
         self.sessions_tree.delete(*self.sessions_tree.get_children())
         for index, session in enumerate(sessions):
             return_pct = _return_pct(session)
@@ -1144,6 +1156,15 @@ class PedHunterApp(tk.Tk):
                     "active" if session.ended_at is None else "ended",
                 ),
             )
+
+        if not sessions:
+            self.selected_session_text.set("No saved sessions yet.")
+            return
+
+        selected = previous_selection if previous_selection in {session.session_id for session in sessions} else sessions[0].session_id
+        self.sessions_tree.selection_set(selected)
+        self.sessions_tree.focus(selected)
+        self._on_session_selected()
 
     def _refresh_events(self, session_id: str | None) -> None:
         self.events_tree.delete(*self.events_tree.get_children())
