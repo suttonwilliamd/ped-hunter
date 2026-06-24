@@ -946,7 +946,6 @@ class PedHunterApp(tk.Tk):
             f"{setup} • {status}\n"
             f"Started {session.started_at} • {session.events} events • return {return_pct:.2f}% • net {session.net_value:+.2f} PED"
         )
-
     def stop(self) -> None:
         if not self.running:
             return
@@ -987,15 +986,35 @@ class PedHunterApp(tk.Tk):
             return
         parsed = 0
         active_loadout = self.store.get_active_loadout()
+        if active_loadout:
+            active_loadout = with_repair_estimates(self.catalog, active_loadout)
         for raw in lines:
             event = parse_line(raw)
             if not event:
                 continue
             if active_loadout and _event_consumes_shot(event):
-                active_loadout = with_repair_estimates(self.catalog, active_loadout)
+                ammo_cost = active_loadout.ammo_burn / 10_000.0
                 event.payload["shot_cost"] = active_loadout.cost_per_shot
+                event.payload["ammo_cost"] = ammo_cost
                 event.payload["repair_decay"] = active_loadout.repair_decay_per_shot
                 event.payload["loadout"] = active_loadout.name
+            if event.kind == "repair":
+                if active_loadout:
+                    estimated_cost = self.store.estimate_repair_cost_since_last_repair(
+                        self.session_id,
+                        active_loadout.name,
+                        active_loadout.repair_decay_per_shot or active_loadout.decay,
+                    )
+                    event.payload.update(
+                        {
+                            "estimated_cost": estimated_cost,
+                            "loadout": active_loadout.name,
+                            "estimation": "repair_decay_since_last_repair",
+                            "resets_durability": True,
+                        }
+                    )
+                else:
+                    event.payload.update({"estimated_cost": 0.0, "estimation": "missing_active_loadout", "resets_durability": True})
             self.store.add_event(self.session_id, event.to_row())
             parsed += 1
         if parsed:

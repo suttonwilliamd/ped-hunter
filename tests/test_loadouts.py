@@ -183,6 +183,59 @@ def test_store_excludes_legacy_refiner_conversion_rows_from_profit(tmp_path: Pat
     assert summary.net_value == 0.25
 
 
+def test_repair_event_adds_estimated_decay_expense_and_resets_counter(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = LoadoutRecord(
+        id=None,
+        name="Repair Test",
+        weapon="Frontier Hunting Rifle",
+        ammo_burn=100,
+        decay=0.0002,
+        cost_per_shot=0.0102,
+    )
+    session_id = store.start_session("hunt", loadout)
+    for _ in range(3):
+        store.add_event(
+            session_id,
+            {
+                "kind": "combat",
+                "raw_message": "shot",
+                "payload": {
+                    "damage": 6,
+                    "shot_cost": 0.0102,
+                    "ammo_cost": 0.01,
+                    "repair_decay": 0.0002,
+                    "loadout": "Repair Test",
+                },
+            },
+        )
+
+    estimated = store.estimate_repair_cost_since_last_repair(session_id, "Repair Test", 0.0002)
+    store.add_event(
+        session_id,
+        {
+            "kind": "repair",
+            "raw_message": "Item(s) repaired successfully",
+            "payload": {"estimated_cost": estimated, "loadout": "Repair Test", "resets_durability": True},
+        },
+    )
+
+    summary = store.get_current_session()
+    assert round(estimated, 6) == 0.0006
+    assert summary is not None
+    assert round(summary.hunting_cost, 6) == 0.0306
+    assert store.estimate_repair_cost_since_last_repair(session_id, "Repair Test", 0.0002) == 0.0
+
+
+def test_repair_estimator_falls_back_for_legacy_full_shot_cost_rows(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "combat", "raw_message": "legacy shot", "payload": {"damage": 6, "shot_cost": 0.0102}})
+    store.add_event(session_id, {"kind": "combat", "raw_message": "legacy dodge", "payload": {"dodged": True, "shot_cost": 0.0102}})
+
+    assert round(store.estimate_repair_cost_since_last_repair(session_id, None, 0.0002), 6) == 0.0004
+
+
 def test_store_summarizes_crafting_material_costs(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")

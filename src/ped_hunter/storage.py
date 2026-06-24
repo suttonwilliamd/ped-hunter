@@ -209,6 +209,48 @@ class Store:
             conn.execute("UPDATE sessions SET ended_at = NULL WHERE id = ?", (session_id,))
             conn.commit()
 
+
+    def estimate_repair_cost_since_last_repair(self, session_id: str, loadout_name: str | None = None, fallback_decay: float = 0.0) -> float:
+        """Estimate repair-terminal decay accrued since the last repair reset.
+
+        New combat rows store repair_decay separately from ammo spend. Legacy rows
+        may only have shot_cost, so fall back to counting shot-consuming rows and
+        multiplying by the active loadout's decay per shot.
+        """
+        last_repair_id = 0
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(MAX(id), 0) AS last_id FROM events WHERE session_id = ? AND kind = 'repair'",
+                (session_id,),
+            ).fetchone()
+            if row:
+                last_repair_id = int(row["last_id"] or 0)
+            rows = conn.execute(
+                """
+                SELECT payload FROM events
+                WHERE session_id = ? AND id > ? AND kind = 'combat'
+                ORDER BY id
+                """,
+                (session_id, last_repair_id),
+            ).fetchall()
+
+        total = 0.0
+        fallback_shots = 0
+        for row in rows:
+            try:
+                payload = json.loads(row["payload"] or "{}")
+            except json.JSONDecodeError:
+                continue
+            if loadout_name and payload.get("loadout") not in (None, loadout_name):
+                continue
+            if "repair_decay" in payload:
+                total += float(payload.get("repair_decay") or 0.0)
+            elif payload.get("shot_cost") is not None:
+                fallback_shots += 1
+        if fallback_shots and fallback_decay > 0:
+            total += fallback_shots * fallback_decay
+        return total
+
     def add_event(self, session_id: str, event: dict) -> None:
         payload = json.dumps(event.get("payload", {}), ensure_ascii=False)
         timestamp = event.get("timestamp")
@@ -436,7 +478,9 @@ _SESSION_SUMMARY_SQL = """
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) AND json_type(e.payload, '$.shot_cost') IS NOT NULL THEN 1 ELSE 0 END), 0) AS repair_shots,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.repair_decay') ELSE 0 END), 0) AS repair_decay,
            COALESCE(SUM(CASE
-               WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.shot_cost')
+               WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
+                   COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
+               WHEN e.kind = 'repair' AND json_valid(e.payload) THEN json_extract(e.payload, '$.estimated_cost')
                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                ELSE 0
            END), 0) AS hunting_cost
