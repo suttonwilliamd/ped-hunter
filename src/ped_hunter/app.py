@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -1655,10 +1656,13 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
     if not session:
         return {"percent": 0.0, "label": "Durability", "streamer_text": "Durability —", "shots_left": None}
     snapshot = session.loadout_snapshot or {}
+    starting_shots = int(snapshot.get("repair_shots", 0) or 0)
+    total_shots = starting_shots + max(0, int(session.repair_shots or 0))
     items = snapshot.get("repair_items") or []
     if not isinstance(items, list):
         items = []
     statuses: list[dict[str, object]] = []
+    used_decay = 0.0
     for item in items:
         if not isinstance(item, dict) or not item.get("budget_known"):
             continue
@@ -1666,8 +1670,9 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
         decay = float(item.get("decay_per_shot", 0) or 0)
         if budget <= 0 or decay <= 0:
             continue
-        used = session.repair_shots * decay
+        used = total_shots * decay
         remaining = max(0.0, budget - used)
+        used_decay += used
         statuses.append(
             {
                 "role": str(item.get("role") or "Item"),
@@ -1675,22 +1680,32 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
                 "percent": remaining / budget * 100.0,
                 "remaining": remaining,
                 "budget": budget,
-                "shots_left": int(remaining / decay),
+                "shots_left": max(0, math.ceil(remaining / decay)),
             }
         )
     if not statuses:
         budget = float(snapshot.get("repair_budget", 0) or 0)
         known = bool(snapshot.get("repair_budget_known")) and budget > 0
         if known:
-            used = max(0.0, session.repair_decay)
-            remaining = max(0.0, budget - used)
+            per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
+            used_decay = total_shots * per_shot
+            remaining = max(0.0, budget - used_decay)
             pct = remaining / budget * 100.0
-            return {"percent": pct, "label": "Loadout", "streamer_text": f"Loadout durability {pct:.1f}%", "shots_left": None}
+            return {
+                "percent": pct,
+                "label": "Loadout",
+                "streamer_text": f"Loadout durability {pct:.1f}%",
+                "shots_left": None,
+                "used_shots": total_shots,
+                "used_decay": used_decay,
+            }
         return {
             "percent": 0.0,
             "label": "Durability",
-            "streamer_text": f"Durability unknown • {session.repair_shots:,} shots tracked",
+            "streamer_text": f"Durability unknown • {total_shots:,} shots tracked",
             "shots_left": None,
+            "used_shots": total_shots,
+            "used_decay": used_decay,
         }
     bottleneck = min(statuses, key=lambda item: float(item["percent"]))
     pct = float(bottleneck["percent"])
@@ -1702,6 +1717,8 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
         "streamer_text": f"{role} durability {pct:.1f}% • ~{shots_left:,} shots left",
         "shots_left": shots_left,
         "items": statuses,
+        "used_shots": total_shots,
+        "used_decay": used_decay,
     }
 
 
@@ -1724,17 +1741,18 @@ def format_repair_radar(session: SessionSummary | None) -> str:
         return "Repair radar: start a fresh run at 100% gun + amp TT"
     snapshot = session.loadout_snapshot or {}
     status = repair_durability_status(session)
-    used = max(0.0, session.repair_decay)
+    used = float(status.get("used_decay", 0.0) or 0.0)
+    shots = int(status.get("used_shots", session.repair_shots) or 0)
     if "items" in status:
-        return f"Repair radar: {status['streamer_text']} • {used:.4f} PED gun+amp decay across {session.repair_shots:,} shots"
+        return f"Repair radar: {status['streamer_text']} • {used:.4f} PED gun+amp decay across {shots:,} shots"
     budget = float(snapshot.get("repair_budget", 0) or 0)
     known = bool(snapshot.get("repair_budget_known")) and budget > 0
     if not known:
-        return f"Repair radar: {session.repair_shots:,} shots since 100% • {used:.4f} PED gun+amp decay accrued"
+        return f"Repair radar: {shots:,} shots since 100% • {used:.4f} PED gun+amp decay accrued"
     remaining = max(0.0, budget - used)
     remaining_pct = remaining / budget * 100.0
     per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
-    shots_left = int(remaining / per_shot) if per_shot > 0 else 0
+    shots_left = max(0, math.ceil(remaining / per_shot)) if per_shot > 0 else 0
     return (
         f"Repair radar: {remaining_pct:.1f}% gun+amp TT left • "
         f"{remaining:.2f}/{budget:.2f} PED remaining • ~{shots_left:,} shots to empty"

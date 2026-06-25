@@ -49,8 +49,10 @@ def test_parse_item_damaged_marker():
     assert event.payload == {"item_damaged": True}
 
 
-def test_parse_repair_success_line():
-    event = parse_line("2026-06-24 16:25:58 [System] [] Item(s) repaired successfully")
+def test_parse_repair_success_marker():
+    event = parse_line("2026-06-24 07:18:49 [System] [] Item(s) repaired successfully")
+
     assert event is not None
     assert event.kind == "repair"
     assert event.payload["resets_durability"] is True
+    assert event.payload["repair_reset"] is True

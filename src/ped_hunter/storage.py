@@ -44,10 +44,12 @@ class LoadoutRecord:
     decay: float = 0.0
     cost_per_shot: float = 0.0
     active: bool = False
+    repair_shots: int = 0
     repair_decay_per_shot: float = 0.0
     repair_budget: float = 0.0
     repair_budget_known: bool = False
     repair_items: list[dict[str, object]] | None = None
+
 
 
 @dataclass(slots=True)
@@ -144,9 +146,11 @@ class Store:
                     decay REAL NOT NULL,
                     cost_per_shot REAL NOT NULL,
                     active INTEGER NOT NULL DEFAULT 0,
+                    repair_shots INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+
                 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
                 CREATE INDEX IF NOT EXISTS idx_loadouts_active ON loadouts(active);
@@ -154,6 +158,7 @@ class Store:
             )
             self._ensure_column(conn, "sessions", "loadout_id", "INTEGER")
             self._ensure_column(conn, "sessions", "loadout_snapshot", "TEXT")
+            self._ensure_column(conn, "loadouts", "repair_shots", "INTEGER NOT NULL DEFAULT 0")
             conn.commit()
 
     def _verify_integrity(self) -> None:
@@ -261,6 +266,26 @@ class Store:
                 "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
                 (session_id, timestamp, event["kind"], event["raw_message"], payload),
             )
+            session_row = conn.execute("SELECT loadout_id FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
+            if loadout_id is not None and event.get("kind") == "combat":
+                event_payload = event.get("payload", {})
+                if isinstance(event_payload, dict) and event_payload.get("shot_cost") is not None:
+                    conn.execute("UPDATE loadouts SET repair_shots = COALESCE(repair_shots, 0) + 1 WHERE id = ?", (loadout_id,))
+            elif loadout_id is not None and event.get("kind") == "repair":
+                conn.execute("UPDATE loadouts SET repair_shots = 0 WHERE id = ?", (loadout_id,))
+                snapshot_row = conn.execute("SELECT loadout_snapshot FROM sessions WHERE id = ?", (session_id,)).fetchone()
+                if snapshot_row and snapshot_row["loadout_snapshot"]:
+                    try:
+                        snapshot = json.loads(str(snapshot_row["loadout_snapshot"]))
+                    except json.JSONDecodeError:
+                        snapshot = None
+                    if isinstance(snapshot, dict):
+                        snapshot["repair_shots"] = 0
+                        conn.execute(
+                            "UPDATE sessions SET loadout_snapshot = ? WHERE id = ?",
+                            (json.dumps(snapshot, ensure_ascii=False), session_id),
+                        )
             conn.commit()
 
     def save_loadout(self, loadout: LoadoutRecord, *, make_active: bool = False) -> int:
@@ -275,8 +300,8 @@ class Store:
                     INSERT INTO loadouts (
                         name, weapon, amp, scope, sight_1, sight_2,
                         damage_enhancers, accuracy_enhancers, economy_enhancers,
-                        ammo_burn, decay, cost_per_shot, active, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ammo_burn, decay, cost_per_shot, active, repair_shots, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(name) DO UPDATE SET
                         weapon=excluded.weapon,
                         amp=excluded.amp,
@@ -290,6 +315,7 @@ class Store:
                         decay=excluded.decay,
                         cost_per_shot=excluded.cost_per_shot,
                         active=excluded.active,
+                        repair_shots=loadouts.repair_shots,
                         updated_at=excluded.updated_at
                     """,
                     _loadout_values(loadout, active, now, now),
@@ -297,12 +323,15 @@ class Store:
                 row = conn.execute("SELECT id FROM loadouts WHERE name = ?", (loadout.name,)).fetchone()
                 loadout_id = int(row["id"] if row else cur.lastrowid)
             else:
+                existing = conn.execute("SELECT repair_shots FROM loadouts WHERE id = ?", (loadout.id,)).fetchone()
+                if existing is not None:
+                    loadout.repair_shots = int(existing["repair_shots"] or 0)
                 conn.execute(
                     """
                     UPDATE loadouts SET
                         name=?, weapon=?, amp=?, scope=?, sight_1=?, sight_2=?,
                         damage_enhancers=?, accuracy_enhancers=?, economy_enhancers=?,
-                        ammo_burn=?, decay=?, cost_per_shot=?, active=?, updated_at=?
+                        ammo_burn=?, decay=?, cost_per_shot=?, active=?, repair_shots=?, updated_at=?
                     WHERE id=?
                     """,
                     (
@@ -319,12 +348,14 @@ class Store:
                         loadout.decay,
                         loadout.cost_per_shot,
                         active,
+                        loadout.repair_shots,
                         now,
                         loadout.id,
                     ),
                 )
                 loadout_id = loadout.id
             conn.commit()
+
         return loadout_id
 
     def list_loadouts(self) -> list[LoadoutRecord]:
@@ -462,7 +493,7 @@ class Store:
 
 
 _SESSION_SUMMARY_SQL = """
-    WITH last_repair AS (
+    WITH session_repair_markers AS (
         SELECT session_id, MAX(id) AS last_repair_id
         FROM events
         WHERE kind = 'repair'
@@ -482,27 +513,30 @@ _SESSION_SUMMARY_SQL = """
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
            COALESCE(SUM(CASE
-               WHEN e.kind = 'combat' AND json_valid(e.payload)
-                    AND e.id > COALESCE(last_repair.last_repair_id, 0)
+               WHEN e.kind = 'combat'
+                    AND json_valid(e.payload)
                     AND json_type(e.payload, '$.shot_cost') IS NOT NULL
+                    AND (rm.last_repair_id IS NULL OR e.id > rm.last_repair_id)
                THEN 1 ELSE 0
            END), 0) AS repair_shots,
            COALESCE(SUM(CASE
-               WHEN e.kind = 'combat' AND json_valid(e.payload)
-                    AND e.id > COALESCE(last_repair.last_repair_id, 0)
+               WHEN e.kind = 'combat'
+                    AND json_valid(e.payload)
+                    AND (rm.last_repair_id IS NULL OR e.id > rm.last_repair_id)
                THEN json_extract(e.payload, '$.repair_decay')
                ELSE 0
            END), 0) AS repair_decay,
            COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
                    COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
-               WHEN e.kind = 'repair' AND json_valid(e.payload) THEN json_extract(e.payload, '$.estimated_cost')
+               WHEN e.kind = 'repair' AND json_valid(e.payload) THEN
+                   COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                ELSE 0
            END), 0) AS hunting_cost
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
-    LEFT JOIN last_repair ON last_repair.session_id = s.id
+    LEFT JOIN session_repair_markers rm ON rm.session_id = s.id
 """
 
 
@@ -552,6 +586,7 @@ def _loadout_values(loadout: LoadoutRecord, active: int, created_at: str, update
         loadout.decay,
         loadout.cost_per_shot,
         active,
+        loadout.repair_shots,
         created_at,
         updated_at,
     )
@@ -573,6 +608,7 @@ def _loadout_from_row(row: sqlite3.Row) -> LoadoutRecord:
         decay=float(row["decay"] or 0),
         cost_per_shot=float(row["cost_per_shot"] or 0),
         active=bool(row["active"]),
+        repair_shots=int(row["repair_shots"] or 0),
     )
 
 
@@ -593,6 +629,7 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "ammo_burn": loadout.ammo_burn,
         "decay": loadout.decay,
         "cost_per_shot": loadout.cost_per_shot,
+        "repair_shots": loadout.repair_shots,
         "repair_decay_per_shot": loadout.repair_decay_per_shot,
         "repair_budget": loadout.repair_budget,
         "repair_budget_known": loadout.repair_budget_known,

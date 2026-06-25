@@ -102,11 +102,11 @@ def test_repair_radar_uses_full_tt_gun_amp_budget_for_new_sessions(tmp_path: Pat
     assert round(summary.repair_decay, 5) == 0.052
     radar = format_repair_radar(summary)
     assert "Amp durability 93.6%" in radar
-    assert "~1,459 shots left" in radar
+    assert "~1,460 shots left" in radar
     status = repair_durability_status(summary)
     assert status["label"] == "Amp"
     assert round(float(status["percent"]), 1) == 93.6
-    assert status["shots_left"] == 1459
+    assert status["shots_left"] == 1460
 
 
 def test_repair_radar_calibrates_amp_bottleneck_from_real_run(tmp_path: Path):
@@ -137,6 +137,87 @@ def test_repair_radar_calibrates_amp_bottleneck_from_real_run(tmp_path: Path):
     items = {item["role"]: item for item in status["items"]}
     assert round(float(items["Gun"]["percent"]), 1) == 84.4
     assert round(summary.repair_decay, 2) == 0.81
+
+
+def test_repair_success_resets_current_durability_and_counts_repair_cost(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Starter rifle",
+            weapon="Frontier Hunting Rifle",
+            amp="ZX Sinkadus",
+            ammo_burn=140,
+            decay=0.00052,
+            cost_per_shot=0.01452,
+        ),
+    )
+    session_id = store.start_session("hunt", loadout)
+    for _ in range(25):
+        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+
+    before = store.get_current_session()
+    assert before is not None
+    repair_cost = before.repair_decay
+    store.add_event(session_id, {"kind": "repair", "raw_message": "[System] [] Item(s) repaired successfully", "payload": {"repair_cost": repair_cost}})
+
+    after = store.get_current_session()
+    assert after is not None
+    assert after.repair_shots == 0
+    assert after.repair_decay == 0.0
+    assert round(after.hunting_cost, 5) == round(before.hunting_cost + repair_cost, 5)
+
+    for _ in range(10):
+        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+
+    resumed = store.get_current_session()
+    assert resumed is not None
+    assert resumed.repair_shots == 10
+    assert round(resumed.repair_decay, 5) == round(10 * loadout.repair_decay_per_shot, 5)
+
+
+def test_repair_state_persists_into_next_session_without_repair(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Carryover rifle",
+            weapon="Frontier Hunting Rifle",
+            amp="ZX Sinkadus",
+            ammo_burn=140,
+            decay=0.00052,
+            cost_per_shot=0.01452,
+        ),
+    )
+    loadout.id = store.save_loadout(loadout, make_active=True)
+
+    first_session = store.start_session("hunt", loadout)
+    for _ in range(100):
+        store.add_event(first_session, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+    first_summary = store.get_session(first_session)
+    assert first_summary is not None
+    first_status = repair_durability_status(first_summary)
+    assert first_status["shots_left"] == 1460
+    store.end_session(first_session)
+
+    persisted = store.get_active_loadout()
+    assert persisted is not None
+    assert persisted.repair_shots == 100
+
+    second_loadout = with_repair_estimates(catalog, persisted)
+    store.start_session("hunt", second_loadout)
+    second_summary = store.get_current_session()
+    assert second_summary is not None
+    assert second_summary.loadout_snapshot is not None
+    assert second_summary.loadout_snapshot.get("repair_shots") == 100
+
+    second_status = repair_durability_status(second_summary)
+    assert second_status["shots_left"] == first_status["shots_left"]
+    assert "~1,460 shots left" in format_repair_radar(second_summary)
 
 
 def test_durability_color_gradient_reaches_requested_stops():
