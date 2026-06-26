@@ -139,7 +139,7 @@ def test_repair_radar_calibrates_amp_bottleneck_from_real_run(tmp_path: Path):
     assert round(summary.repair_decay, 2) == 0.81
 
 
-def test_repair_success_resets_current_durability_and_counts_repair_cost(tmp_path: Path):
+def test_repair_summary_reconciles_out_of_order_log_flushes(tmp_path: Path):
     catalog = Catalog.load()
     store = Store(tmp_path / "ped.sqlite3")
     loadout = with_repair_estimates(
@@ -155,27 +155,48 @@ def test_repair_success_resets_current_durability_and_counts_repair_cost(tmp_pat
         ),
     )
     session_id = store.start_session("hunt", loadout)
-    for _ in range(25):
-        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
 
-    before = store.get_current_session()
-    assert before is not None
-    repair_cost = before.repair_decay
-    store.add_event(session_id, {"kind": "repair", "raw_message": "[System] [] Item(s) repaired successfully", "payload": {"repair_cost": repair_cost}})
+    for minute in range(5):
+        ts = f"2026-06-25 18:00:0{minute}"
+        store.add_event(
+            session_id,
+            {
+                "kind": "combat",
+                "timestamp": ts,
+                "raw_message": f"shot {minute}",
+                "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot},
+            },
+        )
 
-    after = store.get_current_session()
-    assert after is not None
-    assert after.repair_shots == 0
-    assert after.repair_decay == 0.0
-    assert round(after.hunting_cost, 5) == round(before.hunting_cost + repair_cost, 5)
+    store.add_event(
+        session_id,
+        {
+            "kind": "repair",
+            "timestamp": "2026-06-25 18:00:10",
+            "raw_message": "[System] [] Item(s) repaired successfully",
+            "payload": {"repair_cost": 0.0},
+        },
+    )
 
-    for _ in range(10):
-        store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot}})
+    for minute in range(5, 8):
+        ts = f"2026-06-25 18:00:0{minute}"
+        store.add_event(
+            session_id,
+            {
+                "kind": "combat",
+                "timestamp": ts,
+                "raw_message": f"late shot {minute}",
+                "payload": {"damage": 6, "shot_cost": 0.01452, "repair_decay": loadout.repair_decay_per_shot},
+            },
+        )
 
-    resumed = store.get_current_session()
-    assert resumed is not None
-    assert resumed.repair_shots == 10
-    assert round(resumed.repair_decay, 5) == round(10 * loadout.repair_decay_per_shot, 5)
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.repair_shots == 0
+    assert summary.repair_decay == 0.0
+    assert round(summary.hunting_cost, 5) == round(8 * 0.01452 + 8 * loadout.repair_decay_per_shot, 5)
+
+
 
 
 def test_repair_state_persists_into_next_session_without_repair(tmp_path: Path):

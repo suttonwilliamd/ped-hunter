@@ -390,7 +390,7 @@ class Store:
             ).fetchone()
         if not row:
             return None
-        return _session_from_row(row)
+        return self._reconcile_repair_summary(_session_from_row(row))
 
     def get_session(self, session_id: str) -> SessionSummary | None:
         with self.connect() as conn:
@@ -402,7 +402,7 @@ class Store:
                 """,
                 (session_id,),
             ).fetchone()
-        return _session_from_row(row) if row else None
+        return self._reconcile_repair_summary(_session_from_row(row)) if row else None
 
     def list_recent_sessions(self, limit: int = 5) -> list[SessionSummary]:
         with self.connect() as conn:
@@ -414,7 +414,7 @@ class Store:
                 """,
                 (limit,),
             ).fetchall()
-        return [_session_from_row(row) for row in rows]
+        return [self._reconcile_repair_summary(_session_from_row(row)) for row in rows]
 
     def list_all_sessions(self) -> list[SessionSummary]:
         """Return every stored session newest-first for aggregate reporting."""
@@ -425,7 +425,47 @@ class Store:
                 ORDER BY s.started_at DESC
                 """
             ).fetchall()
-        return [_session_from_row(row) for row in rows]
+        return [self._reconcile_repair_summary(_session_from_row(row)) for row in rows]
+
+    def _reconcile_repair_summary(self, summary: SessionSummary) -> SessionSummary:
+        """Recompute repair totals from event timestamps so log flush ordering cannot undercount them."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, timestamp, kind, payload
+                FROM events
+                WHERE session_id = ?
+                ORDER BY COALESCE(timestamp, ''), id
+                """,
+                (summary.session_id,),
+            ).fetchall()
+
+        shots_since_repair = 0
+        decay_since_repair = 0.0
+        total_repair_cost = 0.0
+        estimated_repair_cost = 0.0
+
+        for row in rows:
+            try:
+                payload = json.loads(str(row["payload"] or "{}"))
+            except json.JSONDecodeError:
+                payload = {}
+            if row["kind"] == "combat":
+                if payload.get("shot_cost") is not None:
+                    shots_since_repair += 1
+                decay_since_repair += float(payload.get("repair_decay") or 0.0)
+            elif row["kind"] == "repair":
+                estimated_repair_cost += float(payload.get("estimated_cost") or payload.get("repair_cost") or 0.0)
+                total_repair_cost += decay_since_repair
+                shots_since_repair = 0
+                decay_since_repair = 0.0
+
+        summary.repair_shots = shots_since_repair
+        summary.repair_decay = decay_since_repair
+        if total_repair_cost or estimated_repair_cost:
+            summary.hunting_cost = round(summary.hunting_cost - estimated_repair_cost + total_repair_cost, 10)
+            summary.net_value = summary.loot_value - summary.hunting_cost
+        return summary
 
     def lifetime_totals(self) -> LifetimeTotals:
         """Return meaningful all-session PED totals and averages."""
