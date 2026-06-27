@@ -25,6 +25,26 @@ FRONTIER_HUNTING_RIFLE = {
     "max_tt": 2.0,
     "min_tt": 0.0,
 }
+FRONTIER_COMBAT_KNIFE = {
+    "name": "Frontier Combat Knife",
+    "category": "Knife",
+    "ammo": 49,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    "max_tt": 2.0,
+    "min_tt": 0.0,
+}
+FRONTIER_COMBAT_KNIFE_ADJUSTED = {
+    "name": "Frontier Combat Knife, Adjusted",
+    "category": "Knife",
+    "ammo": 98,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    "max_tt": 2.0,
+    "min_tt": 2e-05,
+}
 ZX_SINKADUS_TT = {"max_tt": 0.5, "min_tt": 0.001}
 
 
@@ -218,7 +238,13 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
                 "source_name": "LootNanny legacy seed",
             }
         )
-    weapon_items.append(FRONTIER_HUNTING_RIFLE.copy())
+    weapon_items.extend(
+        [
+            FRONTIER_COMBAT_KNIFE.copy(),
+            FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
+            FRONTIER_HUNTING_RIFLE.copy(),
+        ]
+    )
 
     attachment_items = []
     for source in (attachments, scopes, sights):

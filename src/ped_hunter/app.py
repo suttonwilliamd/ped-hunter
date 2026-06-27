@@ -9,7 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import math
+import queue
 from pathlib import Path
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -18,7 +20,7 @@ from .parser import ParsedEvent, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
-POLL_MS = 1000
+POLL_MS = 250
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
@@ -53,6 +55,11 @@ class PedHunterApp(tk.Tk):
         self.current_log_path: Path | None = None
 
         self.streamer_window: StreamerWindow | None = None
+        self._full_refresh_pending = False
+        self._log_drain_pending = False
+        self._log_worker: threading.Thread | None = None
+        self._log_worker_stop = threading.Event()
+        self._log_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         self.chat_path = tk.StringVar(value=str(_default_chat_log_path()))
         self.status_text = tk.StringVar(value="Ready — choose a chat log and start tracking")
@@ -872,6 +879,7 @@ class PedHunterApp(tk.Tk):
         active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
         self._last_ingested_log_line = None
+        self._full_refresh_pending = False
         self.session_id = self.store.start_session("hunt", active_loadout)
         self.last_size = path.stat().st_size
         self.running = True
@@ -880,7 +888,7 @@ class PedHunterApp(tk.Tk):
         self.stop_button.configure(state="normal")
         self.status_text.set(f"Tracking {path.name}; new lines will appear in Events")
         self._refresh_all()
-        self.after(POLL_MS, self._poll_log)
+        self._start_log_worker()
 
     def resume_selected_session(self) -> None:
         if self.running:
@@ -910,6 +918,7 @@ class PedHunterApp(tk.Tk):
 
         self.current_log_path = path
         self._last_ingested_log_line = None
+        self._full_refresh_pending = False
         self.session_id = session_id
         self.last_size = path.stat().st_size
         self.running = True
@@ -918,7 +927,7 @@ class PedHunterApp(tk.Tk):
         self.stop_button.configure(state="normal")
         self.status_text.set(f"Resumed {session_id}; tracking new lines from {path.name}")
         self._refresh_all()
-        self.after(POLL_MS, self._poll_log)
+        self._start_log_worker()
 
     def _selected_session_id(self) -> str | None:
         selection = self.sessions_tree.selection()
@@ -954,47 +963,108 @@ class PedHunterApp(tk.Tk):
     def stop(self) -> None:
         if not self.running:
             return
+        self._stop_log_worker()
         if self.session_id:
             self.store.end_session(self.session_id)
         self.running = False
         self.session_id = None
         self.current_log_path = None
+        self._full_refresh_pending = False
         self.start_button.configure(state="normal")
         self.resume_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.status_text.set("Run stopped")
         self._refresh_all()
 
-    def _poll_log(self) -> None:
-        if not self.running or self.current_log_path is None:
+    def _start_log_worker(self) -> None:
+        self._stop_log_worker()
+        if not self.running or self.session_id is None or self.current_log_path is None:
             return
-        path = self.current_log_path
-        try:
-            size = path.stat().st_size
-            if size < self.last_size:
-                self.last_size = 0
-            if size > self.last_size:
-                with path.open("r", encoding="utf-8", errors="ignore") as fh:
-                    fh.seek(self.last_size)
-                    lines = fh.readlines()
-                    self.last_size = fh.tell()
-                self._process_lines(lines)
-            self._refresh_all()
-        except Exception as exc:  # pragma: no cover - defensive UI guard
-            self.status_text.set(f"Tracking error: {exc}")
-        finally:
-            if self.running:
-                self.after(POLL_MS, self._poll_log)
+        self._log_queue = queue.Queue()
+        stop_event = threading.Event()
+        self._log_worker_stop = stop_event
+        self._log_drain_pending = False
+        worker = threading.Thread(
+            target=self._log_worker_loop,
+            args=(self.current_log_path, self.session_id, self.last_size, stop_event),
+            daemon=True,
+            name="ped-hunter-log-worker",
+        )
 
-    def _process_lines(self, lines: list[str]) -> None:
-        if not self.session_id:
+        self._log_worker = worker
+        worker.start()
+        self._schedule_log_drain()
+
+    def _stop_log_worker(self) -> None:
+        worker = self._log_worker
+        self._log_worker_stop.set()
+        if worker and worker.is_alive() and threading.current_thread() is not worker:
+            worker.join(timeout=1.0)
+        self._log_worker = None
+        self._log_drain_pending = False
+
+    def _schedule_log_drain(self) -> None:
+        if self._log_drain_pending:
             return
+        self._log_drain_pending = True
+        self.after(100, self._drain_log_queue)
+
+    def _drain_log_queue(self) -> None:
+        self._log_drain_pending = False
+        parsed_total = 0
+        while True:
+            try:
+                kind, payload = self._log_queue.get_nowait()
+            except queue.Empty:
+                break
+            if kind == "parsed":
+                parsed_total += int(payload)
+            elif kind == "error":
+                self.status_text.set(str(payload))
+            elif kind == "status":
+                self.status_text.set(str(payload))
+        if parsed_total:
+            self.status_text.set(f"Parsed {parsed_total} new event{'s' if parsed_total != 1 else ''}")
+            self._refresh_live_views()
+            self._schedule_full_refresh()
+        worker = self._log_worker
+        if self.running and worker and worker.is_alive():
+            self._schedule_log_drain()
+
+    def _log_worker_loop(self, path: Path, session_id: str, start_size: int, stop_event: threading.Event) -> None:
+        last_size = start_size
+        last_ingested_log_line: str | None = None
+        while not stop_event.is_set():
+            try:
+                size = path.stat().st_size
+                if size < last_size:
+                    last_size = 0
+                parsed = 0
+                if size > last_size:
+                    with path.open("r", encoding="utf-8", errors="ignore") as fh:
+                        fh.seek(last_size)
+                        lines = fh.readlines()
+                        last_size = fh.tell()
+                    parsed, last_ingested_log_line = self._process_lines(lines, session_id, last_ingested_log_line)
+                if parsed:
+                    self._log_queue.put(("parsed", parsed))
+            except Exception as exc:  # pragma: no cover - defensive UI guard
+                self._log_queue.put(("error", f"Tracking error: {exc}"))
+            if stop_event.wait(POLL_MS / 1000.0):
+                break
+
+    def _process_lines(
+        self,
+        lines: list[str],
+        session_id: str,
+        last_ingested_log_line: str | None,
+    ) -> tuple[int, str | None]:
         parsed = 0
         active_loadout = self.store.get_active_loadout()
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)
         for raw in lines:
-            if _is_duplicate_log_line(self._last_ingested_log_line, raw):
+            if _is_duplicate_log_line(last_ingested_log_line, raw):
                 continue
             normalized_raw = raw.strip()
             event = parse_line(raw)
@@ -1009,7 +1079,7 @@ class PedHunterApp(tk.Tk):
             if event.kind == "repair":
                 if active_loadout:
                     estimated_cost = self.store.estimate_repair_cost_since_last_repair(
-                        self.session_id,
+                        session_id,
                         active_loadout.name,
                         active_loadout.repair_decay_per_shot or active_loadout.decay,
                     )
@@ -1023,12 +1093,11 @@ class PedHunterApp(tk.Tk):
                     )
                 else:
                     event.payload.update({"estimated_cost": 0.0, "estimation": "missing_active_loadout", "resets_durability": True})
-            self.store.add_event(self.session_id, event.to_row())
+            self.store.add_event(session_id, event.to_row())
             if normalized_raw:
-                self._last_ingested_log_line = normalized_raw
+                last_ingested_log_line = normalized_raw
             parsed += 1
-        if parsed:
-            self.status_text.set(f"Parsed {parsed} new event{'s' if parsed != 1 else ''}")
+        return parsed, last_ingested_log_line
 
     def _refresh_crafting_preview(self) -> None:
         try:
@@ -1077,13 +1146,35 @@ class PedHunterApp(tk.Tk):
         self.status_text.set(f"Added {total:.2f} PED manufacturing cost for {attempts:,} attempt{'s' if attempts != 1 else ''}")
         self._refresh_all()
 
+    def _schedule_full_refresh(self) -> None:
+        if self._full_refresh_pending:
+            return
+        self._full_refresh_pending = True
+        self.after(500, self._run_full_refresh)
+
+    def _run_full_refresh(self) -> None:
+        self._full_refresh_pending = False
+        if not self.running and self.session_id is None:
+            return
+        self._refresh_all()
+
+    def _refresh_live_views(self) -> None:
+        current = self.store.get_current_session()
+        display = self._display_session(current, [])
+        self._refresh_metrics(display, [])
+        if self.streamer_window and self.streamer_window.winfo_exists():
+            self.streamer_window.update_from_session(display)
+
     def _refresh_all(self) -> None:
         current = self.store.get_current_session()
         sessions = self.store.list_recent_sessions(20)
         display = self._display_session(current, sessions)
         self._refresh_metrics(display, sessions)
+
         self._refresh_lifetime_totals()
+
         self._refresh_sessions(sessions)
+
         self._refresh_events(display.session_id if display else None)
         self._refresh_skills(display.session_id if display else None)
         self._refresh_loot_chart(display.session_id if display else None)

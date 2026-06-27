@@ -85,10 +85,12 @@ The spec bundles `data/catalog/` so catalog lookups work from the standalone `.e
 The seed catalog is imported from the legacy LootNanny database files at:
 https://github.com/euloggeradmin/LootNanny
 
-The legacy LootNanny seed set does not currently include the newer Frontier starter rifle, so PED Hunter adds a supplemental weapon entry backed by EntropiaWiki and Entropia Nexus:
+The legacy LootNanny seed set does not currently include the newer Frontier starter weapons, so PED Hunter adds supplemental entries backed by EntropiaWiki and Entropia Nexus:
 
 - `Frontier Hunting Rifle`
-- Sources: [EntropiaWiki weapon id 3070](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3070), [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle)
+- `Frontier Combat Knife`
+- `Frontier Combat Knife, Adjusted`
+- Sources: [EntropiaWiki weapon id 3070](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3070), [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle), [Entropia Nexus Frontier Combat Knife](https://entropianexus.com/items/weapons/Frontier~Combat~Knife), [Entropia Nexus Frontier Combat Knife, Adjusted](https://entropianexus.com/items/weapons/Frontier~Combat~Knife~Adjusted)
 
 For convenience, PED Hunter also accepts the shorthand:
 

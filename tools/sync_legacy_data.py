@@ -15,6 +15,22 @@ FRONTIER_HUNTING_RIFLE = {
     "aliases": ["Frontier Rifle"],
     "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
 }
+FRONTIER_COMBAT_KNIFE = {
+    "name": "Frontier Combat Knife",
+    "category": "Knife",
+    "ammo": 49,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+}
+FRONTIER_COMBAT_KNIFE_ADJUSTED = {
+    "name": "Frontier Combat Knife, Adjusted",
+    "category": "Knife",
+    "ammo": 98,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+}
 
 
 def download(name: str) -> dict:
@@ -42,7 +58,11 @@ def main() -> int:
 
     # The Frontier starter rifle is distinct from the older EWE LC-100 Frontier
     # and is not currently present in the legacy LootNanny seed files.
-    weapons.append(FRONTIER_HUNTING_RIFLE.copy())
+    weapons.extend([
+        FRONTIER_COMBAT_KNIFE.copy(),
+        FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
+        FRONTIER_HUNTING_RIFLE.copy(),
+    ])
 
     attachments = []
     for source_name in ["attachments.json", "scopes.json", "sights.json"]:

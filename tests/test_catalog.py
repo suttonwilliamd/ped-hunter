@@ -13,6 +13,22 @@ def test_frontier_alias_resolves():
     assert weapon.decay == 0.0002
 
 
+def test_frontier_combat_knife_and_adjusted_resolve():
+    catalog = Catalog.load()
+    knife = catalog.find_weapon("Frontier Combat Knife")
+    adjusted = catalog.find_weapon("Frontier Combat Knife, Adjusted")
+    assert knife is not None
+    assert knife.name == "Frontier Combat Knife"
+    assert knife.category == "Knife"
+    assert knife.ammo == 49
+    assert knife.decay == 0.0002
+    assert adjusted is not None
+    assert adjusted.name == "Frontier Combat Knife, Adjusted"
+    assert adjusted.category == "Knife"
+    assert adjusted.ammo == 98
+    assert adjusted.decay == 0.0002
+
+
 def test_frontier_hunting_rifle_is_distinct_from_ewe_frontier():
     catalog = Catalog.load()
     frontier = catalog.find_weapon("Frontier Rifle")
@@ -41,6 +57,8 @@ def test_cli_seed_normalization_keeps_frontier_hunting_rifle_distinct():
     weapons = {item["name"]: item for item in normalized["weapons.json"]["items"]}
     assert normalized["aliases.json"] == {"Frontier Rifle": "Frontier Hunting Rifle"}
     assert weapons["EWE LC-100 Frontier"]["aliases"] == []
+    assert weapons["Frontier Combat Knife"]["aliases"] == []
+    assert weapons["Frontier Combat Knife, Adjusted"]["aliases"] == []
     assert weapons["Frontier Hunting Rifle"]["aliases"] == ["Frontier Rifle"]
 
 

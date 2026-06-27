@@ -8329,16 +8329,36 @@
       "source_name": "LootNanny legacy seed"
     },
     {
+      "aliases": [],
+      "ammo": 49,
+      "category": "Knife",
+      "decay": 0.0002,
+      "max_tt": 2.0,
+      "min_tt": 0.0,
+      "name": "Frontier Combat Knife",
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
+    },
+    {
+      "aliases": [],
+      "ammo": 98,
+      "category": "Knife",
+      "decay": 0.0002,
+      "max_tt": 2.0,
+      "min_tt": 2e-05,
+      "name": "Frontier Combat Knife, Adjusted",
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
+    },
+    {
       "aliases": [
         "Frontier Rifle"
       ],
       "ammo": 100,
       "category": "Rifle",
       "decay": 0.0002,
-      "name": "Frontier Hunting Rifle",
-      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
       "max_tt": 2.0,
-      "min_tt": 0.0
+      "min_tt": 0.0,
+      "name": "Frontier Hunting Rifle",
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
     },
     {
       "aliases": [],
