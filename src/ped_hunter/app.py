@@ -795,6 +795,12 @@ class PedHunterApp(tk.Tk):
         for loadout in self.store.list_loadouts():
             if loadout.name == values[1]:
                 self._populate_loadout_form(loadout)
+                if loadout.id is not None:
+                    self.store.set_active_loadout(loadout.id)
+                    if self.running and self.session_id:
+                        synced_loadout = with_repair_estimates(self.catalog, loadout)
+                        self.store.update_session_loadout(self.session_id, synced_loadout)
+                    self._refresh_loadouts()
                 return
         if loadout_id is not None:
             self.selected_loadout_id = loadout_id

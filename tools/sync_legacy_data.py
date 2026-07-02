@@ -31,6 +31,26 @@ FRONTIER_COMBAT_KNIFE_ADJUSTED = {
     "aliases": [],
     "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
 }
+SET_P1_CIVILIAN_SIDEARM_ADJUSTED = {
+    "name": "SET-P1 Civilian Sidearm, Adjusted",
+    "category": "Pistol",
+    "ammo": 7,
+    "decay": 0.001,
+    "aliases": [],
+    "source_name": "Entropia Nexus supplemental seed",
+    "max_tt": 0.1,
+    "min_tt": 0.0,
+}
+SET_P2_SCOUT_SIDEARM = {
+    "name": "SET-P2 Scout Sidearm (L)",
+    "category": "Pistol",
+    "ammo": 20,
+    "decay": 0.001,
+    "aliases": [],
+    "source_name": "Entropia Nexus supplemental seed",
+    "max_tt": 0.2,
+    "min_tt": 0.0,
+}
 
 
 def download(name: str) -> dict:
@@ -62,6 +82,8 @@ def main() -> int:
         FRONTIER_COMBAT_KNIFE.copy(),
         FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
         FRONTIER_HUNTING_RIFLE.copy(),
+        SET_P1_CIVILIAN_SIDEARM_ADJUSTED.copy(),
+        SET_P2_SCOUT_SIDEARM.copy(),
     ])
 
     attachments = []

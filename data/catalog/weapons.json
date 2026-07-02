@@ -20890,6 +20890,26 @@
     },
     {
       "aliases": [],
+      "ammo": 7,
+      "category": "Pistol",
+      "decay": 0.001,
+      "max_tt": 0.1,
+      "min_tt": 0.0,
+      "name": "SET-P1 Civilian Sidearm, Adjusted",
+      "source_name": "Entropia Nexus supplemental seed"
+    },
+    {
+      "aliases": [],
+      "ammo": 20,
+      "category": "Pistol",
+      "decay": 0.001,
+      "max_tt": 0.2,
+      "min_tt": 0.0,
+      "name": "SET-P2 Scout Sidearm (L)",
+      "source_name": "Entropia Nexus supplemental seed"
+    },
+    {
+      "aliases": [],
       "ammo": 0,
       "category": "Melee",
       "decay": 0.15815,

@@ -38,6 +38,27 @@ def test_frontier_hunting_rifle_is_distinct_from_ewe_frontier():
     assert frontier.name != ewe.name
 
 
+def test_set_p1_and_set_p2_weapons_are_in_catalog():
+    catalog = Catalog.load()
+
+    p1 = catalog.find_weapon("SET-P1 Civilian Sidearm, Adjusted")
+    p2 = catalog.find_weapon("SET-P2 Scout Sidearm (L)")
+
+    assert p1 is not None
+    assert p1.name == "SET-P1 Civilian Sidearm, Adjusted"
+    assert p1.category == "Pistol"
+    assert p1.ammo == 7
+    assert p1.decay == 0.001
+    assert p1.max_tt == 0.1
+
+    assert p2 is not None
+    assert p2.name == "SET-P2 Scout Sidearm (L)"
+    assert p2.category == "Pistol"
+    assert p2.ammo == 20
+    assert p2.decay == 0.001
+    assert p2.max_tt == 0.2
+
+
 def test_cli_seed_normalization_keeps_frontier_hunting_rifle_distinct():
     normalized = _normalize(
         {

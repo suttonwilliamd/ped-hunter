@@ -293,6 +293,14 @@ def _print_event(event, catalog: Catalog) -> None:
         print(f"[SKILL] {event.payload.get('skill')}: +{event.payload.get('xp')} XP")
     elif event.kind == "craft":
         print(f"[CRAFT] {event.payload.get('result')} {event.payload.get('item')}")
+    elif event.kind in {"chat", "global"}:
+        channel = event.payload.get("channel", "?")
+        speaker = event.payload.get("speaker", "")
+        message = event.payload.get("message", "")
+        prefix = f"[{channel}]"
+        if speaker:
+            prefix += f" [{speaker}]"
+        print(f"{prefix} {message}".rstrip())
 
 
 if __name__ == "__main__":

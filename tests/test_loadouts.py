@@ -34,6 +34,16 @@ def test_frontier_loadout_cost_matches_weapon_cost():
     assert decay + (ammo / 10_000.0) == 0.0102
 
 
+def test_set_p1_and_set_p2_loadout_costs_match_catalog():
+    catalog = Catalog.load()
+
+    p1_ammo, p1_decay = calculate_loadout_cost(catalog=catalog, weapon_name="SET-P1 Civilian Sidearm, Adjusted")
+    p2_ammo, p2_decay = calculate_loadout_cost(catalog=catalog, weapon_name="SET-P2 Scout Sidearm (L)")
+
+    assert (p1_ammo, p1_decay) == (7, 0.001)
+    assert (p2_ammo, p2_decay) == (20, 0.001)
+
+
 def test_damage_and_economy_enhancers_follow_lootnanny_formula():
     catalog = Catalog.load()
     ammo, decay = calculate_loadout_cost(

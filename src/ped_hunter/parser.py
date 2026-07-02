@@ -10,6 +10,7 @@ from typing import Any
 
 TIMESTAMP_RE = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<body>.+)$")
 SYSTEM_PREFIX = r"\[System\](?:\s*:\s*|\s+\[\]\s*)"
+CHANNEL_RE = re.compile(r"^\[(?P<channel>[^\]]+)\](?:\s+\[(?P<speaker>.*?)\])?\s*(?P<message>.*)$")
 PATTERNS = {
     "loot": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*received\s*(?:\[(?P<loot_item_bracketed>.+?)\]|(?P<loot_item_plain>.+?))\s*x\s*\(?([\d,]+)\)?\s*Value:\s*([\d.]+)\s*PED(?:\s+from\s+.+)?$"),
     "damage": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*inflicted\s*([\d.]+)\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*[\d.]+\s*PED)?\.?$"),
@@ -124,6 +125,21 @@ def parse_line(line: str) -> ParsedEvent | None:
             return ParsedEvent(kind="equipment", timestamp=timestamp, raw_message=line, payload={"item_damaged": True})
         if kind == "repair":
             return ParsedEvent(kind="repair", timestamp=timestamp, raw_message=line, payload={"estimated_cost": 0.0, "resets_durability": True, "repair_reset": True})
+
+    channel_match = CHANNEL_RE.match(body)
+    if channel_match:
+        channel = channel_match.group("channel")
+        speaker = (channel_match.group("speaker") or "").strip()
+        message = (channel_match.group("message") or "").strip()
+        if channel.casefold() == "system":
+            return None
+        kind = "global" if channel.casefold() == "globals" else "chat"
+        return ParsedEvent(
+            kind=kind,
+            timestamp=timestamp,
+            raw_message=line,
+            payload={"channel": channel, "speaker": speaker, "message": message},
+        )
 
     return None
 

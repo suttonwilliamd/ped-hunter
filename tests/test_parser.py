@@ -74,3 +74,24 @@ def test_parse_repair_success_marker():
     assert event.kind == "repair"
     assert event.payload["resets_durability"] is True
     assert event.payload["repair_reset"] is True
+
+
+def test_parse_global_chat_and_channel_messages():
+    global_event = parse_line("2026-07-01 23:47:21 [Globals] [] Bulletproof Turk Turk killed a creature (Void Umbranoid Acolyte) with a value of 58 PED!")
+    channel_event = parse_line("2026-07-01 23:47:01 [#disi] [Doomsdib Doomsdib Doomsdib] yea im slow grinding it. and F2P makes it harder lol")
+
+    assert global_event is not None
+    assert global_event.kind == "global"
+    assert global_event.payload == {
+        "channel": "Globals",
+        "speaker": "",
+        "message": "Bulletproof Turk Turk killed a creature (Void Umbranoid Acolyte) with a value of 58 PED!",
+    }
+
+    assert channel_event is not None
+    assert channel_event.kind == "chat"
+    assert channel_event.payload == {
+        "channel": "#disi",
+        "speaker": "Doomsdib Doomsdib Doomsdib",
+        "message": "yea im slow grinding it. and F2P makes it harder lol",
+    }
