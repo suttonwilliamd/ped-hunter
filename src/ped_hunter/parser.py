@@ -9,26 +9,27 @@ from typing import Any
 
 
 TIMESTAMP_RE = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<body>.+)$")
+SYSTEM_PREFIX = r"\[System\](?:\s*:\s*|\s+\[\]\s*)"
 PATTERNS = {
-    "loot": re.compile(r"\[System\] \[\]\s*You\s+received\s+(.+?)\s+x\s*\(?(\d+)\)?\s*Value:\s*([\d.]+)\s+PED"),
-    "damage": re.compile(r"\[System\] \[\]\s*You\s+inflicted\s+([\d.]+)\s+points\s+of\s+damage"),
-    "damage_taken": re.compile(r"\[System\] \[\]\s*You\s+took\s+([\d.]+)\s+points\s+of\s+damage"),
-    "critical": re.compile(r"\[System\] \[\]\s*Critical\s+hit\s+-\s+Additional\s+damage!\s+You\s+inflicted\s+([\d.]+)\s+points\s+of\s+damage"),
-    "critical_armor": re.compile(r"\[System\] \[\]\s*Critical\s+hit\s+-\s+Armor\s+penetration!\s+You\s+took\s+([\d.]+)\s+points\s+of\s+damage"),
-    "miss": re.compile(r"\[System\] \[\]\s*The\s+attack\s+missed\s+you"),
-    "dodge": re.compile(r"\[System\] \[\]\s*.*Dodged.*your\s+attack"),
-    "evade": re.compile(r"\[System\] \[\]\s*You\s+Evaded\s+the\s+attack"),
-    "heal": re.compile(r"\[System\] \[\]\s*You\s+healed\s+yourself\s+([\d.]+)\s+points"),
-    "weapon": re.compile(r"\[System\] \[\]\s*You\s+equipped\s+(.+)$"),
-    "skill": re.compile(r"\[System\] \[\]\s*You\s+have\s+gained\s+([\d.]+)\s+experience\s+in\s+your\s+(.+?)\s+skill"),
-    "skill_gain": re.compile(r"\[System\] \[\]\s*You\s+have\s+gained\s+([\d.]+)\s+(.+)$"),
-    "skill_alt": re.compile(r"\[System\] \[\]\s*You\s+gained\s+([\d.]+)\s+(.+)$"),
-    "skill_improved": re.compile(r"\[System\] \[\]\s*Your\s+(.+?)\s+has\s+improved\s+by\s+([\d.]+)$"),
-    "craft_success": re.compile(r"\[System\] \[\]\s*You\s+successfully\s+crafted\s+(.+)$"),
-    "craft_fail": re.compile(r"\[System\] \[\]\s*You\s+failed\s+to\s+craft\s+(.+)$"),
-    "picked_up": re.compile(r"\[System\] \[\]\s*Picked up (.+?)(?: \((\d+)\))?$"),
-    "item_damaged": re.compile(r"\[System\] \[\]\s*The item is damaged\.?$"),
-    "repair": re.compile(r"\[System\] \[\]\s*Item\(s\)\s+repaired\s+successfully\.?$"),
+    "loot": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*received\s*(?:\[(?P<loot_item_bracketed>.+?)\]|(?P<loot_item_plain>.+?))\s*x\s*\(?([\d,]+)\)?\s*Value:\s*([\d.]+)\s*PED(?:\s+from\s+.+)?$"),
+    "damage": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*inflicted\s*([\d.]+)\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*[\d.]+\s*PED)?\.?$"),
+    "damage_taken": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*took\s*([\d.]+)\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
+    "critical": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Additional\s*damage!\s*You\s*inflicted\s*([\d.]+)\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*[\d.]+\s*PED)?\.?$"),
+    "critical_armor": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Armor\s*penetration!\s*You\s*took\s*([\d.]+)\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
+    "miss": re.compile(rf"{SYSTEM_PREFIX}\s*The\s*attack\s*missed\s*you\.?$"),
+    "dodge": re.compile(rf"{SYSTEM_PREFIX}\s*.*Dodged.*your\s*attack\.?$"),
+    "evade": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*Evaded\s*the\s*attack\.?$"),
+    "heal": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*healed\s*yourself\s*([\d.]+)\s*points\.?$"),
+    "weapon": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*equipped\s*(.+)$"),
+    "skill": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*([\d.]+)\s*experience\s*in\s*your\s*(.+?)\s*skill"),
+    "skill_gain": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*([\d.]+)\s*(.+)$"),
+    "skill_alt": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*gained\s*([\d.]+)\s*(.+)$"),
+    "skill_improved": re.compile(rf"{SYSTEM_PREFIX}\s*Your\s*(.+?)\s*has\s*improved\s*by\s*([\d.]+)$"),
+    "craft_success": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*successfully\s*crafted\s*(.+)$"),
+    "craft_fail": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*failed\s*to\s*craft\s*(.+)$"),
+    "picked_up": re.compile(rf"{SYSTEM_PREFIX}\s*Picked\s*up\s*(.+?)(?:\s*\((\d+)\))?$"),
+    "item_damaged": re.compile(rf"{SYSTEM_PREFIX}\s*The\s*item\s*is\s*damaged\.?$"),
+    "repair": re.compile(rf"{SYSTEM_PREFIX}\s*Item\(s\)\s*repaired\s*successfully\.?$"),
 }
 
 CONVERSION_OUTPUT_ITEM_NAMES = {"oil", "universal ammo"}
@@ -70,7 +71,7 @@ def parse_line(line: str) -> ParsedEvent | None:
             continue
 
         if kind == "loot":
-            item_name = match.group(1).strip()
+            item_name = (match.group("loot_item_bracketed") or match.group("loot_item_plain") or "").strip()
             if is_conversion_output_item(item_name):
                 return None
             return ParsedEvent(
@@ -79,11 +80,12 @@ def parse_line(line: str) -> ParsedEvent | None:
                 raw_message=line,
                 payload={
                     "item_name": item_name,
-                    "quantity": int(match.group(2)),
-                    "value": float(match.group(3)),
+                    "quantity": int((match.group(3) or "0").replace(",", "")),
+                    "value": float(match.group(4)),
                     "is_personal": True,
                 },
             )
+
         if kind in {"damage", "damage_taken", "critical", "critical_armor", "heal"}:
             key = {
                 "damage": "damage",
@@ -98,6 +100,7 @@ def parse_line(line: str) -> ParsedEvent | None:
                 raw_message=line,
                 payload={key: float(match.group(1))},
             )
+
         if kind == "miss":
             return ParsedEvent(kind="combat", timestamp=timestamp, raw_message=line, payload={"miss": True})
         if kind == "dodge":
@@ -123,7 +126,6 @@ def parse_line(line: str) -> ParsedEvent | None:
             return ParsedEvent(kind="repair", timestamp=timestamp, raw_message=line, payload={"estimated_cost": 0.0, "resets_durability": True, "repair_reset": True})
 
     return None
-
 
 def is_conversion_output_item(item_name: str) -> bool:
     """Return True for inventory conversion outputs, not newly earned loot.

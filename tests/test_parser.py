@@ -9,6 +9,24 @@ def test_parse_loot_line():
     assert event.payload["value"] == 0.06
 
 
+def test_parse_compact_loot_line_with_brackets_and_source():
+    event = parse_line("2026-06-20 08:30:06 [System]:Youreceived[Shrapnel] x (288613)Value: 28.86 PED from (Big Bulk Gen 10)")
+
+    assert event is not None
+    assert event.kind == "loot"
+    assert event.payload["item_name"] == "Shrapnel"
+    assert event.payload["quantity"] == 288613
+    assert event.payload["value"] == 28.86
+
+
+def test_parse_compact_damage_line_with_cost():
+    event = parse_line("2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.")
+
+    assert event is not None
+    assert event.kind == "combat"
+    assert event.payload["damage"] == 43.8
+
+
 def test_refiner_and_conversion_outputs_are_not_loot():
     lines = [
         "2026-06-20 08:30:06 [System] [] You received Oil x (107) Value: 2.14 PED",
