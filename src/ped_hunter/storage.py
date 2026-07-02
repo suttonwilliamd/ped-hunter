@@ -214,8 +214,18 @@ class Store:
             conn.execute("UPDATE sessions SET ended_at = NULL WHERE id = ?", (session_id,))
             conn.commit()
 
+    def update_session_loadout(self, session_id: str, loadout: LoadoutRecord) -> None:
+        """Replace a session's stored loadout snapshot with the latest active setup."""
+        snapshot = json.dumps(loadout_to_dict(loadout), ensure_ascii=False) if loadout else None
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET loadout_id = ?, loadout_snapshot = ? WHERE id = ?",
+                (loadout.id if loadout else None, snapshot, session_id),
+            )
+            conn.commit()
 
     def estimate_repair_cost_since_last_repair(self, session_id: str, loadout_name: str | None = None, fallback_decay: float = 0.0) -> float:
+
         """Estimate repair-terminal decay accrued since the last repair reset.
 
         New combat rows store repair_decay separately from ammo spend. Legacy rows

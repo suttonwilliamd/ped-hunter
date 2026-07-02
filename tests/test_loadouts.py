@@ -269,6 +269,49 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.net_value == 0.2398
 
 
+def test_running_session_can_be_synced_to_new_active_loadout(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+
+    starter = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Starter rifle",
+            weapon="Frontier Hunting Rifle",
+            amp="ZX Sinkadus",
+            ammo_burn=140,
+            decay=0.00052,
+            cost_per_shot=0.01452,
+        ),
+    )
+    starter.id = store.save_loadout(starter, make_active=True)
+    session_id = store.start_session("hunt", starter)
+
+    rubio = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Rubio + B101",
+            weapon="Sollomate Rubio (L)",
+            amp="Omegaton B101 (L)",
+            ammo_burn=96,
+            decay=0.0001,
+            cost_per_shot=0.0097,
+        ),
+    )
+    rubio.id = store.save_loadout(rubio, make_active=True)
+    store.update_session_loadout(session_id, rubio)
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.loadout_name == "Rubio + B101"
+    assert summary.loadout_snapshot is not None
+    assert summary.loadout_snapshot["weapon"] == "Sollomate Rubio (L)"
+    assert summary.loadout_snapshot["amp"] == "Omegaton B101 (L)"
+    assert summary.loadout_snapshot["cost_per_shot"] == 0.0097
+
+
 def test_store_excludes_legacy_refiner_conversion_rows_from_profit(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")

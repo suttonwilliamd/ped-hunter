@@ -768,6 +768,9 @@ class PedHunterApp(tk.Tk):
             return
         loadout_id = self.store.save_loadout(loadout, make_active=make_active)
         self.selected_loadout_id = loadout_id
+        if make_active and self.running and self.session_id:
+            synced_loadout = with_repair_estimates(self.catalog, loadout)
+            self.store.update_session_loadout(self.session_id, synced_loadout)
         self.status_text.set(f"Saved loadout: {loadout.name}")
         self._refresh_loadouts()
         self._refresh_all()
@@ -1150,7 +1153,7 @@ class PedHunterApp(tk.Tk):
         if self._full_refresh_pending:
             return
         self._full_refresh_pending = True
-        self.after(500, self._run_full_refresh)
+        self.after(150, self._run_full_refresh)
 
     def _run_full_refresh(self) -> None:
         self._full_refresh_pending = False
@@ -1162,6 +1165,8 @@ class PedHunterApp(tk.Tk):
         current = self.store.get_current_session()
         display = self._display_session(current, [])
         self._refresh_metrics(display, [])
+        if self._selected_session_id():
+            self._on_session_selected()
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
 
