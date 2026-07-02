@@ -373,6 +373,11 @@ class Store:
             rows = conn.execute("SELECT * FROM loadouts ORDER BY active DESC, updated_at DESC, name").fetchall()
         return [_loadout_from_row(row) for row in rows]
 
+    def get_loadout(self, loadout_id: int) -> LoadoutRecord | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT * FROM loadouts WHERE id = ?", (loadout_id,)).fetchone()
+        return _loadout_from_row(row) if row else None
+
     def get_active_loadout(self) -> LoadoutRecord | None:
         with self.connect() as conn:
             row = conn.execute("SELECT * FROM loadouts WHERE active = 1 ORDER BY updated_at DESC LIMIT 1").fetchone()

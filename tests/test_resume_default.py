@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from ped_hunter.app import PedHunterApp
-from ped_hunter.storage import SessionSummary
+from ped_hunter.catalog import Catalog
+from ped_hunter.storage import LoadoutRecord, SessionSummary
 
 
 class FakeStore:
@@ -100,6 +101,51 @@ def test_refresh_sessions_selects_newest_when_nothing_is_selected() -> None:
     assert tree.selection() == ("latest",)
     assert tree.focused == "latest"
     assert "Test setup" in app.selected_session_text.value
+
+
+def test_restore_session_loadout_prefers_snapshot_id() -> None:
+    catalog = Catalog.load()
+    session_loadout = LoadoutRecord(
+        id=42,
+        name="Resume rifle",
+        weapon="Frontier Hunting Rifle",
+        amp="ZX Sinkadus",
+        ammo_burn=140,
+        decay=0.00052,
+        cost_per_shot=0.01452,
+    )
+
+    class StoreWithLoadouts(FakeStore):
+        def get_loadout(self, loadout_id: int) -> LoadoutRecord | None:
+            return session_loadout if loadout_id == 42 else None
+
+        def list_loadouts(self) -> list[LoadoutRecord]:
+            return [session_loadout]
+
+    app = object.__new__(PedHunterApp)
+    app.catalog = catalog
+    app.store = StoreWithLoadouts([])
+
+    session = SessionSummary(
+        session_id="ph-resume",
+        started_at="2026-07-01T10:00:00",
+        ended_at=None,
+        activity="hunt",
+        loot_value=0.0,
+        combat_damage=0.0,
+        hunting_cost=0.0,
+        net_value=0.0,
+        events=0,
+        loadout_name="Resume rifle",
+        loadout_snapshot={"id": 42, "name": "Resume rifle"},
+    )
+
+    restored = app._restore_session_loadout(session)
+
+    assert restored is not None
+    assert restored.id == 42
+    assert restored.name == "Resume rifle"
+    assert restored.weapon == "Frontier Hunting Rifle"
 
 
 def test_refresh_sessions_preserves_existing_selection() -> None:

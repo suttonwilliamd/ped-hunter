@@ -918,6 +918,9 @@ class PedHunterApp(tk.Tk):
             ):
                 return
             self.store.resume_session(session_id)
+        restored_loadout = self._restore_session_loadout(session)
+        if restored_loadout and restored_loadout.id is not None:
+            self.store.set_active_loadout(restored_loadout.id)
 
         self.current_log_path = path
         self._last_ingested_log_line = None
@@ -946,6 +949,25 @@ class PedHunterApp(tk.Tk):
             return children[0]
         sessions = self.store.list_recent_sessions(1)
         return sessions[0].session_id if sessions else None
+
+    def _restore_session_loadout(self, session: SessionSummary) -> LoadoutRecord | None:
+        snapshot = session.loadout_snapshot or {}
+        if not isinstance(snapshot, dict):
+            return None
+        loadout: LoadoutRecord | None = None
+        snapshot_id = snapshot.get('id')
+        try:
+            if snapshot_id is not None:
+                loadout = self.store.get_loadout(int(snapshot_id))
+        except (TypeError, ValueError):
+            loadout = None
+        if loadout is None:
+            snapshot_name = str(snapshot.get('name') or '').strip()
+            if snapshot_name:
+                loadout = next((item for item in self.store.list_loadouts() if item.name == snapshot_name), None)
+        if loadout is None:
+            return None
+        return with_repair_estimates(self.catalog, loadout)
 
     def _on_session_selected(self) -> None:
         session_id = self._selected_session_id()
