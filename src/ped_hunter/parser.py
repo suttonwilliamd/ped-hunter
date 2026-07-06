@@ -35,6 +35,12 @@ PATTERNS = {
 
 CONVERSION_OUTPUT_ITEM_NAMES = {"oil", "universal ammo"}
 CONVERSION_OUTPUT_ITEM_SUFFIXES = (" ingot",)
+TRADE_SEPARATOR_RE = re.compile(r"\s*(?:\||;|•|—|/)\s*")
+WTB_MARKER_RE = re.compile(r"(?i)\b(?:wtb|want\s+to\s+buy)\b")
+WTS_MARKER_RE = re.compile(r"(?i)\b(?:wts|want\s+to\s+sell)\b")
+PRICE_SPLIT_RE = re.compile(r"(?i)\s+(?:@|for|at|paying|offer(?:ing)?|buy(?:ing)?|b/o|bo)\s+")
+QUANTITY_PREFIX_RE = re.compile(r"(?i)^(?P<qty>\d[\d,]*)\s*(?:x|pc(?:s)?|pieces?|units?)\s+(?P<item>.+)$")
+QUANTITY_SUFFIX_RE = re.compile(r"(?i)^(?P<item>.+?)\s*(?:x|qty)\s*(?P<qty>\d[\d,]*)$")
 
 
 @dataclass(slots=True)
@@ -152,3 +158,78 @@ def is_conversion_output_item(item_name: str) -> bool:
     """
     normalized = " ".join(item_name.strip().casefold().split())
     return normalized in CONVERSION_OUTPUT_ITEM_NAMES or normalized.endswith(CONVERSION_OUTPUT_ITEM_SUFFIXES)
+
+
+def extract_wtb_segments(channel: str, speaker: str, message: str) -> list[dict[str, Any]]:
+    """Extract WTB requests from trade-channel chat text.
+
+    The helper is intentionally permissive: a single chat line may contain both
+    WTB and WTS portions, and trade-room users often split requests with slashes
+    or pipes. Each returned segment represents one WTB request as it would be
+    shown on the WTB page.
+    """
+    channel = channel.strip()
+    speaker = speaker.strip()
+    message = message.strip()
+    if not message:
+        return []
+
+    segments: list[str] = []
+    for chunk in TRADE_SEPARATOR_RE.split(message):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if WTB_MARKER_RE.search(chunk):
+            segments.append(chunk)
+            continue
+        # Some players lead with chatter and put the request later in the same line.
+        marker = WTB_MARKER_RE.search(chunk)
+        if marker:
+            segments.append(chunk[marker.start():])
+
+    results: list[dict[str, Any]] = []
+    for segment in segments:
+        marker = WTB_MARKER_RE.search(segment)
+        if not marker:
+            continue
+        body = segment[marker.end():].strip(" \t:-—–,.")
+        if not body:
+            continue
+        sale_marker = WTS_MARKER_RE.search(body)
+        if sale_marker:
+            body = body[: sale_marker.start()].strip(" \t:-—–,.")
+        if not body:
+            continue
+
+        price = None
+        price_match = PRICE_SPLIT_RE.search(body)
+        if price_match:
+            price = body[price_match.end():].strip(" \t:-—–,.") or None
+            body = body[: price_match.start()].strip(" \t:-—–,.")
+
+        quantity = None
+        item = body
+        prefix = QUANTITY_PREFIX_RE.match(body)
+        suffix = QUANTITY_SUFFIX_RE.match(body)
+        if prefix:
+            quantity = int(prefix.group("qty").replace(",", ""))
+            item = prefix.group("item").strip()
+        elif suffix:
+            quantity = int(suffix.group("qty").replace(",", ""))
+            item = suffix.group("item").strip()
+
+        item = item.strip(" \t:-—–,.")
+        if not item:
+            continue
+        results.append(
+            {
+                "channel": channel,
+                "speaker": speaker,
+                "want": item,
+                "quantity": quantity,
+                "price": price,
+                "segment": segment,
+                "message": message,
+            }
+        )
+    return results

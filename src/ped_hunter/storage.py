@@ -457,8 +457,6 @@ class Store:
 
         shots_since_repair = 0
         decay_since_repair = 0.0
-        total_repair_cost = 0.0
-        estimated_repair_cost = 0.0
 
         for row in rows:
             try:
@@ -470,16 +468,14 @@ class Store:
                     shots_since_repair += 1
                 decay_since_repair += float(payload.get("repair_decay") or 0.0)
             elif row["kind"] == "repair":
-                estimated_repair_cost += float(payload.get("estimated_cost") or payload.get("repair_cost") or 0.0)
-                total_repair_cost += decay_since_repair
+                # Repairs are durability reset markers; the tracker already
+                # charges weapon/amp decay in the shot ledger, so the repair
+                # event itself must not add another cash cost here.
                 shots_since_repair = 0
                 decay_since_repair = 0.0
 
         summary.repair_shots = shots_since_repair
         summary.repair_decay = decay_since_repair
-        if total_repair_cost or estimated_repair_cost:
-            summary.hunting_cost = round(summary.hunting_cost - estimated_repair_cost + total_repair_cost, 10)
-            summary.net_value = summary.loot_value - summary.hunting_cost
         return summary
 
     def lifetime_totals(self) -> LifetimeTotals:
@@ -584,8 +580,6 @@ _SESSION_SUMMARY_SQL = """
            COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
                    COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
-               WHEN e.kind = 'repair' AND json_valid(e.payload) THEN
-                   COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                ELSE 0
            END), 0) AS hunting_cost

@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .catalog import Catalog, WeaponRecord
-from .parser import ParsedEvent, is_conversion_output_item, parse_line
+from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
@@ -85,6 +85,7 @@ class PedHunterApp(tk.Tk):
         self.skill_total_text = tk.StringVar(value="0.0000 XP")
         self.skill_proc_text = tk.StringVar(value="0 skill gains")
         self.skill_summary_text = tk.StringVar(value="No skill gains recorded for this session yet.")
+        self.wtb_summary_text = tk.StringVar(value="No WTB listings parsed yet — trade channels will populate here.")
         self.lifetime_summary_text = tk.StringVar(value="No completed runs yet — start tracking to build your lifetime stats.")
         self.lifetime_vars = {
             "total_cost": tk.StringVar(value="0.00 PED"),
@@ -97,6 +98,7 @@ class PedHunterApp(tk.Tk):
             "worst_run": tk.StringVar(value="—"),
             "avg_profit": tk.StringVar(value="+0.00 PED/run"),
         }
+
         self.loadout_name = tk.StringVar(value="Starter rifle")
         self.loadout_weapon = tk.StringVar(value="Frontier Rifle")
         self.loadout_amp = tk.StringVar(value="None")
@@ -257,6 +259,7 @@ class PedHunterApp(tk.Tk):
         self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
+        self.wtb_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
         notebook.add(self.dashboard_tab, text="Dashboard")
         notebook.add(self.events_tab, text="Events")
@@ -264,6 +267,7 @@ class PedHunterApp(tk.Tk):
         notebook.add(self.loadouts_tab, text="Setups")
         notebook.add(self.manufacturing_tab, text="Manufacturing")
         notebook.add(self.catalog_tab, text="Catalog")
+        notebook.add(self.wtb_tab, text="WTB")
         notebook.add(self.setup_tab, text="Help")
 
         self._build_dashboard_tab()
@@ -272,6 +276,7 @@ class PedHunterApp(tk.Tk):
         self._build_loadouts_tab()
         self._build_manufacturing_tab()
         self._build_catalog_tab()
+        self._build_wtb_tab()
         self._build_setup_tab()
         self.bind("<Configure>", self._on_resize)
         self._apply_density()
@@ -636,6 +641,38 @@ class PedHunterApp(tk.Tk):
             headings=("Name", "Category", "Ammo", "Decay", "Cost/shot", "Aliases"),
         )
         self._search_catalog()
+
+    def _build_wtb_tab(self) -> None:
+        tab = self.wtb_tab
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(1, weight=1)
+        summary = self._panel(tab, "Trade WTB listings", 0, 0)
+        summary.columnconfigure(0, weight=1)
+        ttk.Label(summary, textvariable=self.wtb_summary_text, style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.wtb_tree = self._tree(
+            summary,
+            columns=("time", "channel", "player", "want", "qty", "price", "message"),
+            headings=("Time", "Channel", "Player", "Wants to buy", "Qty", "Price", "Message"),
+        )
+
+        help_panel = self._panel(tab, "How WTB parsing works", 1, 0)
+        text = tk.Text(
+            help_panel,
+            height=7,
+            wrap="word",
+            bg=self.colors["panel_2"],
+            fg=self.colors["text"],
+            relief="flat",
+            font=("Segoe UI", 9),
+            padx=12,
+            pady=10,
+        )
+        text.pack(fill="both", expand=True)
+        text.insert(
+            "1.0",
+            "PED Hunter scans chat rows from trade-oriented channels and looks for WTB / Want to buy portions inside mixed trade messages. If a single line contains WTB and WTS segments, only the buy portion is displayed here."
+        )
+        text.configure(state="disabled")
 
     def _build_setup_tab(self) -> None:
         tab = self.setup_tab
@@ -1211,6 +1248,7 @@ class PedHunterApp(tk.Tk):
         self._refresh_events(display.session_id if display else None)
         self._refresh_skills(display.session_id if display else None)
         self._refresh_loot_chart(display.session_id if display else None)
+        self._refresh_wtb()
         self._refresh_loadouts()
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
@@ -1356,6 +1394,35 @@ class PedHunterApp(tk.Tk):
     def _refresh_loot_chart(self, session_id: str | None) -> None:
         self.loot_chart_points = _loot_event_points(self.store, session_id, limit=160) if session_id else []
         self._draw_loot_chart()
+
+    def _refresh_wtb(self) -> None:
+        listings = _wtb_listings(self.store, limit=240)
+        self.wtb_tree.delete(*self.wtb_tree.get_children())
+        if not listings:
+            self.wtb_summary_text.set("No WTB listings parsed yet — trade channels will populate here.")
+            return
+        channels = {str(item.get("channel") or "") for item in listings if item.get("channel")}
+        self.wtb_summary_text.set(f"{len(listings)} WTB listing{'s' if len(listings) != 1 else ''} from {len(channels)} trade channel{'s' if len(channels) != 1 else ''}.")
+        for index, item in enumerate(listings):
+            qty = item.get("quantity")
+            price = item.get("price") or ""
+            message = str(item.get("segment") or item.get("message") or "")
+            if len(message) > 90:
+                message = f"{message[:87].rstrip()}..."
+            self.wtb_tree.insert(
+                "",
+                "end",
+                tags=("even" if index % 2 == 0 else "odd",),
+                values=(
+                    item.get("timestamp") or "",
+                    item.get("channel") or "",
+                    item.get("speaker") or "",
+                    item.get("want") or "",
+                    "" if qty is None else qty,
+                    price,
+                    message,
+                ),
+            )
 
     def _draw_loot_chart(self) -> None:
         canvas = self.loot_chart_canvas
@@ -1591,6 +1658,42 @@ class StreamerWindow(tk.Toplevel):
 
 def _default_chat_log_path() -> Path:
     return Path.home() / "Documents" / "Entropia Universe" / "chat.log"
+
+
+def _wtb_listings(store: Store, limit: int = 240) -> list[dict[str, object]]:
+    """Return parsed WTB listings from recent trade-channel chat events."""
+    with store.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT e.timestamp, e.kind, e.payload
+            FROM events e
+            WHERE e.kind = 'chat'
+            ORDER BY e.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    listings: list[dict[str, object]] = []
+    for row in reversed(rows):
+        try:
+            payload = json.loads(str(row["payload"] or "{}"))
+        except json.JSONDecodeError:
+            continue
+        channel = str(payload.get("channel") or "")
+        if not _is_trade_channel(channel):
+            continue
+        speaker = str(payload.get("speaker") or "")
+        message = str(payload.get("message") or "")
+        for item in extract_wtb_segments(channel, speaker, message):
+            item["timestamp"] = str(row["timestamp"] or "")
+            listings.append(item)
+    return listings
+
+
+def _is_trade_channel(channel: str) -> bool:
+    normalized = channel.casefold().lstrip("#")
+    return "trade" in normalized or normalized in {"barter", "buy", "sell"}
 
 
 def _recent_events(store: Store, session_id: str, limit: int = 50) -> list[dict[str, object]]:

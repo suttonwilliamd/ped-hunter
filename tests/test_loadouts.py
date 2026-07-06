@@ -204,7 +204,7 @@ def test_repair_summary_reconciles_out_of_order_log_flushes(tmp_path: Path):
     assert summary is not None
     assert summary.repair_shots == 0
     assert summary.repair_decay == 0.0
-    assert round(summary.hunting_cost, 5) == round(8 * 0.01452 + 8 * loadout.repair_decay_per_shot, 5)
+    assert round(summary.hunting_cost, 5) == round(8 * 0.01452, 5)
 
 
 
@@ -378,7 +378,7 @@ def test_repair_event_adds_estimated_decay_expense_and_resets_counter(tmp_path: 
     summary = store.get_current_session()
     assert round(estimated, 6) == 0.0006
     assert summary is not None
-    assert round(summary.hunting_cost, 6) == 0.0306
+    assert round(summary.hunting_cost, 6) == 0.03
     assert store.estimate_repair_cost_since_last_repair(session_id, "Repair Test", 0.0002) == 0.0
 
 
