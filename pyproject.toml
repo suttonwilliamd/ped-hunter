@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ped-hunter"
-version = "0.3.27"
+version = "0.3.28"
 description = "Free, local-first Entropia Universe profit intelligence"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "suttonwilliamd"}]
 keywords = ["entropia", "loot", "analytics", "tracker", "desktop"]
+dependencies = ["watchdog>=6.0.0"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: End Users/Desktop",

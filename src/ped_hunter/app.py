@@ -24,10 +24,10 @@ POLL_MS = 250
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
-STREAMER_DEFAULT_WIDTH = 460
-STREAMER_DEFAULT_HEIGHT = 245
-STREAMER_MIN_WIDTH = 360
-STREAMER_MIN_HEIGHT = 210
+STREAMER_DEFAULT_WIDTH = 400
+STREAMER_DEFAULT_HEIGHT = 220
+STREAMER_MIN_WIDTH = 320
+STREAMER_MIN_HEIGHT = 190
 
 
 @dataclass(slots=True)
@@ -1551,41 +1551,41 @@ class StreamerWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def _build(self) -> None:
-        self.outer = tk.Frame(self, bg="#020617", highlightbackground=self.app.colors["accent"], highlightthickness=2, padx=14, pady=10)
+        self.outer = tk.Frame(self, bg="#020617", highlightbackground=self.app.colors["accent"], highlightthickness=2, padx=12, pady=8)
         self.outer.pack(fill="both", expand=True)
         top = tk.Frame(self.outer, bg="#020617")
         top.pack(fill="x")
-        tk.Label(top, text="◆ PED HUNTER", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 8, "bold")).pack(side="left")
-        close = tk.Label(top, text=" × ", bg="#0f1726", fg="#94a3b8", font=("Segoe UI", 10, "bold"), cursor="hand2")
+        tk.Label(top, text="◆ PED HUNTER", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 7, "bold")).pack(side="left")
+        close = tk.Label(top, text=" × ", bg="#0f1726", fg="#94a3b8", font=("Segoe UI", 9, "bold"), cursor="hand2")
         close.pack(side="right")
         close.bind("<Button-1>", lambda _event: self.destroy())
         close.bind("<Enter>", lambda _event: close.configure(bg="#1f2937", fg=self.app.colors["bad"]))
         close.bind("<Leave>", lambda _event: close.configure(bg="#0f1726", fg="#94a3b8"))
 
-        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 28, "bold"))
+        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 24, "bold"))
         self.net_label.pack(anchor="w", pady=(4, 0))
-        self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 16, "bold"))
+        self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 14, "bold"))
         self.return_label.pack(anchor="w")
 
         stats = tk.Frame(self.outer, bg="#020617")
         stats.pack(fill="x", pady=(8, 0))
         for col, key in enumerate(("loot", "cost", "events")):
             stats.columnconfigure(col, weight=1)
-            tk.Label(stats, textvariable=self.vars[key], bg="#0f1726", fg="#e5edf8", font=("Segoe UI", 9, "bold"), padx=8, pady=7).grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0))
+            tk.Label(stats, textvariable=self.vars[key], bg="#0f1726", fg="#e5edf8", font=("Segoe UI", 8, "bold"), padx=7, pady=6).grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
 
         durability = tk.Frame(self.outer, bg="#020617")
         durability.pack(fill="x", pady=(8, 0))
         tk.Label(durability, textvariable=self.vars["durability"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 8, "bold")).pack(anchor="w")
-        self.durability_bar = tk.Canvas(durability, height=14, bg="#020617", highlightthickness=0)
+        self.durability_bar = tk.Canvas(durability, height=12, bg="#020617", highlightthickness=0)
         self.durability_bar.pack(fill="x", pady=(3, 0))
         self.durability_bar.bind("<Configure>", lambda _event: self._draw_durability_bar())
 
         bottom = tk.Frame(self.outer, bg="#020617")
-        bottom.pack(fill="x", pady=(7, 0))
-        tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 8), wraplength=330, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
-        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 8)).pack(side="left", padx=(8, 0))
-        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 11, "bold"), cursor="size_nw_se")
-        resize.pack(side="right", padx=(10, 0))
+        bottom.pack(fill="x", pady=(6, 0))
+        tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7), wraplength=285, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
+        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 7)).pack(side="left", padx=(6, 0))
+        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 10, "bold"), cursor="size_nw_se")
+        resize.pack(side="right", padx=(8, 0))
         resize.bind("<ButtonPress-1>", self._start_resize)
         resize.bind("<B1-Motion>", self._resize)
         resize.bind("<ButtonRelease-1>", self._stop_resize)

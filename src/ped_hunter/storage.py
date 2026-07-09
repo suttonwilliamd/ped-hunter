@@ -120,7 +120,9 @@ class Store:
                     activity TEXT NOT NULL,
                     notes TEXT DEFAULT '',
                     loadout_id INTEGER,
-                    loadout_snapshot TEXT
+                    loadout_snapshot TEXT,
+                    repair_shots INTEGER NOT NULL DEFAULT 0,
+                    repair_decay REAL NOT NULL DEFAULT 0.0
                 );
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,10 +158,15 @@ class Store:
                 CREATE INDEX IF NOT EXISTS idx_loadouts_active ON loadouts(active);
                 """
             )
+            sessions_repair_added = False
             self._ensure_column(conn, "sessions", "loadout_id", "INTEGER")
             self._ensure_column(conn, "sessions", "loadout_snapshot", "TEXT")
+            sessions_repair_added = self._ensure_column(conn, "sessions", "repair_shots", "INTEGER NOT NULL DEFAULT 0") or sessions_repair_added
+            sessions_repair_added = self._ensure_column(conn, "sessions", "repair_decay", "REAL NOT NULL DEFAULT 0.0") or sessions_repair_added
             self._ensure_column(conn, "loadouts", "repair_shots", "INTEGER NOT NULL DEFAULT 0")
             conn.commit()
+        if sessions_repair_added:
+            self._backfill_session_repair_summary()
 
     def _verify_integrity(self) -> None:
         with self.connect() as conn:
@@ -180,10 +187,12 @@ class Store:
         return backup_path
 
     @staticmethod
-    def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> bool:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
         if column not in columns:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            return True
+        return False
 
     def start_session(self, activity: str = "hunt", loadout: LoadoutRecord | None = None) -> str:
         session_id = f"ph-{uuid.uuid4().hex[:12]}"
@@ -192,8 +201,8 @@ class Store:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO sessions (id, started_at, activity, loadout_id, loadout_snapshot)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO sessions (id, started_at, activity, loadout_id, loadout_snapshot, repair_shots, repair_decay)
+                VALUES (?, ?, ?, ?, ?, 0, 0.0)
                 """,
                 (session_id, started_at, activity, loadout.id if loadout else None, loadout_snapshot),
             )
@@ -278,12 +287,21 @@ class Store:
             )
             session_row = conn.execute("SELECT loadout_id FROM sessions WHERE id = ?", (session_id,)).fetchone()
             loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
-            if loadout_id is not None and event.get("kind") == "combat":
-                event_payload = event.get("payload", {})
-                if isinstance(event_payload, dict) and event_payload.get("shot_cost") is not None:
+            event_payload = event.get("payload", {})
+            if not isinstance(event_payload, dict):
+                event_payload = {}
+            if event.get("kind") == "combat":
+                if event_payload.get("shot_cost") is not None:
+                    conn.execute("UPDATE sessions SET repair_shots = COALESCE(repair_shots, 0) + 1 WHERE id = ?", (session_id,))
+                repair_decay = float(event_payload.get("repair_decay") or 0.0)
+                if repair_decay:
+                    conn.execute("UPDATE sessions SET repair_decay = COALESCE(repair_decay, 0.0) + ? WHERE id = ?", (repair_decay, session_id))
+                if loadout_id is not None and event_payload.get("shot_cost") is not None:
                     conn.execute("UPDATE loadouts SET repair_shots = COALESCE(repair_shots, 0) + 1 WHERE id = ?", (loadout_id,))
-            elif loadout_id is not None and event.get("kind") == "repair":
-                conn.execute("UPDATE loadouts SET repair_shots = 0 WHERE id = ?", (loadout_id,))
+            elif event.get("kind") == "repair":
+                conn.execute("UPDATE sessions SET repair_shots = 0, repair_decay = 0.0 WHERE id = ?", (session_id,))
+                if loadout_id is not None:
+                    conn.execute("UPDATE loadouts SET repair_shots = 0 WHERE id = ?", (loadout_id,))
                 snapshot_row = conn.execute("SELECT loadout_snapshot FROM sessions WHERE id = ?", (session_id,)).fetchone()
                 if snapshot_row and snapshot_row["loadout_snapshot"]:
                     try:
@@ -405,7 +423,7 @@ class Store:
             ).fetchone()
         if not row:
             return None
-        return self._reconcile_repair_summary(_session_from_row(row))
+        return _session_from_row(row)
 
     def get_session(self, session_id: str) -> SessionSummary | None:
         with self.connect() as conn:
@@ -417,7 +435,7 @@ class Store:
                 """,
                 (session_id,),
             ).fetchone()
-        return self._reconcile_repair_summary(_session_from_row(row)) if row else None
+        return _session_from_row(row) if row else None
 
     def list_recent_sessions(self, limit: int = 5) -> list[SessionSummary]:
         with self.connect() as conn:
@@ -429,7 +447,7 @@ class Store:
                 """,
                 (limit,),
             ).fetchall()
-        return [self._reconcile_repair_summary(_session_from_row(row)) for row in rows]
+        return [_session_from_row(row) for row in rows]
 
     def list_all_sessions(self) -> list[SessionSummary]:
         """Return every stored session newest-first for aggregate reporting."""
@@ -440,43 +458,43 @@ class Store:
                 ORDER BY s.started_at DESC
                 """
             ).fetchall()
-        return [self._reconcile_repair_summary(_session_from_row(row)) for row in rows]
+        return [_session_from_row(row) for row in rows]
 
-    def _reconcile_repair_summary(self, summary: SessionSummary) -> SessionSummary:
-        """Recompute repair totals from event timestamps so log flush ordering cannot undercount them."""
+    def _backfill_session_repair_summary(self) -> None:
         with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT id, timestamp, kind, payload
-                FROM events
-                WHERE session_id = ?
-                ORDER BY COALESCE(timestamp, ''), id
-                """,
-                (summary.session_id,),
-            ).fetchall()
-
-        shots_since_repair = 0
-        decay_since_repair = 0.0
-
-        for row in rows:
-            try:
-                payload = json.loads(str(row["payload"] or "{}"))
-            except json.JSONDecodeError:
-                payload = {}
-            if row["kind"] == "combat":
-                if payload.get("shot_cost") is not None:
-                    shots_since_repair += 1
-                decay_since_repair += float(payload.get("repair_decay") or 0.0)
-            elif row["kind"] == "repair":
-                # Repairs are durability reset markers; the tracker already
-                # charges weapon/amp decay in the shot ledger, so the repair
-                # event itself must not add another cash cost here.
+            session_ids = [str(row[0]) for row in conn.execute("SELECT id FROM sessions ORDER BY started_at ASC, id ASC").fetchall()]
+        if not session_ids:
+            return
+        with self.connect() as conn:
+            for session_id in session_ids:
+                rows = conn.execute(
+                    """
+                    SELECT kind, payload
+                    FROM events
+                    WHERE session_id = ?
+                    ORDER BY COALESCE(timestamp, ''), id
+                    """,
+                    (session_id,),
+                ).fetchall()
                 shots_since_repair = 0
                 decay_since_repair = 0.0
-
-        summary.repair_shots = shots_since_repair
-        summary.repair_decay = decay_since_repair
-        return summary
+                for row in rows:
+                    try:
+                        payload = json.loads(str(row["payload"] or "{}"))
+                    except json.JSONDecodeError:
+                        payload = {}
+                    if row["kind"] == "combat":
+                        if payload.get("shot_cost") is not None:
+                            shots_since_repair += 1
+                        decay_since_repair += float(payload.get("repair_decay") or 0.0)
+                    elif row["kind"] == "repair":
+                        shots_since_repair = 0
+                        decay_since_repair = 0.0
+                conn.execute(
+                    "UPDATE sessions SET repair_shots = ?, repair_decay = ? WHERE id = ?",
+                    (shots_since_repair, decay_since_repair, session_id),
+                )
+            conn.commit()
 
     def lifetime_totals(self) -> LifetimeTotals:
         """Return meaningful all-session PED totals and averages."""
@@ -544,13 +562,8 @@ class Store:
 
 
 _SESSION_SUMMARY_SQL = """
-    WITH session_repair_markers AS (
-        SELECT session_id, MAX(id) AS last_repair_id
-        FROM events
-        WHERE kind = 'repair'
-        GROUP BY session_id
-    )
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
+           s.repair_shots, s.repair_decay,
            COUNT(e.id) AS events,
            COALESCE(SUM(CASE
                WHEN e.kind = 'loot'
@@ -564,20 +577,6 @@ _SESSION_SUMMARY_SQL = """
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
            COALESCE(SUM(CASE
-               WHEN e.kind = 'combat'
-                    AND json_valid(e.payload)
-                    AND json_type(e.payload, '$.shot_cost') IS NOT NULL
-                    AND (rm.last_repair_id IS NULL OR e.id > rm.last_repair_id)
-               THEN 1 ELSE 0
-           END), 0) AS repair_shots,
-           COALESCE(SUM(CASE
-               WHEN e.kind = 'combat'
-                    AND json_valid(e.payload)
-                    AND (rm.last_repair_id IS NULL OR e.id > rm.last_repair_id)
-               THEN json_extract(e.payload, '$.repair_decay')
-               ELSE 0
-           END), 0) AS repair_decay,
-           COALESCE(SUM(CASE
                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
                    COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
@@ -585,7 +584,6 @@ _SESSION_SUMMARY_SQL = """
            END), 0) AS hunting_cost
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
-    LEFT JOIN session_repair_markers rm ON rm.session_id = s.id
 """
 
 
