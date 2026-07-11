@@ -1,3 +1,5 @@
+import pytest
+
 from ped_hunter.parser import parse_line
 
 
@@ -7,6 +9,33 @@ def test_parse_loot_line():
     assert event.kind == "loot"
     assert event.payload["quantity"] == 3
     assert event.payload["value"] == 0.06
+
+
+@pytest.mark.parametrize(
+    "line, expected_payload",
+    [
+        (
+            "2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.",
+            {"damage": 43.8},
+        ),
+        (
+            "2026-06-20 08:30:13 [System] [] Critical hit - Additional damage! You inflicted 12.5 points of damage with costs of 0.0500 PED.",
+            {"damage": 12.5},
+        ),
+        (
+            "2026-06-20 08:30:14 [System] [] The creature Dodged your attack.",
+            {"dodged": True},
+        ),
+    ],
+)
+def test_parse_combat_shot_lines_capture_damage_or_shot_consumption_fields(line, expected_payload):
+    event = parse_line(line)
+
+    assert event is not None
+    assert event.kind == "combat"
+    for key, value in expected_payload.items():
+        assert event.payload[key] == value
+
 
 
 def test_parse_compact_loot_line_with_brackets_and_source():

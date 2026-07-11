@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ped_hunter.storage import Store
+from ped_hunter.storage import LoadoutRecord, Store
 
 
 def test_add_event_updates_cached_repair_summary_and_resets_on_repair(tmp_path) -> None:
@@ -74,3 +74,21 @@ def test_recent_sessions_use_cached_repair_summary_instead_of_reconciling_events
     assert len(all_sessions) == 1
     assert all_sessions[0].repair_shots == 7
     assert all_sessions[0].repair_decay == 0.77
+
+
+def test_session_loadout_names_are_sanitized_to_one_line(tmp_path) -> None:
+    store = Store(tmp_path / "ped-hunter.sqlite3")
+    loadout = LoadoutRecord(
+        id=None,
+        name="Starter rifle\nline 2 of a deliberately tall streamer loadout",
+        weapon="Frontier Hunting Rifle\nmore junk",
+    )
+    session_id = store.start_session("hunt", loadout)
+
+    session = store.get_session(session_id)
+    assert session is not None
+    assert session.loadout_name == "Starter rifle"
+    assert session.loadout_snapshot is not None
+    assert session.loadout_snapshot["name"] == "Starter rifle"
+    assert session.loadout_snapshot["weapon"] == "Frontier Hunting Rifle"
+

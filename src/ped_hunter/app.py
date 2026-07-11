@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import json
 import math
 import queue
+from datetime import datetime
 from pathlib import Path
 import threading
 import tkinter as tk
@@ -24,10 +25,11 @@ POLL_MS = 250
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
-STREAMER_DEFAULT_WIDTH = 400
-STREAMER_DEFAULT_HEIGHT = 220
-STREAMER_MIN_WIDTH = 320
-STREAMER_MIN_HEIGHT = 190
+STREAMER_DEFAULT_WIDTH = 420
+STREAMER_DEFAULT_HEIGHT = 300
+STREAMER_MIN_WIDTH = 340
+STREAMER_MIN_HEIGHT = 250
+KILL_CLUSTER_WINDOW_SECONDS = 0.75
 
 
 @dataclass(slots=True)
@@ -117,6 +119,7 @@ class PedHunterApp(tk.Tk):
         self.metric_cards: dict[str, MetricCard] = {}
         self._configure_theme()
         self._build_layout()
+        self._restore_default_context()
         self._refresh_all()
 
     def _configure_theme(self) -> None:
@@ -166,6 +169,8 @@ class PedHunterApp(tk.Tk):
         style.configure("HeroSmallValue.TLabel", background="#0c1426", foreground=text, font=("Segoe UI Semibold", 12))
         style.configure("HeroSmallLabel.TLabel", background="#0c1426", foreground=accent, font=("Segoe UI Semibold", 8))
         style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=("Segoe UI", 10))
+        style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=("Segoe UI Semibold", 9))
+        style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=("Segoe UI", 8))
         style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=("Segoe UI Semibold", 9), padding=(12, 5))
         style.configure("Title.TLabel", background=bg, foreground=accent, font=("Segoe UI Semibold", 20))
         style.configure("Subtitle.TLabel", background=bg, foreground=muted, font=("Segoe UI", 10))
@@ -983,15 +988,26 @@ class PedHunterApp(tk.Tk):
         return selection[0] if selection else None
 
     def _resume_session_id(self) -> str | None:
-        """Return the explicitly selected session, or default to the newest recent session."""
+        """Return the explicitly selected session, or default to the preferred recent session."""
         selected = self._selected_session_id()
         if selected:
             return selected
+        preferred = self._preferred_session()
+        if preferred:
+            return preferred.session_id
         children = self.sessions_tree.get_children()
         if children:
             return children[0]
         sessions = self.store.list_recent_sessions(1)
         return sessions[0].session_id if sessions else None
+
+    def _restore_default_context(self) -> None:
+        preferred = self._preferred_session()
+        if not preferred:
+            return
+        restored_loadout = self._restore_session_loadout(preferred)
+        if restored_loadout and restored_loadout.id is not None:
+            self.store.set_active_loadout(restored_loadout.id)
 
     def _restore_session_loadout(self, session: SessionSummary) -> LoadoutRecord | None:
         snapshot = session.loadout_snapshot or {}
@@ -1009,7 +1025,30 @@ class PedHunterApp(tk.Tk):
             if snapshot_name:
                 loadout = next((item for item in self.store.list_loadouts() if item.name == snapshot_name), None)
         if loadout is None:
-            return None
+            try:
+                loadout = LoadoutRecord(
+                    id=int(snapshot_id) if snapshot_id is not None else None,
+                    name=str(snapshot.get('name') or '').strip(),
+                    weapon=str(snapshot.get('weapon') or '').strip(),
+                    amp=str(snapshot.get('amp') or ''),
+                    scope=str(snapshot.get('scope') or ''),
+                    sight_1=str(snapshot.get('sight_1') or ''),
+                    sight_2=str(snapshot.get('sight_2') or ''),
+                    damage_enhancers=int(snapshot.get('damage_enhancers') or 0),
+                    accuracy_enhancers=int(snapshot.get('accuracy_enhancers') or 0),
+                    economy_enhancers=int(snapshot.get('economy_enhancers') or 0),
+                    ammo_burn=int(snapshot.get('ammo_burn') or 0),
+                    decay=float(snapshot.get('decay') or 0.0),
+                    cost_per_shot=float(snapshot.get('cost_per_shot') or 0.0),
+                    active=False,
+                    repair_shots=int(snapshot.get('repair_shots') or 0),
+                    repair_decay_per_shot=float(snapshot.get('repair_decay_per_shot') or 0.0),
+                    repair_budget=float(snapshot.get('repair_budget') or 0.0),
+                    repair_budget_known=bool(snapshot.get('repair_budget_known', False)),
+                    repair_items=list(snapshot.get('repair_items') or []),
+                )
+            except (TypeError, ValueError):
+                return None
         return with_repair_estimates(self.catalog, loadout)
 
     def _on_session_selected(self) -> None:
@@ -1131,6 +1170,10 @@ class PedHunterApp(tk.Tk):
         active_loadout = self.store.get_active_loadout()
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)
+        else:
+            session = self.store.get_session(session_id)
+            if session:
+                active_loadout = self._restore_session_loadout(session)
         for raw in lines:
             if _is_duplicate_log_line(last_ingested_log_line, raw):
                 continue
@@ -1164,7 +1207,9 @@ class PedHunterApp(tk.Tk):
             self.store.add_event(session_id, event.to_row())
             if normalized_raw:
                 last_ingested_log_line = normalized_raw
+
             parsed += 1
+
         return parsed, last_ingested_log_line
 
     def _refresh_crafting_preview(self) -> None:
@@ -1253,11 +1298,46 @@ class PedHunterApp(tk.Tk):
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
 
-    def _display_session(self, current: SessionSummary | None, sessions: list[SessionSummary]) -> SessionSummary | None:
-        if self.session_id:
-            resumed_or_active = self.store.get_session(self.session_id)
+    def _session_id_value(self) -> str | None:
+        try:
+            return object.__getattribute__(self, "session_id")
+        except AttributeError:
+            return None
+
+    def _preferred_session(self) -> SessionSummary | None:
+        try:
+            session_id = object.__getattribute__(self, "session_id")
+        except AttributeError:
+            session_id = None
+        if session_id:
+            resumed_or_active = self.store.get_session(session_id)
             if resumed_or_active:
                 return resumed_or_active
+        if hasattr(self.store, "get_last_contributed_session"):
+            last_contributed = self.store.get_last_contributed_session()
+            if last_contributed:
+                return last_contributed
+        if hasattr(self.store, "get_current_session"):
+            current = self.store.get_current_session()
+            if current:
+                return current
+        if hasattr(self.store, "list_recent_sessions"):
+            sessions = self.store.list_recent_sessions(1)
+            return sessions[0] if sessions else None
+        return None
+
+    def _display_session(self, current: SessionSummary | None, sessions: list[SessionSummary]) -> SessionSummary | None:
+        try:
+            session_id = object.__getattribute__(self, "session_id")
+        except AttributeError:
+            session_id = None
+        if session_id:
+            resumed_or_active = self.store.get_session(session_id)
+            if resumed_or_active:
+                return resumed_or_active
+        preferred = self._preferred_session()
+        if preferred:
+            return preferred
         return current or (sessions[0] if sessions else None)
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
@@ -1268,15 +1348,18 @@ class PedHunterApp(tk.Tk):
             self.hero_session.set("No active session — start a run to begin collecting data")
             self.hero_net.set("+0.00 PED")
             self.hero_return.set("0.00% Return")
-            self.hero_loot.set("Loot 0.00 PED")
-            self.hero_cost.set("Cost 0.00 PED")
-            self.hero_events.set("Events 0")
+            self.hero_loot.set("0.00 PED")
+            self.hero_cost.set("0.00 PED")
+            self.hero_events.set("0")
             self.repair_radar_text.set("Repair radar: start a fresh run at 100% gun + amp TT")
             self._set_hero_profit_style("neutral")
             return
+
         status = "active" if session.ended_at is None else "ended"
-        setup = f"Hunt · {session.loadout_name}" if session.loadout_name else session.activity.title()
+        setup_name = (session.loadout_name or "").splitlines()[0].strip()
+        setup = f"Hunt · {setup_name}" if setup_name else session.activity.title()
         return_pct = _return_pct(session)
+
         self.session_text.set(f"{session.session_id} • {setup} • {status} • started {session.started_at}")
         self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
         self.hero_net.set(f"{session.net_value:+.2f} PED")
@@ -1352,7 +1435,10 @@ class PedHunterApp(tk.Tk):
             self.selected_session_text.set("No saved sessions yet.")
             return
 
-        selected = previous_selection if previous_selection in {session.session_id for session in sessions} else sessions[0].session_id
+        preferred = self._preferred_session()
+        preferred_id = preferred.session_id if preferred else None
+        session_ids = {session.session_id for session in sessions}
+        selected = previous_selection if previous_selection in session_ids else preferred_id if preferred_id in session_ids else sessions[0].session_id
         self.sessions_tree.selection_set(selected)
         self.sessions_tree.focus(selected)
         self._on_session_selected()
@@ -1535,23 +1621,28 @@ class StreamerWindow(tk.Toplevel):
         self.vars = {
             "net_big": tk.StringVar(value="+0.00 PED"),
             "return": tk.StringVar(value="0.00% Return"),
-            "loot": tk.StringVar(value="Loot 0.00 PED"),
-            "cost": tk.StringVar(value="Cost 0.00 PED"),
-            "events": tk.StringVar(value="Events 0"),
+            "loot": tk.StringVar(value="0.00 PED"),
+            "cost": tk.StringVar(value="0.00 PED"),
+            "kills": tk.StringVar(value="0"),
             "damage": tk.StringVar(value="Damage 0.0"),
             "loadout": tk.StringVar(value="No active loadout"),
             "durability": tk.StringVar(value="Durability —"),
+            "kill_trend": tk.StringVar(value="Kill trend will appear after the first loot."),
+            "kill_trend_badge": tk.StringVar(value="Waiting for first kill"),
         }
         self.durability_pct = 0.0
         self.durability_color = "#111827"
+        self._fit_after_id: str | None = None
+        self._user_resized = False
         self._build()
         self.bind("<ButtonPress-1>", self._start_drag)
         self.bind("<B1-Motion>", self._drag)
         self.bind("<Escape>", lambda _event: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.after_idle(self._schedule_fit_to_contents)
 
     def _build(self) -> None:
-        self.outer = tk.Frame(self, bg="#020617", highlightbackground=self.app.colors["accent"], highlightthickness=2, padx=12, pady=8)
+        self.outer = tk.Frame(self, bg="#020617", highlightbackground=self.app.colors["accent"], highlightthickness=2, padx=8, pady=2)
         self.outer.pack(fill="both", expand=True)
         top = tk.Frame(self.outer, bg="#020617")
         top.pack(fill="x")
@@ -1562,53 +1653,95 @@ class StreamerWindow(tk.Toplevel):
         close.bind("<Enter>", lambda _event: close.configure(bg="#1f2937", fg=self.app.colors["bad"]))
         close.bind("<Leave>", lambda _event: close.configure(bg="#0f1726", fg="#94a3b8"))
 
-        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 24, "bold"))
-        self.net_label.pack(anchor="w", pady=(4, 0))
-        self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 14, "bold"))
+        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 16, "bold"))
+        self.net_label.pack(anchor="w", pady=(1, 0))
+        self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10, "bold"))
         self.return_label.pack(anchor="w")
 
         stats = tk.Frame(self.outer, bg="#020617")
-        stats.pack(fill="x", pady=(8, 0))
-        for col, key in enumerate(("loot", "cost", "events")):
+        stats.pack(fill="x", pady=(4, 0))
+        stat_specs = (
+            ("loot", "Loot", "#38bdf8"),
+            ("cost", "Cost", "#fb923c"),
+            ("kills", "Kills", "#22c55e"),
+        )
+        for col, (key, title, tint) in enumerate(stat_specs):
             stats.columnconfigure(col, weight=1)
-            tk.Label(stats, textvariable=self.vars[key], bg="#0f1726", fg="#e5edf8", font=("Segoe UI", 8, "bold"), padx=7, pady=6).grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
+            card = tk.Frame(stats, bg="#0b1321", highlightbackground="#1f2a3d", highlightthickness=1)
+            card.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
+            tk.Label(card, text=title, bg="#0b1321", fg=tint, font=("Segoe UI", 6, "bold")).pack(anchor="w", padx=8, pady=(4, 0))
+            tk.Label(card, textvariable=self.vars[key], bg="#0b1321", fg="#e5edf8", font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=8, pady=(0, 4))
+
+        trend = tk.Frame(self.outer, bg="#020617")
+        trend.pack(fill="both", expand=True, pady=(4, 0))
+        header = tk.Frame(trend, bg="#020617")
+        header.pack(fill="x")
+
+        tk.Label(header, text="Kill trend", bg="#020617", fg="#d8fffb", font=("Segoe UI", 8, "bold")).pack(side="left")
+        legend = tk.Frame(header, bg="#020617")
+        legend.pack(side="right")
+        for label, tint in (("Cost", "#fb923c"), ("Avg", "#38bdf8"), ("Profit", "#22c55e")):
+            chip = tk.Frame(legend, bg="#0b1321", highlightbackground="#1f2a3d", highlightthickness=1)
+            chip.pack(side="left", padx=(0, 5))
+            tk.Label(chip, text=label, bg="#0b1321", fg=tint, font=("Segoe UI", 7, "bold"), padx=6, pady=2).pack()
+        tk.Label(
+            trend,
+            textvariable=self.vars["kill_trend_badge"],
+            bg="#0b1321",
+            fg="#d8fffb",
+            font=("Segoe UI", 6, "bold"),
+            padx=6,
+            pady=1,
+            highlightbackground="#1f2a3d",
+            highlightthickness=1,
+        ).pack(anchor="w", pady=(3, 1))
+        self.kill_chart = tk.Canvas(trend, height=48, bg="#020617", highlightthickness=0)
+        self.kill_chart.pack(fill="both", expand=True)
+        self.kill_chart.bind("<Configure>", lambda _event: self._draw_kill_trend_chart())
 
         durability = tk.Frame(self.outer, bg="#020617")
-        durability.pack(fill="x", pady=(8, 0))
-        tk.Label(durability, textvariable=self.vars["durability"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 8, "bold")).pack(anchor="w")
-        self.durability_bar = tk.Canvas(durability, height=12, bg="#020617", highlightthickness=0)
+        durability.pack(fill="x", pady=(4, 0))
+        tk.Label(durability, textvariable=self.vars["durability"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 6, "bold")).pack(anchor="w")
+        self.durability_bar = tk.Canvas(durability, height=8, bg="#020617", highlightthickness=0)
         self.durability_bar.pack(fill="x", pady=(3, 0))
         self.durability_bar.bind("<Configure>", lambda _event: self._draw_durability_bar())
 
         bottom = tk.Frame(self.outer, bg="#020617")
-        bottom.pack(fill="x", pady=(6, 0))
-        tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7), wraplength=285, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
-        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 7)).pack(side="left", padx=(6, 0))
-        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 10, "bold"), cursor="size_nw_se")
-        resize.pack(side="right", padx=(8, 0))
+        bottom.pack(fill="x", pady=(3, 0))
+        tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 5), wraplength=230, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
+        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 5)).pack(side="left", padx=(3, 0))
+        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 9, "bold"), cursor="size_nw_se")
+        resize.pack(side="right", padx=(6, 0))
         resize.bind("<ButtonPress-1>", self._start_resize)
         resize.bind("<B1-Motion>", self._resize)
         resize.bind("<ButtonRelease-1>", self._stop_resize)
 
     def update_from_session(self, session: SessionSummary | None) -> None:
         metrics = streamer_metrics(session)
+        kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+        kill_count = len(kill_points)
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = self.app.colors["accent"] if net > 0 else "#f97316" if net < 0 else "#e5edf8"
         self.vars["net_big"].set(f"{net:+.2f} PED")
         self.vars["return"].set(f"{return_pct:.2f}% Return")
-        self.vars["loot"].set(f"Loot {float(metrics['loot']):.2f}")
-        self.vars["cost"].set(f"Cost {float(metrics['cost']):.2f}")
-        self.vars["events"].set(f"Events {int(float(metrics['events']))}")
+        self.vars["loot"].set(f"{float(metrics['loot']):.2f} PED")
+        self.vars["cost"].set(f"{float(metrics['cost']):.2f} PED")
+        self.vars["kills"].set(f"{kill_count}")
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
         durability = repair_durability_status(session)
         self.durability_pct = durability["percent"]
         self.durability_color = durability_color(self.durability_pct)
         self.vars["durability"].set(durability["streamer_text"])
+        self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
+        self.vars["kill_trend_badge"].set(_kill_trend_badge(kill_points))
+        self.kill_trend_points = kill_points
         self._draw_durability_bar()
+        self._draw_kill_trend_chart()
         self.net_label.configure(fg=color)
         self.return_label.configure(fg=color)
+        self._schedule_fit_to_contents()
 
     def _draw_durability_bar(self) -> None:
         canvas = self.durability_bar
@@ -1624,6 +1757,107 @@ class StreamerWindow(tk.Toplevel):
             canvas.create_rectangle(1, 1, fill_width + 1, height - 1, fill=self.durability_color, outline="")
         if pct <= 0:
             canvas.create_text(width / 2, height / 2, text="AMP EMPTY", fill="#e5e7eb", font=("Segoe UI", 7, "bold"))
+
+    def _draw_kill_trend_chart(self) -> None:
+        if not hasattr(self, "kill_chart"):
+            return
+        canvas = self.kill_chart
+        width = max(canvas.winfo_width(), 1)
+        height = max(canvas.winfo_height(), 1)
+        points = getattr(self, "kill_trend_points", [])
+        display_points = points[-16:]
+        canvas.delete("all")
+        canvas.create_rectangle(0, 0, width, height, fill="#08111f", outline="#14233a")
+        if not display_points:
+            canvas.create_text(
+                width / 2,
+                height / 2,
+                text="No completed kills yet — loot a mob to plot cost, average, and profit per kill.",
+                fill="#94a3b8",
+                font=("Segoe UI", 8),
+                width=max(width - 24, 80),
+            )
+            return
+
+        pad_left = 34
+        pad_right = 10
+        pad_top = 8
+        pad_bottom = 16
+        plot_w = max(width - pad_left - pad_right, 1)
+        plot_h = max(height - pad_top - pad_bottom, 1)
+        values = [0.0]
+        values.extend(float(point["cost"]) for point in display_points)
+        values.extend(float(point["avg_cost"]) for point in display_points)
+        values.extend(float(point["profit"]) for point in display_points)
+        min_value = min(values)
+        max_value = max(values)
+        if math.isclose(min_value, max_value):
+            max_value = min_value + 1.0
+
+        def x_for(index: int) -> float:
+            if len(display_points) == 1:
+                return pad_left + plot_w / 2
+            return pad_left + (plot_w * index / (len(display_points) - 1))
+
+        def y_for(value: float) -> float:
+            ratio = (value - min_value) / (max_value - min_value)
+            return pad_top + plot_h - (ratio * plot_h)
+
+        tick_values = [min_value, (min_value + max_value) / 2, max_value]
+        for tick in tick_values:
+            y = y_for(tick)
+            canvas.create_line(pad_left, y, width - pad_right, y, fill="#18253a")
+            canvas.create_text(pad_left - 5, y, text=f"{tick:+.1f}", anchor="e", fill="#64748b", font=("Segoe UI", 7))
+
+        zero_y = y_for(0.0)
+        if min_value < 0 < max_value:
+            canvas.create_line(pad_left, zero_y, width - pad_right, zero_y, fill="#334155", dash=(3, 2))
+
+        profit_coords: list[float] = []
+        for index, point in enumerate(display_points):
+            profit_coords.extend((x_for(index), y_for(float(point["profit"]))))
+        if len(profit_coords) >= 4:
+            fill_base = zero_y if min_value < 0 < max_value else max(height - pad_bottom, 1)
+            fill_points = [profit_coords[0], fill_base]
+            fill_points.extend(profit_coords)
+            fill_points.extend([profit_coords[-2], fill_base])
+            fill_color = "#123827" if float(display_points[-1]["profit"]) >= 0 else "#3a1f1f"
+            canvas.create_polygon(*fill_points, fill=fill_color, outline="", stipple="gray50")
+
+        series = [
+            ("cost", "#fb923c", None, 2),
+            ("avg_cost", "#38bdf8", (4, 2), 2),
+            ("profit", "#22c55e", None, 2),
+        ]
+        for key, color, dash, line_width in series:
+            coords: list[float] = []
+            for index, point in enumerate(display_points):
+                coords.extend((x_for(index), y_for(float(point[key]))))
+            if len(coords) >= 4:
+                canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
+            for index, point in enumerate(display_points):
+                x = x_for(index)
+                value = float(point[key])
+                y = y_for(value)
+                if key == "profit":
+                    fill = "#22c55e" if value >= 0 else "#ef4444"
+                    radius = 3 if index == len(display_points) - 1 else 2
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill, outline="")
+                    canvas.create_text(x, y - 9, text=str(point["trend_symbol"]), fill=fill, font=("Segoe UI", 7, "bold"))
+                else:
+                    radius = 2 if index == len(display_points) - 1 else 1
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="")
+
+        latest = display_points[-1]
+        canvas.create_text(
+            width - pad_right,
+            pad_top + 1,
+            text=f"K{latest['kill']}",
+            anchor="ne",
+            fill="#d8fffb",
+            font=("Segoe UI", 7, "bold"),
+        )
+
 
     def _start_drag(self, event) -> None:
         self._drag_origin = (event.x, event.y)
@@ -1644,6 +1878,7 @@ class StreamerWindow(tk.Toplevel):
         start_x, start_y, start_width, start_height = self._resize_origin
         width = max(STREAMER_MIN_WIDTH, start_width + (event.x_root - start_x))
         height = max(STREAMER_MIN_HEIGHT, start_height + (event.y_root - start_y))
+        self._user_resized = True
         self.geometry(f"{width}x{height}")
         return "break"
 
@@ -1651,7 +1886,38 @@ class StreamerWindow(tk.Toplevel):
         self._resize_origin = None
         return "break"
 
+    def _schedule_fit_to_contents(self) -> None:
+        if not self.winfo_exists():
+            return
+        if self._fit_after_id is not None:
+            try:
+                self.after_cancel(self._fit_after_id)
+            except tk.TclError:
+                pass
+        self._fit_after_id = self.after_idle(self._fit_to_contents)
+
+    def _fit_to_contents(self) -> None:
+        self._fit_after_id = None
+        if not self.winfo_exists():
+            return
+        self.update_idletasks()
+        desired_width = max(STREAMER_MIN_WIDTH, self.outer.winfo_reqwidth())
+        desired_height = max(STREAMER_MIN_HEIGHT, self.outer.winfo_reqheight())
+        current_width = max(self.winfo_width(), desired_width)
+        current_height = max(self.winfo_height(), desired_height)
+        if self._user_resized:
+            desired_width = max(desired_width, current_width)
+            desired_height = max(desired_height, current_height)
+        self.minsize(desired_width, desired_height)
+        self.geometry(f"{desired_width}x{desired_height}+{self.winfo_x()}+{self.winfo_y()}")
+
     def destroy(self) -> None:
+        if self._fit_after_id is not None:
+            try:
+                self.after_cancel(self._fit_after_id)
+            except tk.TclError:
+                pass
+            self._fit_after_id = None
         self.app.streamer_window = None
         super().destroy()
 
@@ -1760,6 +2026,8 @@ def _summarize_event(row: dict[str, object]) -> str:
         cost = f" • {float(payload['shot_cost']):.5f} PED" if "shot_cost" in payload else ""
         if "damage" in payload:
             return f"Damage dealt: {payload['damage']}{cost}"
+        if payload.get("dodged"):
+            return f"Dodged your attack{cost}"
         if "damage_taken" in payload:
             return f"Damage taken: {payload['damage_taken']}"
         if "healed" in payload:
@@ -1776,7 +2044,6 @@ def _summarize_event(row: dict[str, object]) -> str:
             return f"Crafting input: {attempts:,} x {blueprint} — {float(payload.get('total_cost', 0) or 0):.2f} PED"
         return f"{payload.get('result', '?')} {payload.get('item', '')}".strip()
     return str(row.get("raw_message") or "")
-
 
 def calculate_loadout_cost(
     *,
@@ -2105,6 +2372,7 @@ def streamer_metrics(session: SessionSummary | None) -> dict[str, float | str]:
             "loadout": "No active session",
         }
     return_pct = _return_pct(session)
+    loadout = (session.loadout_name or "No loadout snapshot").splitlines()[0].strip()
     return {
         "return_pct": return_pct,
         "loot": session.loot_value,
@@ -2112,8 +2380,158 @@ def streamer_metrics(session: SessionSummary | None) -> dict[str, float | str]:
         "net": session.net_value,
         "damage": session.combat_damage,
         "events": float(session.events),
-        "loadout": session.loadout_name or "No loadout snapshot",
+        "loadout": loadout,
     }
+
+
+def _parse_event_timestamp(value: object) -> float | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text).timestamp()
+    except ValueError:
+        return None
+
+
+def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) -> list[dict[str, object]]:
+    if not session_id:
+        return []
+    with store.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, timestamp, kind, payload
+            FROM events
+            WHERE session_id = ?
+            ORDER BY COALESCE(timestamp, ''), id
+            """,
+            (session_id,),
+        ).fetchall()
+
+    points: list[dict[str, object]] = []
+    cluster_cost = 0.0
+    cluster_loot = 0.0
+    cluster_started = False
+    loot_phase = False
+    last_loot_ts: float | None = None
+    kill_number = 0
+    previous_profit: float | None = None
+    total_cost = 0.0
+
+    def finalize_cluster() -> None:
+        nonlocal cluster_cost, cluster_loot, cluster_started, loot_phase, last_loot_ts
+        nonlocal kill_number, previous_profit, total_cost
+        if not cluster_started and cluster_cost == 0.0 and cluster_loot == 0.0:
+            return
+        kill_number += 1
+        profit = cluster_loot - cluster_cost
+        total_cost += cluster_cost
+        average_cost = total_cost / kill_number
+        if previous_profit is None:
+            delta_profit = 0.0
+            trend_symbol = "•"
+        else:
+            delta_profit = profit - previous_profit
+            if math.isclose(delta_profit, 0.0, abs_tol=1e-9):
+                trend_symbol = "="
+            elif delta_profit > 0:
+                trend_symbol = "↑"
+            else:
+                trend_symbol = "↓"
+        points.append(
+            {
+                "kill": kill_number,
+                "timestamp": "" if last_loot_ts is None else datetime.fromtimestamp(last_loot_ts).isoformat(timespec="seconds"),
+                "loot": cluster_loot,
+                "cost": cluster_cost,
+                "avg_cost": average_cost,
+                "profit": profit,
+                "delta_profit": delta_profit,
+                "trend_symbol": trend_symbol,
+                "loot_events": 1,
+            }
+        )
+        previous_profit = profit
+        cluster_cost = 0.0
+        cluster_loot = 0.0
+        cluster_started = False
+        loot_phase = False
+        last_loot_ts = None
+
+    def combat_cost(payload: dict[str, object]) -> float:
+        shot_cost = payload.get("shot_cost")
+        if shot_cost is not None:
+            return float(shot_cost or 0.0)
+        return float(payload.get("ammo_cost") or 0.0) + float(payload.get("repair_decay") or 0.0)
+
+    for row in rows:
+        try:
+            payload = json.loads(str(row["payload"] or "{}"))
+        except json.JSONDecodeError:
+            payload = {}
+        kind = str(row["kind"] or "")
+        event_ts = _parse_event_timestamp(row["timestamp"])
+        if kind == "combat":
+            if cluster_started and loot_phase:
+                finalize_cluster()
+            if not cluster_started:
+                cluster_started = True
+            cluster_cost += combat_cost(payload)
+            loot_phase = False
+            continue
+        if kind != "loot":
+            continue
+        try:
+            loot_value = float(payload.get("value") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        item_name = str(payload.get("item_name") or "")
+        if loot_value <= 0 or is_conversion_output_item(item_name):
+            continue
+
+        if not cluster_started:
+            cluster_started = True
+        if loot_phase and event_ts is not None and last_loot_ts is not None and (event_ts - last_loot_ts) > KILL_CLUSTER_WINDOW_SECONDS:
+            finalize_cluster()
+            cluster_started = True
+        cluster_loot += loot_value
+        loot_phase = True
+        last_loot_ts = event_ts
+
+    finalize_cluster()
+    return points
+
+
+def _kill_trend_summary(points: list[dict[str, object]]) -> str:
+    if not points:
+        return "No completed kills yet — loot a mob to plot cost, average, profit, and delta per kill."
+    latest = points[-1]
+    profit = float(latest["profit"])
+    cost = float(latest["cost"])
+    avg_cost = float(latest["avg_cost"])
+    delta_profit = float(latest["delta_profit"])
+    if len(points) == 1:
+        trend_text = "first kill"
+    elif math.isclose(delta_profit, 0.0, abs_tol=1e-9):
+        trend_text = "flat vs prev"
+    else:
+        trend_text = f"{delta_profit:+.2f} vs prev"
+    return f"K{int(latest['kill'])} • cost {cost:.2f} • avg {avg_cost:.2f} • profit {profit:+.2f} • {latest['trend_symbol']} {trend_text}"
+
+
+def _kill_trend_badge(points: list[dict[str, object]]) -> str:
+    if not points:
+        return "Waiting for first kill"
+    latest = points[-1]
+    profit = float(latest["profit"])
+    delta_profit = float(latest["delta_profit"])
+    arrow = latest["trend_symbol"]
+    if len(points) == 1:
+        return f"K{int(latest['kill'])} • {profit:+.2f} PED • first kill"
+    return f"K{int(latest['kill'])} • {profit:+.2f} PED • {arrow} {delta_profit:+.2f} vs prev"
+
 
 
 def _install_combobox_typeahead(combo: ttk.Combobox, *, on_change) -> None:

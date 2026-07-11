@@ -285,36 +285,69 @@ class Store:
                 "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
                 (session_id, timestamp, event["kind"], event["raw_message"], payload),
             )
-            session_row = conn.execute("SELECT loadout_id FROM sessions WHERE id = ?", (session_id,)).fetchone()
-            loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
-            event_payload = event.get("payload", {})
-            if not isinstance(event_payload, dict):
+            self._recompute_session_repair_state(conn, session_id)
+            conn.commit()
+
+    def _recompute_session_repair_state(self, conn: sqlite3.Connection, session_id: str) -> None:
+        session_row = conn.execute("SELECT loadout_id, loadout_snapshot FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
+        rows = conn.execute(
+            """
+            SELECT kind, payload
+            FROM events
+            WHERE session_id = ?
+            ORDER BY COALESCE(timestamp, ''), id
+            """,
+            (session_id,),
+        ).fetchall()
+
+        repair_shots = 0
+        repair_decay = 0.0
+        had_repair = False
+        for row in rows:
+            try:
+                event_payload = json.loads(str(row["payload"] or "{}"))
+            except json.JSONDecodeError:
                 event_payload = {}
-            if event.get("kind") == "combat":
+            kind = row["kind"]
+            if kind == "combat":
                 if event_payload.get("shot_cost") is not None:
-                    conn.execute("UPDATE sessions SET repair_shots = COALESCE(repair_shots, 0) + 1 WHERE id = ?", (session_id,))
-                repair_decay = float(event_payload.get("repair_decay") or 0.0)
-                if repair_decay:
-                    conn.execute("UPDATE sessions SET repair_decay = COALESCE(repair_decay, 0.0) + ? WHERE id = ?", (repair_decay, session_id))
-                if loadout_id is not None and event_payload.get("shot_cost") is not None:
-                    conn.execute("UPDATE loadouts SET repair_shots = COALESCE(repair_shots, 0) + 1 WHERE id = ?", (loadout_id,))
-            elif event.get("kind") == "repair":
-                conn.execute("UPDATE sessions SET repair_shots = 0, repair_decay = 0.0 WHERE id = ?", (session_id,))
-                if loadout_id is not None:
-                    conn.execute("UPDATE loadouts SET repair_shots = 0 WHERE id = ?", (loadout_id,))
-                snapshot_row = conn.execute("SELECT loadout_snapshot FROM sessions WHERE id = ?", (session_id,)).fetchone()
-                if snapshot_row and snapshot_row["loadout_snapshot"]:
+                    repair_shots += 1
+                repair_decay += float(event_payload.get("repair_decay") or 0.0)
+            elif kind == "repair":
+                repair_shots = 0
+                repair_decay = 0.0
+                had_repair = True
+
+        conn.execute(
+            "UPDATE sessions SET repair_shots = ?, repair_decay = ? WHERE id = ?",
+            (repair_shots, repair_decay, session_id),
+        )
+        if loadout_id is not None:
+            if had_repair:
+                loadout_repair_shots = repair_shots
+            else:
+                starting_shots = 0
+                if session_row and session_row["loadout_snapshot"]:
                     try:
-                        snapshot = json.loads(str(snapshot_row["loadout_snapshot"]))
+                        snapshot = json.loads(str(session_row["loadout_snapshot"]))
                     except json.JSONDecodeError:
                         snapshot = None
                     if isinstance(snapshot, dict):
-                        snapshot["repair_shots"] = 0
-                        conn.execute(
-                            "UPDATE sessions SET loadout_snapshot = ? WHERE id = ?",
-                            (json.dumps(snapshot, ensure_ascii=False), session_id),
-                        )
-            conn.commit()
+                        starting_shots = int(snapshot.get("repair_shots", 0) or 0)
+                loadout_repair_shots = starting_shots + repair_shots
+            conn.execute("UPDATE loadouts SET repair_shots = ? WHERE id = ?", (loadout_repair_shots, loadout_id))
+        if had_repair and session_row and session_row["loadout_snapshot"]:
+            try:
+                snapshot = json.loads(str(session_row["loadout_snapshot"]))
+            except json.JSONDecodeError:
+                snapshot = None
+            if isinstance(snapshot, dict):
+                snapshot["repair_shots"] = 0
+                conn.execute(
+                    "UPDATE sessions SET loadout_snapshot = ? WHERE id = ?",
+                    (json.dumps(snapshot, ensure_ascii=False), session_id),
+                )
 
     def save_loadout(self, loadout: LoadoutRecord, *, make_active: bool = False) -> int:
         now = datetime.now().isoformat(timespec="seconds")
@@ -424,6 +457,17 @@ class Store:
         if not row:
             return None
         return _session_from_row(row)
+
+    def get_last_contributed_session(self) -> SessionSummary | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                _SESSION_SUMMARY_SQL + """
+                GROUP BY s.id
+                ORDER BY COALESCE(MAX(e.timestamp), s.started_at) DESC, s.started_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        return _session_from_row(row) if row else None
 
     def get_session(self, session_id: str) -> SessionSummary | None:
         with self.connect() as conn:
@@ -577,14 +621,24 @@ _SESSION_SUMMARY_SQL = """
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
            COALESCE(SUM(CASE
-               WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
-                   COALESCE(json_extract(e.payload, '$.ammo_cost'), json_extract(e.payload, '$.shot_cost'), 0)
-               WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
-               ELSE 0
-           END), 0) AS hunting_cost
+                WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
+                    COALESCE(json_extract(e.payload, '$.shot_cost'), json_extract(e.payload, '$.ammo_cost'), 0)
+                WHEN e.kind = 'repair' AND json_valid(e.payload) THEN
+                    COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
+                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
+                ELSE 0
+            END), 0) AS hunting_cost
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
 """
+
+
+
+def _single_line_text(value: object | None) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return text.splitlines()[0].strip()
 
 
 def _session_from_row(row: sqlite3.Row) -> SessionSummary:
@@ -597,7 +651,7 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
             loaded_snapshot = json.loads(row["loadout_snapshot"])
             if isinstance(loaded_snapshot, dict):
                 loadout_snapshot = loaded_snapshot
-                loadout_name = str(loaded_snapshot.get("name") or "") or None
+                loadout_name = _single_line_text(loaded_snapshot.get("name")) or None
         except json.JSONDecodeError:
             loadout_name = None
             loadout_snapshot = None
@@ -616,6 +670,7 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         repair_shots=int(row["repair_shots"] or 0),
         repair_decay=float(row["repair_decay"] or 0),
     )
+
 
 
 def _loadout_values(loadout: LoadoutRecord, active: int, created_at: str, updated_at: str) -> tuple:
@@ -642,12 +697,12 @@ def _loadout_values(loadout: LoadoutRecord, active: int, created_at: str, update
 def _loadout_from_row(row: sqlite3.Row) -> LoadoutRecord:
     return LoadoutRecord(
         id=int(row["id"]),
-        name=row["name"],
-        weapon=row["weapon"],
-        amp=row["amp"] or "",
-        scope=row["scope"] or "",
-        sight_1=row["sight_1"] or "",
-        sight_2=row["sight_2"] or "",
+        name=_single_line_text(row["name"]),
+        weapon=_single_line_text(row["weapon"]),
+        amp=_single_line_text(row["amp"]),
+        scope=_single_line_text(row["scope"]),
+        sight_1=_single_line_text(row["sight_1"]),
+        sight_2=_single_line_text(row["sight_2"]),
         damage_enhancers=int(row["damage_enhancers"] or 0),
         accuracy_enhancers=int(row["accuracy_enhancers"] or 0),
         economy_enhancers=int(row["economy_enhancers"] or 0),
@@ -659,17 +714,18 @@ def _loadout_from_row(row: sqlite3.Row) -> LoadoutRecord:
     )
 
 
+
 def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
     if loadout is None:
         return None
     return {
         "id": loadout.id,
-        "name": loadout.name,
-        "weapon": loadout.weapon,
-        "amp": loadout.amp,
-        "scope": loadout.scope,
-        "sight_1": loadout.sight_1,
-        "sight_2": loadout.sight_2,
+        "name": _single_line_text(loadout.name),
+        "weapon": _single_line_text(loadout.weapon),
+        "amp": _single_line_text(loadout.amp),
+        "scope": _single_line_text(loadout.scope),
+        "sight_1": _single_line_text(loadout.sight_1),
+        "sight_2": _single_line_text(loadout.sight_2),
         "damage_enhancers": loadout.damage_enhancers,
         "accuracy_enhancers": loadout.accuracy_enhancers,
         "economy_enhancers": loadout.economy_enhancers,
@@ -682,6 +738,7 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "repair_budget_known": loadout.repair_budget_known,
         "repair_items": loadout.repair_items or [],
     }
+
 
 
 def _is_malformed_database_error(exc: sqlite3.DatabaseError) -> bool:

@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,6 +12,7 @@ from ped_hunter.app import (
     _event_consumes_shot,
     _loot_event_points,
     _typeahead_match,
+    _summarize_event,
     calculate_blueprint_material_cost,
     calculate_gun_amp_repair_budget,
     calculate_gun_amp_repair_decay,
@@ -22,8 +24,9 @@ from ped_hunter.app import (
     with_repair_estimates,
 )
 from ped_hunter.catalog import BlueprintRecord, Catalog, ResourceRecord
-from ped_hunter.parser import ParsedEvent
+from ped_hunter.parser import ParsedEvent, parse_line
 from ped_hunter.storage import LoadoutRecord, SessionSummary, Store
+
 
 
 def test_frontier_loadout_cost_matches_weapon_cost():
@@ -257,6 +260,17 @@ def test_durability_color_gradient_reaches_requested_stops():
     assert durability_color(5) != durability_color(50)
 
 
+def test_store_includes_repair_estimated_cost_in_session_summary(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {"kind": "repair", "raw_message": "[System] [] Item(s) repaired successfully", "payload": {"estimated_cost": 1.75}})
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == 1.75
+    assert summary.net_value == -1.75
+
+
 def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     loadout = LoadoutRecord(
@@ -279,8 +293,183 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.net_value == 0.2398
 
 
+def test_damage_messages_flow_through_parse_store_and_display(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Damage demo rifle",
+            weapon="Frontier Hunting Rifle",
+            ammo_burn=100,
+            decay=0.0002,
+            cost_per_shot=1.25,
+        ),
+    )
+    loadout.id = store.save_loadout(loadout, make_active=True)
+    session_id = store.start_session("hunt", loadout)
+
+    damage_event = parse_line("2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.")
+    dodge_event = parse_line("2026-06-20 08:30:14 [System] [] The creature Dodged your attack.")
+    assert damage_event is not None
+    assert dodge_event is not None
+    assert _event_consumes_shot(damage_event) is True
+    assert _event_consumes_shot(dodge_event) is True
+
+    for event in (damage_event, dodge_event):
+        event.payload["shot_cost"] = loadout.cost_per_shot
+        event.payload["ammo_cost"] = loadout.ammo_burn / 10_000.0
+        event.payload["repair_decay"] = loadout.repair_decay_per_shot
+        event.payload["loadout"] = loadout.name
+        store.add_event(session_id, event.to_row())
+
+    store.add_event(
+        session_id,
+        {
+            "kind": "loot",
+            "raw_message": "loot",
+            "payload": {"item_name": "Daikiba", "value": 4.0},
+        },
+    )
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == 2.5
+    assert summary.loot_value == 4.0
+    assert summary.net_value == 1.5
+
+    metrics = streamer_metrics(summary)
+    assert float(metrics["cost"]) == 2.5
+    assert float(metrics["loot"]) == 4.0
+
+
+def test_real_chat_log_combat_lines_flow_into_shot_costs_and_display(tmp_path: Path):
+    catalog = Catalog.load()
+
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = with_repair_estimates(
+        catalog,
+        LoadoutRecord(
+            id=None,
+            name="Chat log rifle",
+            weapon="Frontier Hunting Rifle",
+            ammo_burn=100,
+            decay=0.0002,
+            cost_per_shot=0.10,
+        ),
+    )
+    loadout.id = store.save_loadout(loadout, make_active=True)
+    session_id = store.start_session("hunt", loadout)
+
+    chat_lines = [
+        "2026-07-11 00:09:12 [System] [] You inflicted 6.4 points of damage",
+        "2026-07-11 00:09:13 [System] [] You inflicted 9.7 points of damage",
+        "2026-07-11 00:09:14 [System] [] You inflicted 11.8 points of damage",
+        "2026-07-11 00:09:15 [System] [] You inflicted 7.8 points of damage",
+        "2026-07-11 00:09:17 [System] [] You inflicted 7.4 points of damage",
+        "2026-07-11 00:09:18 [System] [] You inflicted 11.5 points of damage",
+        "2026-07-11 00:09:18 [System] [] You Evaded the attack",
+        "2026-07-11 00:09:31 [System] [] You inflicted 6.3 points of damage",
+        "2026-07-11 00:09:32 [System] [] You inflicted 8.5 points of damage",
+        "2026-07-11 00:09:34 [System] [] You took 7.8 points of damage",
+        "2026-07-11 00:09:36 [System] [] You inflicted 7.0 points of damage",
+        "2026-07-11 00:09:43 [System] [] The target Dodged your attack",
+        "2026-07-11 00:09:44 [System] [] You inflicted 6.5 points of damage",
+        "2026-07-11 00:09:45 [System] [] You inflicted 6.2 points of damage",
+        "2026-07-11 00:09:46 [System] [] You inflicted 8.0 points of damage",
+        "2026-07-11 00:09:46 [System] [] The attack missed you",
+        "2026-07-11 00:09:48 [System] [] You inflicted 10.5 points of damage",
+        "2026-07-11 00:09:49 [System] [] You took 10.0 points of damage",
+        "2026-07-11 00:09:49 [System] [] You inflicted 8.2 points of damage",
+        "2026-07-11 00:09:50 [System] [] You inflicted 10.7 points of damage",
+        "2026-07-11 00:09:51 [System] [] You inflicted 7.3 points of damage",
+        "2026-07-11 00:09:52 [System] [] You Evaded the attack",
+        "2026-07-11 00:09:53 [System] [] You inflicted 11.1 points of damage",
+        "2026-07-11 00:09:54 [System] [] The attack missed you",
+        "2026-07-11 00:09:54 [System] [] You inflicted 10.0 points of damage",
+    ]
+    non_shots = {
+        "2026-07-11 00:09:18 [System] [] You Evaded the attack",
+        "2026-07-11 00:09:34 [System] [] You took 7.8 points of damage",
+        "2026-07-11 00:09:46 [System] [] The attack missed you",
+        "2026-07-11 00:09:49 [System] [] You took 10.0 points of damage",
+        "2026-07-11 00:09:52 [System] [] You Evaded the attack",
+        "2026-07-11 00:09:54 [System] [] The attack missed you",
+    }
+
+    shot_events = []
+    for line in chat_lines:
+        event = parse_line(line)
+        assert event is not None and event.kind == "combat"
+        if line in non_shots:
+            assert _event_consumes_shot(event) is False
+            continue
+        assert _event_consumes_shot(event) is True
+        event.payload["shot_cost"] = loadout.cost_per_shot
+        event.payload["ammo_cost"] = loadout.ammo_burn / 10_000.0
+        event.payload["repair_decay"] = loadout.repair_decay_per_shot
+        event.payload["loadout"] = loadout.name
+        shot_events.append(event)
+        store.add_event(session_id, event.to_row())
+
+    assert len(shot_events) == 19
+
+    store.add_event(
+        session_id,
+        {
+            "kind": "loot",
+            "raw_message": "loot",
+            "payload": {"item_name": "Shrapnel", "value": 0.50},
+        },
+    )
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == pytest.approx(1.9)
+    assert summary.loot_value == pytest.approx(0.5)
+    assert summary.net_value == pytest.approx(-1.4)
+
+    metrics = streamer_metrics(summary)
+    assert float(metrics["cost"]) == pytest.approx(1.9)
+    assert float(metrics["loot"]) == pytest.approx(0.5)
+
+
+def test_process_lines_falls_back_to_session_snapshot_costs(tmp_path: Path):
+    catalog = Catalog.load()
+    store = Store(tmp_path / "ped.sqlite3")
+    loadout = LoadoutRecord(
+        id=None,
+        name="Snapshot rifle",
+        weapon="Frontier Hunting Rifle",
+        ammo_burn=100,
+        decay=0.0002,
+        cost_per_shot=0.10,
+    )
+    session_id = store.start_session("hunt", loadout)
+
+    app = object.__new__(PedHunterApp)
+    app.store = store
+    app.catalog = catalog
+
+    parsed, last_line = PedHunterApp._process_lines(
+        app,
+        ["2026-07-11 00:09:12 [System] [] You inflicted 6.4 points of damage"],
+        session_id,
+        None,
+    )
+
+    assert parsed == 1
+    assert last_line == "2026-07-11 00:09:12 [System] [] You inflicted 6.4 points of damage"
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == pytest.approx(0.1)
+    assert summary.net_value == pytest.approx(-0.1)
+
+
 def test_running_session_can_be_synced_to_new_active_loadout(tmp_path: Path):
     catalog = Catalog.load()
+
     store = Store(tmp_path / "ped.sqlite3")
 
     starter = with_repair_estimates(
@@ -378,7 +567,7 @@ def test_repair_event_adds_estimated_decay_expense_and_resets_counter(tmp_path: 
     summary = store.get_current_session()
     assert round(estimated, 6) == 0.0006
     assert summary is not None
-    assert round(summary.hunting_cost, 6) == 0.03
+    assert round(summary.hunting_cost, 6) == 0.0312
     assert store.estimate_repair_cost_since_last_repair(session_id, "Repair Test", 0.0002) == 0.0
 
 
@@ -389,6 +578,23 @@ def test_repair_estimator_falls_back_for_legacy_full_shot_cost_rows(tmp_path: Pa
     store.add_event(session_id, {"kind": "combat", "raw_message": "legacy dodge", "payload": {"dodged": True, "shot_cost": 0.0102}})
 
     assert round(store.estimate_repair_cost_since_last_repair(session_id, None, 0.0002), 6) == 0.0004
+
+
+def test_store_prefers_full_shot_cost_over_ammo_cost_when_both_are_present(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(
+        session_id,
+        {
+            "kind": "combat",
+            "raw_message": "hit",
+            "payload": {"damage": 6, "shot_cost": 0.0102, "ammo_cost": 0.01},
+        },
+    )
+
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == 0.0102
 
 
 def test_store_summarizes_crafting_material_costs(tmp_path: Path):
