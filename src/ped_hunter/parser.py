@@ -72,6 +72,23 @@ def parse_line(line: str) -> ParsedEvent | None:
         except ValueError:
             timestamp = None
 
+    # Channel messages can quote system-like text, for example:
+    # ``[Rookie] [Someone Else] [System]: You received ...``.
+    # Those are ordinary chat and must never become personal loot/combat
+    # events. Only the direct ``[System] [] ...`` form is eligible below.
+    channel_match = CHANNEL_RE.match(body)
+    if channel_match and channel_match.group("channel").casefold() != "system":
+        channel = channel_match.group("channel")
+        speaker = (channel_match.group("speaker") or "").strip()
+        message = (channel_match.group("message") or "").strip()
+        kind = "global" if channel.casefold() == "globals" else "chat"
+        return ParsedEvent(
+            kind=kind,
+            timestamp=timestamp,
+            raw_message=line,
+            payload={"channel": channel, "speaker": speaker, "message": message},
+        )
+
     for kind, pattern in PATTERNS.items():
         match = pattern.search(body)
         if not match:

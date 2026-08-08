@@ -48,6 +48,18 @@ def test_parse_compact_loot_line_with_brackets_and_source():
     assert event.payload["value"] == 28.86
 
 
+def test_channel_message_quoting_system_receipt_is_not_personal_loot():
+    event = parse_line(
+        "2026-08-08 04:56:52 [Rookie] [B0b The South] [System]: "
+        "You received [NeoPsion 20 Mindforce Implant] x (1) Value: 18.84 PED"
+    )
+
+    assert event is not None
+    assert event.kind == "chat"
+    assert event.payload["channel"] == "Rookie"
+    assert event.payload["speaker"] == "B0b The South"
+
+
 def test_parse_compact_damage_line_with_cost():
     event = parse_line("2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.")
 

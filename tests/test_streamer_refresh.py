@@ -248,8 +248,8 @@ def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_f
         streamer.update_from_session(session)
         app.update_idletasks()
 
-        assert streamer.vars["loot"].get() == "4.00 PED"
-        assert streamer.vars["cost"].get() == "0.00 PED"
+        assert streamer.vars["loot"].get() == "$0.40"
+        assert streamer.vars["cost"].get() == "$0.00"
         assert streamer.vars["kills"].get() == "1"
 
         assert streamer.winfo_width() == streamer.winfo_reqwidth()

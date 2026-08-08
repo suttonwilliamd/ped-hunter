@@ -17,6 +17,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .catalog import Catalog, WeaponRecord
+from .currency import currency_name, format_money
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
@@ -77,10 +78,10 @@ class PedHunterApp(tk.Tk):
         self.active_loadout_text = tk.StringVar(value="No active setup — configure one before tracking")
         self.repair_radar_text = tk.StringVar(value="Repair radar: start a fresh run at 100% gun + amp TT")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
-        self.hero_net = tk.StringVar(value="+0.00 PED")
+        self.hero_net = tk.StringVar(value="+$0.00")
         self.hero_return = tk.StringVar(value="0.00% Return")
-        self.hero_loot = tk.StringVar(value="Loot 0.00 PED")
-        self.hero_cost = tk.StringVar(value="Cost 0.00 PED")
+        self.hero_loot = tk.StringVar(value="Loot $0.00")
+        self.hero_cost = tk.StringVar(value="Cost $0.00")
         self.hero_events = tk.StringVar(value="Events 0")
         self.hero_state = tk.StringVar(value="Idle")
         self.hero_session = tk.StringVar(value="No active session — start a run to begin collecting data")
@@ -90,15 +91,15 @@ class PedHunterApp(tk.Tk):
         self.wtb_summary_text = tk.StringVar(value="No WTB listings parsed yet — trade channels will populate here.")
         self.lifetime_summary_text = tk.StringVar(value="No completed runs yet — start tracking to build your lifetime stats.")
         self.lifetime_vars = {
-            "total_cost": tk.StringVar(value="0.00 PED"),
-            "total_loot": tk.StringVar(value="0.00 PED"),
-            "total_net": tk.StringVar(value="+0.00 PED"),
+            "total_cost": tk.StringVar(value="$0.00"),
+            "total_loot": tk.StringVar(value="$0.00"),
+            "total_net": tk.StringVar(value="+$0.00"),
             "overall_return": tk.StringVar(value="0.00%"),
             "total_events": tk.StringVar(value="0 events"),
             "avg_return": tk.StringVar(value="0.00% avg"),
             "best_run": tk.StringVar(value="—"),
             "worst_run": tk.StringVar(value="—"),
-            "avg_profit": tk.StringVar(value="+0.00 PED/run"),
+            "avg_profit": tk.StringVar(value="+$0.00/run"),
         }
 
         self.loadout_name = tk.StringVar(value="Starter rifle")
@@ -115,6 +116,7 @@ class PedHunterApp(tk.Tk):
         self.compact_density = tk.BooleanVar(value=True)
         self.top_area_expanded = tk.BooleanVar(value=True)
         self.top_toggle_text = tk.StringVar(value="Hide top")
+        self.currency_mode = tk.StringVar(value="USD")
 
         self.metric_cards: dict[str, MetricCard] = {}
         self._configure_theme()
@@ -239,10 +241,14 @@ class PedHunterApp(tk.Tk):
         header.columnconfigure(1, weight=1)
         ttk.Label(header, text="◆ PED Hunter", style="Title.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
         ttk.Label(header, text="live profit radar", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
-        ttk.Checkbutton(header, text="Compact", variable=self.compact_density, command=self._apply_density).grid(row=0, column=2, sticky="e", padx=(6, 6))
-        ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=3, sticky="e", padx=(0, 6))
-        ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=4, sticky="e", padx=(0, 6))
-        ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=5, sticky="e")
+        ttk.Label(header, text="Display", style="Muted.TLabel").grid(row=0, column=2, sticky="e", padx=(6, 4))
+        currency_picker = ttk.Combobox(header, textvariable=self.currency_mode, values=("USD", "PED"), state="readonly", width=6)
+        currency_picker.grid(row=0, column=3, sticky="e", padx=(0, 8))
+        currency_picker.bind("<<ComboboxSelected>>", lambda _event: self._refresh_all())
+        ttk.Checkbutton(header, text="Compact", variable=self.compact_density, command=self._apply_density).grid(row=0, column=4, sticky="e", padx=(6, 6))
+        ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
+        ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
+        ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=7, sticky="e")
 
         self._build_session_hero(root, row=1)
 
@@ -327,6 +333,17 @@ class PedHunterApp(tk.Tk):
         self.stop_button = ttk.Button(actions, text="Stop", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=(0, 8))
         ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
+
+    def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
+        try:
+            mode_var = object.__getattribute__(self, "currency_mode")
+        except AttributeError:
+            mode_var = None
+        mode = mode_var.get() if mode_var is not None else "USD"
+        return format_money(value_ped, mode, signed=signed, decimals=decimals)
+
+    def _money_label(self, label: str, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
+        return f"{label} {self._money(value_ped, signed=signed, decimals=decimals)}"
 
     def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> None:
         frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(9, 7))
@@ -755,7 +772,7 @@ class PedHunterApp(tk.Tk):
             self.loadout_preview.set(f"Loadout needs attention: {exc}")
             return
         self.loadout_preview.set(
-            f"Ammo burn: {loadout.ammo_burn} • Decay: {loadout.decay:.5f} PED • Cost/shot: {loadout.cost_per_shot:.5f} PED"
+            f"Ammo burn: {loadout.ammo_burn} • Decay: {self._money(loadout.decay, decimals=5)} • Cost/shot: {self._money(loadout.cost_per_shot, decimals=5)}"
         )
 
     def _loadout_from_form(self) -> LoadoutRecord:
@@ -872,8 +889,8 @@ class PedHunterApp(tk.Tk):
                 )
             )
             self.active_loadout_title.set(f"Hunt · {active.name}")
-            self.active_loadout_details.set(f"{active.weapon} • {attachments} • {active.cost_per_shot:.5f} PED/shot")
-            self.active_loadout_text.set(f"Setup: {active.name} · {active.cost_per_shot:.5f} PED/shot")
+            self.active_loadout_details.set(f"{active.weapon} • {attachments} • {self._money(active.cost_per_shot, decimals=5)}/shot")
+            self.active_loadout_text.set(f"Setup: {active.name} · {self._money(active.cost_per_shot, decimals=5)}/shot")
         else:
             self.active_loadout_title.set("No active setup")
             self.active_loadout_details.set("Activate a hunting setup before starting. This replaces the old hunt/craft/mine dropdown.")
@@ -1065,7 +1082,7 @@ class PedHunterApp(tk.Tk):
         return_pct = _return_pct(session)
         self.selected_session_text.set(
             f"{setup} • {status}\n"
-            f"Started {session.started_at} • {session.events} events • return {return_pct:.2f}% • net {session.net_value:+.2f} PED"
+            f"Started {session.started_at} • {session.events} events • return {return_pct:.2f}% • net {self._money(session.net_value, signed=True)}"
         )
     def stop(self) -> None:
         if not self.running:
@@ -1220,7 +1237,7 @@ class PedHunterApp(tk.Tk):
             self.crafting_preview.set(f"Blueprint needs attention: {exc}")
             return
         total = per_attempt * attempts
-        self.crafting_preview.set(f"Material TT: {per_attempt:.2f} PED/attempt • {attempts:,} attempts = {total:.2f} PED input")
+        self.crafting_preview.set(f"Material TT: {self._money(per_attempt)}/attempt • {attempts:,} attempts = {self._money(total)} input")
 
     def _add_crafting_cost_to_session(self) -> None:
         current = self.store.get_current_session()
@@ -1256,7 +1273,7 @@ class PedHunterApp(tk.Tk):
                 },
             },
         )
-        self.status_text.set(f"Added {total:.2f} PED manufacturing cost for {attempts:,} attempt{'s' if attempts != 1 else ''}")
+        self.status_text.set(f"Added {self._money(total)} manufacturing cost for {attempts:,} attempt{'s' if attempts != 1 else ''}")
         self._refresh_all()
 
     def _schedule_full_refresh(self) -> None:
@@ -1346,10 +1363,10 @@ class PedHunterApp(tk.Tk):
         if not session:
             self.session_text.set("No sessions yet — start a run to begin collecting data")
             self.hero_session.set("No active session — start a run to begin collecting data")
-            self.hero_net.set("+0.00 PED")
+            self.hero_net.set(self._money(0, signed=True))
             self.hero_return.set("0.00% Return")
-            self.hero_loot.set("0.00 PED")
-            self.hero_cost.set("0.00 PED")
+            self.hero_loot.set(self._money(0))
+            self.hero_cost.set(self._money(0))
             self.hero_events.set("0")
             self.repair_radar_text.set("Repair radar: start a fresh run at 100% gun + amp TT")
             self._set_hero_profit_style("neutral")
@@ -1362,12 +1379,12 @@ class PedHunterApp(tk.Tk):
 
         self.session_text.set(f"{session.session_id} • {setup} • {status} • started {session.started_at}")
         self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
-        self.hero_net.set(f"{session.net_value:+.2f} PED")
+        self.hero_net.set(self._money(session.net_value, signed=True))
         self.hero_return.set(f"{return_pct:.2f}% Return")
-        self.hero_loot.set(f"Loot {session.loot_value:.2f} PED")
-        self.hero_cost.set(f"Cost {session.hunting_cost:.2f} PED")
+        self.hero_loot.set(self._money_label("Loot", session.loot_value))
+        self.hero_cost.set(self._money_label("Cost", session.hunting_cost))
         self.hero_events.set(f"Events {session.events}")
-        self.repair_radar_text.set(format_repair_radar(session))
+        self.repair_radar_text.set(format_repair_radar(session, self.currency_mode.get()))
         self._set_hero_profit_style(_profit_state(session.net_value))
 
     def _refresh_lifetime_totals(self) -> None:
@@ -1380,26 +1397,26 @@ class PedHunterApp(tk.Tk):
         self.lifetime_summary_text.set(
             f"{totals.session_count} stored run{'s' if totals.session_count != 1 else ''}{active_note} · weighted by PED input"
         )
-        self.lifetime_vars["total_cost"].set(f"{totals.total_cost:.2f} PED")
-        self.lifetime_vars["total_loot"].set(f"{totals.total_loot:.2f} PED")
-        self.lifetime_vars["total_net"].set(f"{totals.total_net:+.2f} PED")
+        self.lifetime_vars["total_cost"].set(self._money(totals.total_cost))
+        self.lifetime_vars["total_loot"].set(self._money(totals.total_loot))
+        self.lifetime_vars["total_net"].set(self._money(totals.total_net, signed=True))
         self.lifetime_vars["overall_return"].set(f"{totals.overall_return_pct:.2f}%")
         self.lifetime_vars["total_events"].set(f"{totals.total_events} events")
         self.lifetime_vars["avg_return"].set(f"{totals.avg_return_pct:.2f}% avg")
-        self.lifetime_vars["avg_profit"].set(f"{totals.avg_profit_per_run:+.2f} PED/run")
-        self.lifetime_vars["best_run"].set(_lifetime_run_label(totals.best_session))
-        self.lifetime_vars["worst_run"].set(_lifetime_run_label(totals.worst_session))
+        self.lifetime_vars["avg_profit"].set(f"{self._money(totals.avg_profit_per_run, signed=True)}/run")
+        self.lifetime_vars["best_run"].set(_lifetime_run_label(totals.best_session, self.currency_mode.get()))
+        self.lifetime_vars["worst_run"].set(_lifetime_run_label(totals.worst_session, self.currency_mode.get()))
 
     def _set_empty_lifetime_totals(self) -> None:
-        self.lifetime_vars["total_cost"].set("0.00 PED")
-        self.lifetime_vars["total_loot"].set("0.00 PED")
-        self.lifetime_vars["total_net"].set("+0.00 PED")
+        self.lifetime_vars["total_cost"].set(self._money(0))
+        self.lifetime_vars["total_loot"].set(self._money(0))
+        self.lifetime_vars["total_net"].set(self._money(0, signed=True))
         self.lifetime_vars["overall_return"].set("0.00%")
         self.lifetime_vars["total_events"].set("0 events")
         self.lifetime_vars["avg_return"].set("0.00% avg")
         self.lifetime_vars["best_run"].set("—")
         self.lifetime_vars["worst_run"].set("—")
-        self.lifetime_vars["avg_profit"].set("+0.00 PED/run")
+        self.lifetime_vars["avg_profit"].set(f"{self._money(0, signed=True)}/run")
 
     def _set_hero_profit_style(self, state: str) -> None:
         suffix = {"good": "Good", "bad": "Bad"}.get(state, "Neutral")
@@ -1423,9 +1440,9 @@ class PedHunterApp(tk.Tk):
                     session.started_at,
                     setup,
                     f"{return_pct:.2f}%",
-                    f"{session.loot_value:.2f} PED",
-                    f"{session.hunting_cost:.2f} PED",
-                    f"{session.net_value:+.2f} PED",
+                    self._money(session.loot_value),
+                    self._money(session.hunting_cost),
+                    self._money(session.net_value, signed=True),
                     session.events,
                     "active" if session.ended_at is None else "ended",
                 ),
@@ -1448,7 +1465,7 @@ class PedHunterApp(tk.Tk):
         if not session_id:
             return
         for index, row in enumerate(_recent_events(self.store, session_id, limit=80)):
-            self.events_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",), values=(row["timestamp"] or "", row["kind"], _summarize_event(row)))
+            self.events_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",), values=(row["timestamp"] or "", row["kind"], _summarize_event(row, self.currency_mode.get())))
 
     def _refresh_skills(self, session_id: str | None) -> None:
         self.skills_tree.delete(*self.skills_tree.get_children())
@@ -1540,8 +1557,8 @@ class PedHunterApp(tk.Tk):
         for tick in tick_values:
             y = pad_top + plot_h - (tick / max_value * plot_h)
             canvas.create_line(pad_left, y, width - pad_right, y, fill="#1f2a3d")
-            canvas.create_text(pad_left - 8, y, text=f"{tick:.2f}", anchor="e", fill=colors["muted"], font=("Segoe UI", 8))
-        canvas.create_text(10, pad_top - 4, text="PED", anchor="w", fill=colors["muted"], font=("Segoe UI", 8, "bold"))
+            canvas.create_text(pad_left - 8, y, text=format_money(tick, self.currency_mode.get()), anchor="e", fill=colors["muted"], font=("Segoe UI", 8))
+        canvas.create_text(10, pad_top - 4, text=currency_name(self.currency_mode.get()), anchor="w", fill=colors["muted"], font=("Segoe UI", 8, "bold"))
 
         count = len(points)
         step = plot_w / max(count - 1, 1)
@@ -1556,14 +1573,14 @@ class PedHunterApp(tk.Tk):
             if count <= 28:
                 canvas.create_text(x, pad_top + plot_h + 8, text=str(index + 1), anchor="n", fill=colors["muted"], font=("Segoe UI", 8))
             if value == max_value:
-                canvas.create_text(x, max(y - 10, 8), text=f"{value:.2f}", anchor="s", fill=colors["text"], font=("Segoe UI", 8, "bold"))
+                canvas.create_text(x, max(y - 10, 8), text=format_money(value, self.currency_mode.get()), anchor="s", fill=colors["text"], font=("Segoe UI", 8, "bold"))
         if len(line_points) >= 4:
             canvas.create_line(*line_points, fill="#7dd3fc", width=2, smooth=False)
         total = sum(value for _, value, _ in points)
         canvas.create_text(
             width - pad_right,
             height - 12,
-            text=f"{count} loot events • {total:.2f} PED total • latest: {points[-1][1]:.2f} PED {points[-1][2]}",
+            text=f"{count} loot events • {format_money(total, self.currency_mode.get())} total • latest: {format_money(points[-1][1], self.currency_mode.get())} {points[-1][2]}",
             anchor="e",
             fill=colors["muted"],
             font=("Segoe UI", 9),
@@ -1619,10 +1636,10 @@ class StreamerWindow(tk.Toplevel):
         self._drag_origin: tuple[int, int] | None = None
         self._resize_origin: tuple[int, int, int, int] | None = None
         self.vars = {
-            "net_big": tk.StringVar(value="+0.00 PED"),
+            "net_big": tk.StringVar(value="+$0.00"),
             "return": tk.StringVar(value="0.00% Return"),
-            "loot": tk.StringVar(value="0.00 PED"),
-            "cost": tk.StringVar(value="0.00 PED"),
+            "loot": tk.StringVar(value="$0.00"),
+            "cost": tk.StringVar(value="$0.00"),
             "kills": tk.StringVar(value="0"),
             "damage": tk.StringVar(value="Damage 0.0"),
             "loadout": tk.StringVar(value="No active loadout"),
@@ -1723,10 +1740,10 @@ class StreamerWindow(tk.Toplevel):
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = self.app.colors["accent"] if net > 0 else "#f97316" if net < 0 else "#e5edf8"
-        self.vars["net_big"].set(f"{net:+.2f} PED")
+        self.vars["net_big"].set(format_money(net, self.app.currency_mode.get(), signed=True))
         self.vars["return"].set(f"{return_pct:.2f}% Return")
-        self.vars["loot"].set(f"{float(metrics['loot']):.2f} PED")
-        self.vars["cost"].set(f"{float(metrics['cost']):.2f} PED")
+        self.vars["loot"].set(format_money(float(metrics['loot']), self.app.currency_mode.get()))
+        self.vars["cost"].set(format_money(float(metrics['cost']), self.app.currency_mode.get()))
         self.vars["kills"].set(f"{kill_count}")
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
@@ -2014,16 +2031,16 @@ def _loot_event_points(store: Store, session_id: str | None, limit: int = 160) -
     return points
 
 
-def _summarize_event(row: dict[str, object]) -> str:
+def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
     try:
         payload = json.loads(str(row.get("payload") or "{}"))
     except json.JSONDecodeError:
         payload = {}
     kind = row.get("kind")
     if kind == "loot":
-        return f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {float(payload.get('value', 0) or 0):.2f} PED"
+        return f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {format_money(float(payload.get('value', 0) or 0), mode)}"
     if kind == "combat":
-        cost = f" • {float(payload['shot_cost']):.5f} PED" if "shot_cost" in payload else ""
+        cost = f" • {format_money(float(payload['shot_cost']), mode, decimals=5)}" if "shot_cost" in payload else ""
         if "damage" in payload:
             return f"Damage dealt: {payload['damage']}{cost}"
         if payload.get("dodged"):
@@ -2041,7 +2058,7 @@ def _summarize_event(row: dict[str, object]) -> str:
         if "total_cost" in payload:
             attempts = int(payload.get("attempts", 1) or 1)
             blueprint = payload.get("blueprint", "Blueprint")
-            return f"Crafting input: {attempts:,} x {blueprint} — {float(payload.get('total_cost', 0) or 0):.2f} PED"
+            return f"Crafting input: {attempts:,} x {blueprint} — {format_money(float(payload.get('total_cost', 0) or 0), mode)}"
         return f"{payload.get('result', '?')} {payload.get('item', '')}".strip()
     return str(row.get("raw_message") or "")
 
@@ -2230,7 +2247,7 @@ def durability_color(percent: float) -> str:
     return "#000000"
 
 
-def format_repair_radar(session: SessionSummary | None) -> str:
+def format_repair_radar(session: SessionSummary | None, mode: str = "USD") -> str:
     if not session:
         return "Repair radar: start a fresh run at 100% gun + amp TT"
     snapshot = session.loadout_snapshot or {}
@@ -2238,18 +2255,18 @@ def format_repair_radar(session: SessionSummary | None) -> str:
     used = float(status.get("used_decay", 0.0) or 0.0)
     shots = int(status.get("used_shots", session.repair_shots) or 0)
     if "items" in status:
-        return f"Repair radar: {status['streamer_text']} • {used:.4f} PED gun+amp decay across {shots:,} shots"
+        return f"Repair radar: {status['streamer_text']} • {format_money(used, mode, decimals=4)} gun+amp decay across {shots:,} shots"
     budget = float(snapshot.get("repair_budget", 0) or 0)
     known = bool(snapshot.get("repair_budget_known")) and budget > 0
     if not known:
-        return f"Repair radar: {shots:,} shots since 100% • {used:.4f} PED gun+amp decay accrued"
+        return f"Repair radar: {shots:,} shots since 100% • {format_money(used, mode, decimals=4)} gun+amp decay accrued"
     remaining = max(0.0, budget - used)
     remaining_pct = remaining / budget * 100.0
     per_shot = float(snapshot.get("repair_decay_per_shot", 0) or 0)
     shots_left = max(0, math.ceil(remaining / per_shot)) if per_shot > 0 else 0
     return (
         f"Repair radar: {remaining_pct:.1f}% gun+amp TT left • "
-        f"{remaining:.2f}/{budget:.2f} PED remaining • ~{shots_left:,} shots to empty"
+        f"{format_money(remaining, mode)}/{format_money(budget, mode)} remaining • ~{shots_left:,} shots to empty"
     )
 
 
@@ -2345,11 +2362,11 @@ def _return_pct(session: SessionSummary | None) -> float:
     return session.loot_value / session.hunting_cost * 100.0
 
 
-def _lifetime_run_label(session: SessionSummary | None) -> str:
+def _lifetime_run_label(session: SessionSummary | None, mode: str = "USD") -> str:
     if not session:
         return "—"
     setup = session.loadout_name or session.activity.title()
-    return f"{session.net_value:+.2f} PED · {setup}"
+    return f"{format_money(session.net_value, mode, signed=True)} · {setup}"
 
 
 def _profit_state(net_value: float) -> str:
