@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 from types import SimpleNamespace
+import json
 
 from ped_hunter.app import (
     AMP_CATEGORIES,
@@ -609,6 +610,59 @@ def test_store_summarizes_crafting_material_costs(tmp_path: Path):
     assert summary.hunting_cost == 12.0
     assert summary.loot_value == 5.0
     assert summary.net_value == -7.0
+
+
+def test_manufacturing_offset_allocates_fifo_attempt_cost_without_double_counting(tmp_path: Path):
+    store = Store(tmp_path / "ped.sqlite3")
+    session_id = store.start_session("hunt")
+    store.add_event(session_id, {
+        "kind": "manufacturing_offset",
+        "raw_message": "35 attempts",
+        "payload": {
+            "offset_id": "offset-a",
+            "blueprint": "Simple 1 Conductors Blueprint",
+            "attempts_total": 35,
+            "attempts_remaining": 35,
+            "cost_per_attempt": 0.70,
+            "total_cost": 24.50,
+        },
+    })
+
+    first = store.allocate_manufacturing_attempt(session_id, "Simple 1 Conductors")
+    second = store.allocate_manufacturing_attempt(session_id)
+    assert first is not None
+    assert first["offset_id"] == "offset-a"
+    assert first["attempt_number"] == 1
+    assert first["attempts_total"] == 35
+    assert first["attempts_remaining"] == 34
+    assert first["input_cost"] == 0.70
+    assert first["craft_item"] == "Simple 1 Conductors"
+    assert second is not None and second["attempt_number"] == 2 and second["attempts_remaining"] == 33
+
+    store.add_event(session_id, {
+        "kind": "craft",
+        "raw_message": "crafted",
+        "payload": {"result": "success", **first},
+    })
+    summary = store.get_current_session()
+    assert summary is not None
+    assert summary.hunting_cost == 24.50
+    assert summary.last_input_cost == 0.70
+    assert summary.manufacturing_attempt == 1
+    assert summary.manufacturing_attempts_remaining == 34
+
+    unrelated = {"kind": "loot", "raw_message": "hunting loot", "payload": {"item_name": "Animal Oil", "value": 0.50}}
+    store.add_event(session_id, unrelated)
+    store.add_manufacturing_output(
+        session_id,
+        {"kind": "loot", "raw_message": "craft output", "payload": {"item_name": "Simple 1 Conductors", "value": 1.20}},
+        "Simple 1 Conductors",
+    )
+    with store.connect() as conn:
+        row = conn.execute("SELECT payload FROM events WHERE session_id = ? AND kind = 'loot' ORDER BY id DESC LIMIT 1", (session_id,)).fetchone()
+    output = json.loads(row["payload"])
+    assert output["input_cost"] == 0.70
+    assert output["attempt_number"] == 1
 
 
 def test_store_excludes_universal_ammo_conversion_from_session_loot(tmp_path: Path):

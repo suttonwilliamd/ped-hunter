@@ -15,6 +15,7 @@ from pathlib import Path
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import uuid
 
 from .catalog import Catalog, WeaponRecord
 from .currency import currency_name, format_money
@@ -1198,6 +1199,16 @@ class PedHunterApp(tk.Tk):
             event = parse_line(raw)
             if not event:
                 continue
+            if event.kind == "craft" and event.payload.get("result") in {"success", "fail"}:
+                allocation = self.store.allocate_manufacturing_attempt(session_id, str(event.payload.get("item") or ""))
+                if allocation:
+                    event.payload.update(allocation)
+            elif event.kind == "loot":
+                self.store.add_manufacturing_output(session_id, event.to_row(), str(event.payload.get("item_name") or ""))
+                if normalized_raw:
+                    last_ingested_log_line = normalized_raw
+                parsed += 1
+                continue
             if active_loadout and _event_consumes_shot(event):
                 ammo_cost = active_loadout.ammo_burn / 10_000.0
                 event.payload["shot_cost"] = active_loadout.cost_per_shot
@@ -1259,11 +1270,14 @@ class PedHunterApp(tk.Tk):
         self.store.add_event(
             session_id,
             {
-                "kind": "craft",
+                "kind": "manufacturing_offset",
                 "raw_message": f"Manufacturing cost: {attempts} x {blueprint_name} = {total:.2f} PED",
                 "payload": {
+                    "offset_id": uuid.uuid4().hex,
                     "blueprint": blueprint_name,
                     "attempts": attempts,
+                    "attempts_total": attempts,
+                    "attempts_remaining": attempts,
                     "cost_per_attempt": per_attempt,
                     "total_cost": total,
                     "materials": [
@@ -1641,6 +1655,7 @@ class StreamerWindow(tk.Toplevel):
             "loot": tk.StringVar(value="$0.00"),
             "cost": tk.StringVar(value="$0.00"),
             "kills": tk.StringVar(value="0"),
+            "input": tk.StringVar(value="Manufacturing input —"),
             "damage": tk.StringVar(value="Damage 0.0"),
             "loadout": tk.StringVar(value="No active loadout"),
             "durability": tk.StringVar(value="Durability —"),
@@ -1688,6 +1703,7 @@ class StreamerWindow(tk.Toplevel):
             card.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
             tk.Label(card, text=title, bg="#0b1321", fg=tint, font=("Segoe UI", 6, "bold")).pack(anchor="w", padx=8, pady=(4, 0))
             tk.Label(card, textvariable=self.vars[key], bg="#0b1321", fg="#e5edf8", font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=8, pady=(0, 4))
+        tk.Label(self.outer, textvariable=self.vars["input"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(4, 0))
 
         trend = tk.Frame(self.outer, bg="#020617")
         trend.pack(fill="both", expand=True, pady=(4, 0))
@@ -1745,6 +1761,10 @@ class StreamerWindow(tk.Toplevel):
         self.vars["loot"].set(format_money(float(metrics['loot']), self.app.currency_mode.get()))
         self.vars["cost"].set(format_money(float(metrics['cost']), self.app.currency_mode.get()))
         self.vars["kills"].set(f"{kill_count}")
+        if int(float(metrics.get("manufacturing_attempt", 0))) > 0:
+            self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
+        else:
+            self.vars["input"].set("Manufacturing input —")
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
         durability = repair_durability_status(session)
@@ -2038,7 +2058,13 @@ def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
         payload = {}
     kind = row.get("kind")
     if kind == "loot":
-        return f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {format_money(float(payload.get('value', 0) or 0), mode)}"
+        description = f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {format_money(float(payload.get('value', 0) or 0), mode)}"
+        if payload.get("input_cost") is not None:
+            attempt = int(payload.get("attempt_number", 0) or 0)
+            total = int(payload.get("attempts_total", 0) or 0)
+            progress = f" • Craft {attempt}/{total}" if attempt and total else ""
+            description += f" • Input {float(payload['input_cost'] or 0):.2f} PED{progress}"
+        return description
     if kind == "combat":
         cost = f" • {format_money(float(payload['shot_cost']), mode, decimals=5)}" if "shot_cost" in payload else ""
         if "damage" in payload:
@@ -2387,6 +2413,9 @@ def streamer_metrics(session: SessionSummary | None) -> dict[str, float | str]:
             "damage": 0.0,
             "events": 0.0,
             "loadout": "No active session",
+            "last_input_cost": 0.0,
+            "manufacturing_attempt": 0.0,
+            "manufacturing_attempts_total": 0.0,
         }
     return_pct = _return_pct(session)
     loadout = (session.loadout_name or "No loadout snapshot").splitlines()[0].strip()
@@ -2398,6 +2427,9 @@ def streamer_metrics(session: SessionSummary | None) -> dict[str, float | str]:
         "damage": session.combat_damage,
         "events": float(session.events),
         "loadout": loadout,
+        "last_input_cost": session.last_input_cost,
+        "manufacturing_attempt": float(session.manufacturing_attempt),
+        "manufacturing_attempts_total": float(session.manufacturing_attempts_total),
     }
 
 

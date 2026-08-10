@@ -26,6 +26,10 @@ class SessionSummary:
     loadout_snapshot: dict[str, object] | None = None
     repair_shots: int = 0
     repair_decay: float = 0.0
+    last_input_cost: float = 0.0
+    manufacturing_attempt: int = 0
+    manufacturing_attempts_total: int = 0
+    manufacturing_attempts_remaining: int = 0
 
 
 @dataclass(slots=True)
@@ -286,6 +290,56 @@ class Store:
                 (session_id, timestamp, event["kind"], event["raw_message"], payload),
             )
             self._recompute_session_repair_state(conn, session_id)
+            conn.commit()
+
+    def allocate_manufacturing_attempt(self, session_id: str, craft_item: str | None = None) -> dict[str, object] | None:
+        """Reserve one FIFO manufacturing attempt and persist its attribution."""
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            offsets = conn.execute("SELECT payload FROM events WHERE session_id = ? AND kind = 'manufacturing_offset' ORDER BY id", (session_id,)).fetchall()
+            for row in offsets:
+                try:
+                    offset = json.loads(row["payload"] or "{}")
+                    offset_id = str(offset["offset_id"])
+                    total = int(offset.get("attempts_total", 0) or 0)
+                    cost = float(offset.get("cost_per_attempt", 0.0) or 0.0)
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    continue
+                used = conn.execute("SELECT COUNT(*) AS used FROM events WHERE session_id = ? AND kind = 'manufacturing_allocation' AND json_extract(payload, '$.offset_id') = ?", (session_id, offset_id)).fetchone()["used"]
+                if int(used or 0) >= total:
+                    continue
+                allocation = {"allocation_id": uuid.uuid4().hex, "offset_id": offset_id, "craft_item": str(craft_item or "").strip(), "attempt_number": int(used or 0) + 1, "attempts_total": total, "attempts_remaining": total - int(used or 0) - 1, "input_cost": cost, "status": "craft_recorded"}
+                conn.execute("INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)", (session_id, None, "manufacturing_allocation", "Manufacturing attempt allocated", json.dumps(allocation)))
+                conn.commit()
+                return allocation
+            conn.commit()
+        return None
+
+    def add_manufacturing_output(self, session_id: str, event: dict, output_item: str) -> None:
+        """Insert manufacturing output and pair it with its allocation atomically."""
+        wanted = _normalize_manufacturing_item(output_item)
+        payload = dict(event.get("payload", {}))
+        timestamp = event.get("timestamp")
+        if timestamp is not None and not isinstance(timestamp, str):
+            timestamp = str(timestamp)
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            if wanted:
+                rows = conn.execute("SELECT id, payload FROM events WHERE session_id = ? AND kind = 'manufacturing_allocation' ORDER BY id", (session_id,)).fetchall()
+                for row in rows:
+                    try:
+                        allocation = json.loads(row["payload"] or "{}")
+                    except json.JSONDecodeError:
+                        continue
+                    craft_item = _normalize_manufacturing_item(str(allocation.get("craft_item") or ""))
+                    if allocation.get("status") != "craft_recorded" or not craft_item or craft_item != wanted:
+                        continue
+                    allocation["status"] = "paired"
+                    allocation["output_item"] = output_item
+                    conn.execute("UPDATE events SET payload = ? WHERE id = ?", (json.dumps(allocation), row["id"]))
+                    payload.update(allocation)
+                    break
+            conn.execute("INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)", (session_id, timestamp, event["kind"], event["raw_message"], json.dumps(payload, ensure_ascii=False)))
             conn.commit()
 
     def _recompute_session_repair_state(self, conn: sqlite3.Connection, session_id: str) -> None:
@@ -625,9 +679,13 @@ _SESSION_SUMMARY_SQL = """
                     COALESCE(json_extract(e.payload, '$.shot_cost'), json_extract(e.payload, '$.ammo_cost'), 0)
                 WHEN e.kind = 'repair' AND json_valid(e.payload) THEN
                     COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
-                WHEN e.kind = 'craft' AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
+                WHEN e.kind IN ('craft', 'manufacturing_offset') AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                 ELSE 0
-            END), 0) AS hunting_cost
+            END), 0) AS hunting_cost,
+           COALESCE((SELECT json_extract(e2.payload, '$.input_cost') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.input_cost') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS last_input_cost,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempt_number') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempt_number') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempt,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempts_total') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_total') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_total,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempts_remaining') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_remaining') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_remaining
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
 """
@@ -669,6 +727,10 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         loadout_snapshot=loadout_snapshot,
         repair_shots=int(row["repair_shots"] or 0),
         repair_decay=float(row["repair_decay"] or 0),
+        last_input_cost=float(row["last_input_cost"] or 0),
+        manufacturing_attempt=int(row["manufacturing_attempt"] or 0),
+        manufacturing_attempts_total=int(row["manufacturing_attempts_total"] or 0),
+        manufacturing_attempts_remaining=int(row["manufacturing_attempts_remaining"] or 0),
     )
 
 
@@ -739,6 +801,14 @@ def loadout_to_dict(loadout: LoadoutRecord | None) -> dict[str, object] | None:
         "repair_items": loadout.repair_items or [],
     }
 
+
+
+def _normalize_manufacturing_item(value: str) -> str:
+    normalized = " ".join(value.casefold().strip().split())
+    for suffix in (" blueprint", " bp"):
+        if normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)].rstrip()
+    return normalized
 
 
 def _is_malformed_database_error(exc: sqlite3.DatabaseError) -> bool:
