@@ -32,7 +32,7 @@ The release asset is currently an unsigned Windows executable. Review the source
 
 1. In Entropia Universe, enable chat logging.
 2. Download and run the [latest Windows release](https://github.com/suttonwilliamd/ped-hunter/releases/latest).
-3. In **Setup**, select the Entropia Universe `chat.log` file.
+3. Use the **Chat log** control in the top bar to select the Entropia Universe `chat.log` file.
 4. Configure a loadout before starting a session if you want cost estimates.
 5. Start tracking, play, then stop the session and review its summary and history.
 

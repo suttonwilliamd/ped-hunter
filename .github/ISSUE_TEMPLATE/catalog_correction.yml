@@ -1,0 +1,85 @@
+name: Catalog correction
+description: Propose an evidence-backed catalog correction or addition
+title: "[Catalog]: "
+labels:
+  - catalog
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Catalog data is community-derived and corrections must be verifiable. Cite stable public sources where possible and include the date checked.
+
+        Do not paste chat logs or expose player names, account details, private messages, or personal data. If evidence is an in-game screenshot, crop and sanitize it before attaching. Security concerns belong in [SECURITY.md](https://github.com/suttonwilliamd/ped-hunter/blob/main/SECURITY.md).
+
+  - type: input
+    id: item
+    attributes:
+      label: Exact item or blueprint name
+      placeholder: Frontier Hunting Rifle
+    validations:
+      required: true
+
+  - type: dropdown
+    id: catalog
+    attributes:
+      label: Catalog area
+      options:
+        - Weapon
+        - Attachment, amplifier, scope, or sight
+        - Resource
+        - Blueprint or crafting materials
+        - Alias
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: field
+    attributes:
+      label: Field to correct
+      placeholder: ammo, decay, category, materials, alias, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: values
+    attributes:
+      label: Current and proposed values
+      placeholder: |
+        Current: ...
+        Proposed: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Provide public source URLs, source titles, relevant quoted values, and the date checked. Explain any discrepancy between sources. Attach only sanitized, tightly cropped images if no public source exists.
+      placeholder: |
+        Source URL: https://...
+        Source title: ...
+        Value shown: ...
+        Checked: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Optional. Explain aliases, units, item variants, or how the correction can be reproduced.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing catalog issues for this item and correction.
+          required: true
+        - label: I included evidence that maintainers can review.
+          required: true
+        - label: Any attached image is cropped and sanitized, and this report contains no chat logs, player names, account data, secrets, or other personal data.
+          required: true
+        - label: This is not a security vulnerability; security reports follow SECURITY.md.
+          required: true
