@@ -3,6 +3,16 @@
 
 Free, local-first Entropia Universe profit intelligence.
 
+> [!IMPORTANT]
+> PED Hunter is an unofficial community project and is not affiliated with or
+> endorsed by MindArk or Entropia Universe. Its calculations and catalog data
+> may be incomplete or inaccurate, and using it does not guarantee profit.
+
+PED Hunter reads the chat log you select and stores parsed events, session
+summaries, and loadouts in a SQLite database on your computer. See
+[PRIVACY.md](PRIVACY.md) for details, including the explicit catalog-download
+operation.
+
 ## Philosophy
 
 - free for everyone forever
