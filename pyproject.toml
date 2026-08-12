@@ -20,6 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 ped-hunter = "ped_hunter.cli:main"
 
