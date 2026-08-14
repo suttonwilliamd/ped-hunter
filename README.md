@@ -1,101 +1,79 @@
-
 # PED Hunter
 
-Free, local-first Entropia Universe profit intelligence.
+[![CI](https://github.com/suttonwilliamd/ped-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/suttonwilliamd/ped-hunter/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/suttonwilliamd/ped-hunter)](https://github.com/suttonwilliamd/ped-hunter/releases/latest)
 
-## Philosophy
+**A free, local-first Entropia Universe session, loot, cost, and return tracker for Windows.**
 
-- free for everyone forever
-- donations welcome, no paid API or account wall
-- local-first by default
-- modern, simple, and extensible
+PED Hunter follows the Entropia Universe chat log, organizes activity into sessions, and helps compare loot with configured weapon and loadout costs. It requires no account and stores its working data on your computer.
 
-## What it does
+> [!IMPORTANT]
+> PED Hunter is alpha software and an unofficial community project. It is not affiliated with or endorsed by MindArk or Entropia Universe. Parsed events, catalog values, costs, and calculations may be incomplete or inaccurate. PED Hunter does not predict or guarantee profit.
 
-- tracks Entropia chat logs for loot, combat, crafting, and skill events
-- stores sessions in SQLite
-- seeds item/resource/crafting catalogs from the legacy LootNanny data files
-- resolves community shorthand like `Frontier Rifle` to the actual starter weapon `Frontier Hunting Rifle`
-- computes derived values like cost per shot from the item catalog
+## Download
 
-## Interface direction
+[**Download the latest Windows executable**](https://github.com/suttonwilliamd/ped-hunter/releases/latest)
 
-PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracker that follows chat logs and summarizes loot, combat, skills, and crafting — but updates it into a cleaner local-first desktop cockpit:
+The release asset is currently an unsigned Windows executable. Review the source and release details before running it. Running `PED-Hunter.exe` without arguments opens the desktop dashboard.
 
-- dashboard summary cards for live loot, combat damage, event count, stored sessions, and tracking state
-- clear start/stop controls with visible chat-log status
-- recent session history backed by SQLite
-- live event stream for parsed chat lines
-- LootNanny-style session skill-gain summary with total XP, procs, and proc share by skill
-- loadout builder inspired by LootNanny's Config flow so hunt costs are based on weapon, amp, scope/sights, and enhancers
-- catalog search with weapon cost/shot details and aliases
-- setup guidance for first-time users
+## Features
 
-The goal is to keep the useful parts of LootNanny's workflow while avoiding dense legacy form layouts and making room for richer modern catalog sources.
+- Live monitoring of loot, combat, crafting, skill, and global chat events
+- Session summaries for loot, configured costs, return, and history
+- Loadouts for weapons, amplifiers, scopes, sights, and enhancers
+- Repair and durability tracking based on configured equipment
+- Crafting runs, WTB listings, catalog search, and shorthand aliases
+- Compact streamer overlay
+- Local SQLite storage with no account or telemetry
+- Command-line monitoring, statistics, and catalog lookup
 
 ## Quick start
 
-Download the Windows `.exe` from the latest GitHub release, or run from source:
+1. In Entropia Universe, enable chat logging.
+2. Download and run the [latest Windows release](https://github.com/suttonwilliamd/ped-hunter/releases/latest).
+3. Use the **Chat log** control in the top bar to select the Entropia Universe `chat.log` file.
+4. Configure a loadout before starting a session if you want cost estimates.
+5. Start tracking, play, then stop the session and review its summary and history.
 
-Running `PED-Hunter.exe` with no arguments opens the dashboard. Command-line subcommands are still available from a terminal.
+PED Hunter records only events it can recognize from the selected log. Validate important totals against the game before relying on them.
 
-1. Install Python 3.11+
-2. Create the normalized catalog:
+## Run from source
+
+Python 3.11 or newer is required.
 
 ```bash
-python tools/sync_legacy_data.py
-```
-
-3. Launch the dashboard:
-
-```bash
+git clone https://github.com/suttonwilliamd/ped-hunter.git
+cd ped-hunter
+python -m pip install -e ".[dev]"
 python -m ped_hunter gui
 ```
 
-4. Watch a log file:
+Useful commands:
 
 ```bash
-ped-hunter monitor --chat-log "%APPDATA%/Entropia Universe/chat.log"
-```
-
-5. Ask for stats:
-
-```bash
+ped-hunter monitor --chat-log "path/to/chat.log"
 ped-hunter stats
+ped-hunter weapon "Frontier Hunting Rifle"
+ped-hunter seed-data
 ```
 
-6. Look up a weapon:
+The explicit `seed-data` command downloads catalog JSON from the legacy LootNanny repository. Normal session monitoring does not upload chat or database data. See [Privacy](PRIVACY.md) for exact behavior and local file locations.
 
-```bash
-ped-hunter weapon "Frontier Rifle"
-```
+## Catalog and calculation limitations
 
-## Building the Windows executable
+The bundled catalog is seeded primarily from legacy LootNanny data and includes selected supplemental entries. It may be stale or incomplete. Cost and return estimates depend on recognized log messages, current item data, and the loadout values you enter. TT values and player-market markup are not interchangeable.
 
-Release executables are built with PyInstaller:
+Found incorrect data? Submit a [catalog correction](https://github.com/suttonwilliamd/ped-hunter/issues/new?template=catalog_correction.yml) with a verifiable source.
 
-```bash
-python -m PyInstaller PED-Hunter.spec
-```
+## Help and feedback
 
-The spec bundles `data/catalog/` so catalog lookups work from the standalone `.exe`.
+- [Report a bug](https://github.com/suttonwilliamd/ped-hunter/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/suttonwilliamd/ped-hunter/issues/new?template=feature_request.yml)
+- [Ask the community](https://github.com/suttonwilliamd/ped-hunter/discussions)
+- [Review open issues](https://github.com/suttonwilliamd/ped-hunter/issues)
 
-## Data source
+Do not post real chat logs, avatar names, private messages, or other personal data. Redact examples first. Report security issues privately as described in [Security](SECURITY.md).
 
-The seed catalog is imported from the legacy LootNanny database files at:
-https://github.com/euloggeradmin/LootNanny
+## Contributing
 
-The legacy LootNanny seed set does not currently include the newer Frontier starter weapons, so PED Hunter adds supplemental entries backed by EntropiaWiki and Entropia Nexus:
-
-- `Frontier Hunting Rifle`
-- `Frontier Combat Knife`
-- `Frontier Combat Knife, Adjusted`
-- Sources: [EntropiaWiki weapon id 3070](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3070), [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle), [Entropia Nexus Frontier Combat Knife](https://entropianexus.com/items/weapons/Frontier~Combat~Knife), [Entropia Nexus Frontier Combat Knife, Adjusted](https://entropianexus.com/items/weapons/Frontier~Combat~Knife~Adjusted)
-
-For convenience, PED Hunter also accepts the shorthand:
-
-- `Frontier Rifle` → `Frontier Hunting Rifle`
-
-## Notes
-
-The legacy LootNanny seed set is useful, but PED Hunter is being rebuilt with a cleaner architecture and a more modern feel.
+Contributions and carefully sourced catalog corrections are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.

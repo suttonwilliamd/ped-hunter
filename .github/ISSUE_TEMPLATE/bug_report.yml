@@ -1,0 +1,95 @@
+name: Bug report
+description: Report a reproducible problem in PED Hunter
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Search existing issues first.
+
+        **Privacy:** Use synthetic or thoroughly sanitized examples. Do not paste or attach a complete chat log, production database, crash log, player names, account details, or private messages.
+
+        **Security:** Do not report vulnerabilities here. Follow [SECURITY.md](https://github.com/suttonwilliamd/ped-hunter/blob/main/SECURITY.md) for private reporting.
+
+  - type: input
+    id: version
+    attributes:
+      label: PED Hunter version
+      description: Find this in the release name or package metadata.
+      placeholder: v0.3.31
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installation type
+      options:
+        - Windows release executable
+        - Source checkout
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 23H2, Ubuntu 24.04, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe what went wrong and its impact. Do not include personal or private data.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reproducible sequence, using synthetic or sanitized data only.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Optional. Include only the minimum relevant traceback or synthetic log lines after removing names, chat messages, account data, local personal paths, and secrets. Never attach a full chat log or database.
+      render: text
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed personal data, real chat content, account details, secrets, and identifying local paths from this report.
+          required: true
+        - label: This is not a security vulnerability; security reports follow SECURITY.md.
+          required: true

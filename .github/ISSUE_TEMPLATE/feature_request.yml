@@ -1,0 +1,73 @@
+name: Feature request
+description: Suggest an improvement to PED Hunter
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the user problem and desired outcome. Please do not include real chat logs, player information, account data, or other personal information.
+
+        Suspected vulnerabilities must be reported privately using [SECURITY.md](https://github.com/suttonwilliamd/ped-hunter/blob/main/SECURITY.md), not this form.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: What is difficult today, and who would benefit?
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the behavior or workflow you would like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Describe current workarounds or other approaches.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dashboard and sessions
+        - Chat parsing
+        - Hunting setups and costs
+        - Manufacturing
+        - Catalog
+        - WTB and trade
+        - Streamer view
+        - Command line
+        - Packaging or installation
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: data_effects
+    attributes:
+      label: Local data or network impact
+      description: Would this change stored data, retention, external connections, or privacy? Write "None known" if not applicable.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues for this request.
+          required: true
+        - label: This request contains no real chat logs, player information, account data, secrets, or other personal data.
+          required: true
+        - label: This is not a security vulnerability; security reports follow SECURITY.md.
+          required: true
