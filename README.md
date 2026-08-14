@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/suttonwilliamd/ped-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/suttonwilliamd/ped-hunter/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/suttonwilliamd/ped-hunter)](https://github.com/suttonwilliamd/ped-hunter/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **A free, local-first Entropia Universe session, loot, cost, and return tracker for Windows.**
 
@@ -78,5 +77,3 @@ Do not post real chat logs, avatar names, private messages, or other personal da
 ## Contributing
 
 Contributions and carefully sourced catalog corrections are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
-PED Hunter is available under the [MIT License](LICENSE).

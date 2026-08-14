@@ -103,7 +103,3 @@ The project version is duplicated intentionally for packaging. If a release chan
 - `installer/PED-Hunter.iss` — `MyAppVersion`
 
 `tests/test_version_consistency.py` enforces those three values. Also update release-facing documentation and asset names, including any versioned Windows download link in `README.md`, as part of the release process.
-
-## License
-
-By contributing, you agree that your contribution will be licensed under the repository's [MIT License](LICENSE).
