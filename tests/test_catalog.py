@@ -83,6 +83,37 @@ def test_cli_seed_normalization_keeps_frontier_hunting_rifle_distinct():
     assert weapons["Frontier Hunting Rifle"]["aliases"] == ["Frontier Rifle"]
 
 
+def test_mining_finders_are_distinct_catalog_records():
+    catalog = Catalog.load()
+    expected = {
+        "Locator MK1 (L)": (10, 0.00239, 0.1, 0.002),
+        "A.R.C. Finder 0001 (L)": (100, 0.0025, 0.1, 0.00251),
+        "Finder F-101": (100, 0.01, 5.5, 0.165),
+        "Finder F-105": (100, 0.0205, 82.0, 2.46),
+        "Finder F-213 (L)": (100, 0.0166, 201.2, 6.036),
+    }
+    for name, (ammo, decay, max_tt, min_tt) in expected.items():
+        finder = catalog.find_weapon(name)
+        assert finder is not None
+        assert finder.category == "Mining Finder"
+        assert (finder.ammo, finder.decay, finder.max_tt, finder.min_tt) == (ammo, decay, max_tt, min_tt)
+        assert finder.source_name == "Entropia Nexus"
+
+
+def test_normalize_preserves_mining_finder_supplemental_records():
+    normalized = _normalize({
+        "weapons.json": {"data": {}},
+        "attachments.json": {"data": {}},
+        "scopes.json": {"data": {}},
+        "sights.json": {"data": {}},
+        "resources.json": {"data": {}},
+        "crafting.json": {"data": {}},
+    })
+    by_name = {item["name"]: item for item in normalized["weapons.json"]["items"]}
+    assert len([item for item in by_name.values() if item["category"] == "Mining Finder"]) == 11
+    assert by_name["Finder F-102"]["decay"] == 0.0115
+
+
 def test_cli_no_args_launches_gui_by_default(monkeypatch):
     launched = False
 

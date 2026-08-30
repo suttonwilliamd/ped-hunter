@@ -47,6 +47,20 @@ FRONTIER_COMBAT_KNIFE_ADJUSTED = {
 }
 ZX_SINKADUS_TT = {"max_tt": 0.5, "min_tt": 0.001}
 
+MINING_FINDERS = [
+    {"name": "Locator MK1 (L)", "category": "Mining Finder", "ammo": 10, "decay": 0.00239, "source_name": "Entropia Nexus", "max_tt": 0.1, "min_tt": 0.002},
+    {"name": "A.R.C. Finder 0001 (L)", "category": "Mining Finder", "ammo": 100, "decay": 0.0025, "source_name": "Entropia Nexus", "max_tt": 0.1, "min_tt": 0.00251},
+    {"name": "Finder F-101", "category": "Mining Finder", "ammo": 100, "decay": 0.01, "source_name": "Entropia Nexus", "max_tt": 5.5, "min_tt": 0.165},
+    {"name": "Finder F-102", "category": "Mining Finder", "ammo": 100, "decay": 0.0115, "source_name": "Entropia Nexus", "max_tt": 30.0, "min_tt": 0.9},
+    {"name": "Finder F-103", "category": "Mining Finder", "ammo": 100, "decay": 0.0145, "source_name": "Entropia Nexus", "max_tt": 55.0, "min_tt": 1.5},
+    {"name": "Finder F-104", "category": "Mining Finder", "ammo": 100, "decay": 0.01632, "source_name": "Entropia Nexus", "max_tt": 66.6, "min_tt": 1.998},
+    {"name": "Finder F-105", "category": "Mining Finder", "ammo": 100, "decay": 0.0205, "source_name": "Entropia Nexus", "max_tt": 82.0, "min_tt": 2.46},
+    {"name": "Finder F-210 (L)", "category": "Mining Finder", "ammo": 100, "decay": 0.01211, "source_name": "Entropia Nexus", "max_tt": 105.2, "min_tt": 3.15},
+    {"name": "Finder F-211 (L)", "category": "Mining Finder", "ammo": 100, "decay": 0.01306, "source_name": "Entropia Nexus", "max_tt": 121.2, "min_tt": 3.636},
+    {"name": "Finder F-212 (L)", "category": "Mining Finder", "ammo": 100, "decay": 0.01343, "source_name": "Entropia Nexus", "max_tt": 155.2, "min_tt": 4.656},
+    {"name": "Finder F-213 (L)", "category": "Mining Finder", "ammo": 100, "decay": 0.0166, "source_name": "Entropia Nexus", "max_tt": 201.2, "min_tt": 6.036},
+]
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ped-hunter", description="PED Hunter - local-first Entropia profit tracking")
@@ -245,6 +259,7 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
             FRONTIER_HUNTING_RIFLE.copy(),
         ]
     )
+    weapon_items.extend(item.copy() for item in MINING_FINDERS)
 
     attachment_items = []
     for source in (attachments, scopes, sights):

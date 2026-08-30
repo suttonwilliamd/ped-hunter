@@ -545,6 +545,15 @@
       "source_name": "LootNanny legacy seed"
     },
     {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.0025,
+      "max_tt": 0.1,
+      "min_tt": 0.00251,
+      "name": "A.R.C. Finder 0001 (L)",
+      "source_name": "Entropia Nexus"
+    },
+    {
       "aliases": [],
       "ammo": 325,
       "category": "Flamethrower",
@@ -7897,6 +7906,87 @@
       "source_name": "LootNanny legacy seed"
     },
     {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.01,
+      "max_tt": 5.5,
+      "min_tt": 0.165,
+      "name": "Finder F-101",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.0115,
+      "max_tt": 30.0,
+      "min_tt": 0.9,
+      "name": "Finder F-102",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.0145,
+      "max_tt": 55.0,
+      "min_tt": 1.5,
+      "name": "Finder F-103",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.01632,
+      "max_tt": 66.6,
+      "min_tt": 1.998,
+      "name": "Finder F-104",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.0205,
+      "max_tt": 82.0,
+      "min_tt": 2.46,
+      "name": "Finder F-105",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.01211,
+      "max_tt": 105.2,
+      "min_tt": 3.15,
+      "name": "Finder F-210 (L)",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.01306,
+      "max_tt": 121.2,
+      "min_tt": 3.636,
+      "name": "Finder F-211 (L)",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.01343,
+      "max_tt": 155.2,
+      "min_tt": 4.656,
+      "name": "Finder F-212 (L)",
+      "source_name": "Entropia Nexus"
+    },
+    {
+      "ammo": 100,
+      "category": "Mining Finder",
+      "decay": 0.0166,
+      "max_tt": 201.2,
+      "min_tt": 6.036,
+      "name": "Finder F-213 (L)",
+      "source_name": "Entropia Nexus"
+    },
+    {
       "aliases": [],
       "ammo": 1500,
       "category": "Rifle",
@@ -15247,6 +15337,15 @@
       "decay": 0.009,
       "name": "Lichter Hunting Carbine",
       "source_name": "LootNanny legacy seed"
+    },
+    {
+      "ammo": 10,
+      "category": "Mining Finder",
+      "decay": 0.00239,
+      "max_tt": 0.1,
+      "min_tt": 0.002,
+      "name": "Locator MK1 (L)",
+      "source_name": "Entropia Nexus"
     },
     {
       "aliases": [],
