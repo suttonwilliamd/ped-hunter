@@ -949,6 +949,7 @@ class PedHunterApp(tk.Tk):
         self.current_log_path = path
         self._last_ingested_log_line = None
         self._full_refresh_pending = False
+        self.store.end_other_active_sessions()
         self.session_id = self.store.start_session("hunt", active_loadout)
         self.last_size = path.stat().st_size
         self.running = True
@@ -991,6 +992,7 @@ class PedHunterApp(tk.Tk):
         self.current_log_path = path
         self._last_ingested_log_line = None
         self._full_refresh_pending = False
+        self.store.end_other_active_sessions(session_id)
         self.session_id = session_id
         self.last_size = path.stat().st_size
         self.running = True

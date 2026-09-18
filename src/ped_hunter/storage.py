@@ -221,6 +221,23 @@ class Store:
             )
             conn.commit()
 
+    def end_other_active_sessions(self, session_id: str | None = None) -> int:
+        """Close stale concurrent sessions before starting/resuming one run."""
+        ended_at = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as conn:
+            if session_id is None:
+                cursor = conn.execute(
+                    "UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL",
+                    (ended_at,),
+                )
+            else:
+                cursor = conn.execute(
+                    "UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL AND id != ?",
+                    (ended_at, session_id),
+                )
+            conn.commit()
+            return int(cursor.rowcount)
+
     def resume_session(self, session_id: str) -> None:
         """Reopen a saved session so new events can be appended to it."""
         with self.connect() as conn:
