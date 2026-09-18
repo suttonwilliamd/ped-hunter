@@ -1185,6 +1185,11 @@ class PedHunterApp(tk.Tk):
         last_ingested_log_line: str | None,
     ) -> tuple[int, str | None]:
         parsed = 0
+        session_state = self.store.get_session(session_id)
+        if session_state is None or session_state.ended_at is not None:
+            # A stale worker from a stopped/older GUI must never keep appending
+            # events to an ended session.
+            return 0, last_ingested_log_line
         active_loadout = self.store.get_active_loadout()
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)

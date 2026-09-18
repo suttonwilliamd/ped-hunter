@@ -9,6 +9,7 @@ import time
 import traceback
 import urllib.request
 import json
+from contextlib import contextmanager
 
 from .catalog import Catalog
 from .parser import parse_line
@@ -109,11 +110,61 @@ def main(argv: list[str] | None = None) -> int:
     return 1
 
 
+def _gui_lock_path() -> Path:
+    return Path.home() / "AppData" / "Local" / "ped-hunter" / "PED-Hunter.gui.lock"
+
+
+@contextmanager
+def _single_gui_instance():
+    """Hold an OS lock so two GUI workers cannot ingest the same chat log."""
+    lock_path = _gui_lock_path()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+b")
+    try:
+        handle.seek(0)
+        handle.write(b"0")
+        handle.flush()
+        try:
+            import msvcrt
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        except (ImportError, OSError):
+            try:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (ImportError, OSError):
+                raise RuntimeError("another PED Hunter GUI instance is already running") from None
+        yield
+    finally:
+        try:
+            handle.seek(0)
+            if sys.platform.startswith("win"):
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except (ImportError, OSError):
+            pass
+        handle.close()
+
+
 def _launch_gui() -> int:
     try:
-        from .app import main as gui_main
-
-        return gui_main()
+        with _single_gui_instance():
+            from .app import main as gui_main
+            return gui_main()
+    except RuntimeError as exc:
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showwarning("PED Hunter already running", str(exc))
+            root.destroy()
+        except Exception:
+            pass
+        return 1
     except Exception as exc:  # pragma: no cover - defensive desktop startup guard
         log_path = Path.home() / "AppData" / "Local" / "ped-hunter" / "crash.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
