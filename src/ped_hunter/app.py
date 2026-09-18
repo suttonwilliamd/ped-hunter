@@ -1756,7 +1756,13 @@ class StreamerWindow(tk.Toplevel):
 
     def update_from_session(self, session: SessionSummary | None) -> None:
         metrics = streamer_metrics(session)
-        kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+        try:
+            kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+        except Exception:
+            # A malformed/very large historical session must not take down live
+            # log ingestion or the main dashboard just because the overlay chart
+            # cannot be refreshed.
+            kill_points = []
         kill_count = len(kill_points)
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
@@ -2453,16 +2459,20 @@ def _parse_event_timestamp(value: object) -> float | None:
 def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) -> list[dict[str, object]]:
     if not session_id:
         return []
-    with store.connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT id, timestamp, kind, payload
-            FROM events
-            WHERE session_id = ?
-            ORDER BY COALESCE(timestamp, ''), id
-            """,
-            (session_id,),
-        ).fetchall()
+    def iter_rows():
+        # Keep the cursor and connection alive while streaming rows. Calling
+        # fetchall() here made the overlay refresh vulnerable to MemoryError on
+        # long-lived sessions.
+        with store.connect() as conn:
+            yield from conn.execute(
+                """
+                SELECT id, timestamp, kind, payload
+                FROM events
+                WHERE session_id = ?
+                ORDER BY COALESCE(timestamp, ''), id
+                """,
+                (session_id,),
+            )
 
     points: list[dict[str, object]] = []
     cluster_cost = 0.0
@@ -2520,7 +2530,7 @@ def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) ->
             return float(shot_cost or 0.0)
         return float(payload.get("ammo_cost") or 0.0) + float(payload.get("repair_decay") or 0.0)
 
-    for row in rows:
+    for row in iter_rows():
         try:
             payload = json.loads(str(row["payload"] or "{}"))
         except json.JSONDecodeError:
