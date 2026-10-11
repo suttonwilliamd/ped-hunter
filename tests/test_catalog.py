@@ -1,6 +1,62 @@
 from ped_hunter.catalog import Catalog
 from ped_hunter import cli
 from ped_hunter.cli import _normalize
+import pytest
+
+
+def test_package_version_matches_release_metadata():
+    import tomllib
+    from pathlib import Path
+    from ped_hunter import __version__
+    metadata = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())
+    assert __version__ == metadata["project"]["version"]
+
+
+
+def test_adjusted_frontier_rifle_has_verified_cost_and_tt():
+    catalog = Catalog.load()
+    weapon = catalog.find_weapon("Frontier Hunting Rifle, Adjusted")
+    assert weapon is not None
+    assert weapon.name == "Frontier Hunting Rifle, Adjusted"
+    assert weapon.category == "Rifle"
+    assert weapon.ammo == 180
+    assert weapon.decay == pytest.approx(0.0002)  # 0.020 PEC, stored in PED
+    assert weapon.cost_per_shot == pytest.approx(0.0182)
+    assert weapon.max_tt == 2.0
+    assert weapon.min_tt == 0.0
+    assert catalog.find_weapon("Frontier Rifle").ammo == 100
+
+
+def test_cli_seed_preserves_adjusted_frontier_rifle():
+    normalized = _normalize({
+        "weapons.json": {"data": {}},
+        "attachments.json": {"data": {}},
+        "scopes.json": {"data": {}},
+        "sights.json": {"data": {}},
+        "resources.json": {"data": {}},
+        "crafting.json": {"data": {}},
+    })
+    weapons = {item["name"]: item for item in normalized["weapons.json"]["items"]}
+    rifle = weapons["Frontier Hunting Rifle, Adjusted"]
+    assert (rifle["ammo"], rifle["decay"], rifle["max_tt"], rifle["min_tt"]) == (180, 0.0002, 2.0, 0.0)
+
+
+def test_legacy_sync_preserves_adjusted_frontier_rifle(tmp_path, monkeypatch):
+    import importlib.util
+    from pathlib import Path
+    import json
+    path = Path(__file__).resolve().parents[1] / "tools" / "sync_legacy_data.py"
+    spec = importlib.util.spec_from_file_location("sync_test", path)
+    sync = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sync)
+    monkeypatch.setattr(sync, "__file__", str(tmp_path / "tools" / "sync_legacy_data.py"))
+    monkeypatch.setattr(sync, "download", lambda name: {"data": {}})
+    assert sync.main() == 0
+    weapons = json.loads((tmp_path / "data/catalog/weapons.json").read_text())["items"]
+    matches = [item for item in weapons if item["name"] == "Frontier Hunting Rifle, Adjusted"]
+    assert len(matches) == 1
+    assert (matches[0]["ammo"], matches[0]["decay"], matches[0]["max_tt"], matches[0]["min_tt"]) == (180, 0.0002, 2.0, 0.0)
+
 
 
 def test_frontier_alias_resolves():

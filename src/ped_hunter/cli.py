@@ -26,6 +26,17 @@ FRONTIER_HUNTING_RIFLE = {
     "max_tt": 2.0,
     "min_tt": 0.0,
 }
+# Nexus/Wiki decay is 0.020 PEC; catalog decay is stored in PED.
+FRONTIER_HUNTING_RIFLE_ADJUSTED = {
+    "name": "Frontier Hunting Rifle, Adjusted",
+    "category": "Rifle",
+    "ammo": 180,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    "max_tt": 2.0,
+    "min_tt": 0.0,
+}
 FRONTIER_COMBAT_KNIFE = {
     "name": "Frontier Combat Knife",
     "category": "Knife",
@@ -308,6 +319,7 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
             FRONTIER_COMBAT_KNIFE.copy(),
             FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
             FRONTIER_HUNTING_RIFLE.copy(),
+            FRONTIER_HUNTING_RIFLE_ADJUSTED.copy(),
         ]
     )
     weapon_items.extend(item.copy() for item in MINING_FINDERS)

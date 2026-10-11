@@ -15,6 +15,17 @@ FRONTIER_HUNTING_RIFLE = {
     "aliases": ["Frontier Rifle"],
     "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
 }
+# Nexus/Wiki decay is 0.020 PEC; catalog decay is stored in PED.
+FRONTIER_HUNTING_RIFLE_ADJUSTED = {
+    "name": "Frontier Hunting Rifle, Adjusted",
+    "category": "Rifle",
+    "ammo": 180,
+    "decay": 0.0002,
+    "aliases": [],
+    "source_name": "EntropiaWiki/Entropia Nexus supplemental seed",
+    "max_tt": 2.0,
+    "min_tt": 0.0,
+}
 FRONTIER_COMBAT_KNIFE = {
     "name": "Frontier Combat Knife",
     "category": "Knife",
@@ -98,6 +109,7 @@ def main() -> int:
         FRONTIER_COMBAT_KNIFE.copy(),
         FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
         FRONTIER_HUNTING_RIFLE.copy(),
+        FRONTIER_HUNTING_RIFLE_ADJUSTED.copy(),
         SET_P1_CIVILIAN_SIDEARM_ADJUSTED.copy(),
         SET_P2_SCOUT_SIDEARM.copy(),
     ])

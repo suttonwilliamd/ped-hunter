@@ -8452,6 +8452,16 @@
     },
     {
       "aliases": [],
+      "ammo": 180,
+      "category": "Rifle",
+      "decay": 0.0002,
+      "max_tt": 2.0,
+      "min_tt": 0.0,
+      "name": "Frontier Hunting Rifle, Adjusted",
+      "source_name": "EntropiaWiki/Entropia Nexus supplemental seed"
+    },
+    {
+      "aliases": [],
       "ammo": 0,
       "category": "Melee",
       "decay": 0.041,

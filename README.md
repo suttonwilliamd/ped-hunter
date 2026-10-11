@@ -88,9 +88,12 @@ https://github.com/euloggeradmin/LootNanny
 The legacy LootNanny seed set does not currently include the newer Frontier starter weapons, so PED Hunter adds supplemental entries backed by EntropiaWiki and Entropia Nexus:
 
 - `Frontier Hunting Rifle`
+- `Frontier Hunting Rifle, Adjusted`
 - `Frontier Combat Knife`
 - `Frontier Combat Knife, Adjusted`
 - Sources: [EntropiaWiki weapon id 3070](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3070), [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle), [Entropia Nexus Frontier Combat Knife](https://entropianexus.com/items/weapons/Frontier~Combat~Knife), [Entropia Nexus Frontier Combat Knife, Adjusted](https://entropianexus.com/items/weapons/Frontier~Combat~Knife~Adjusted)
+
+For `Frontier Hunting Rifle, Adjusted`, the catalog uses 180 ammo per shot, 0.020 PEC decay (stored as 0.0002 PED), and TT limits of 0–2 PED. Total cost is 1.820 PEC (0.0182 PED) per shot. The base rifle and its `Frontier Rifle` alias remain unchanged. Verified against [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle%2C~Adjusted) and [EntropiaWiki weapon id 3065](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3065).
 
 For convenience, PED Hunter also accepts the shorthand:
 
