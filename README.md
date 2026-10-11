@@ -54,8 +54,11 @@ python -m ped_hunter gui
 
 4. Watch a log file:
 
-```bash
-ped-hunter monitor --chat-log "%APPDATA%/Entropia Universe/chat.log"
+On Windows, the dashboard uses Windows' configured Documents folder, including OneDrive or domain redirection. For command-line monitoring, use PowerShell to resolve that same location:
+
+```powershell
+$chatLog = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Entropia Universe\chat.log'
+ped-hunter monitor --chat-log "$chatLog"
 ```
 
 5. Ask for stats:

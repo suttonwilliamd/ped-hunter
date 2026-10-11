@@ -1973,6 +1973,24 @@ class StreamerWindow(tk.Toplevel):
 
 
 def _default_chat_log_path() -> Path:
+    import sys
+
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        try:
+            # Ask the shell for the current Documents location, including
+            # OneDrive/domain redirection, rather than constructing it at home.
+            get_folder = ctypes.WinDLL("shell32", use_last_error=True).SHGetFolderPathW
+            get_folder.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.HANDLE,
+                                   wintypes.DWORD, wintypes.LPWSTR]
+            get_folder.restype = ctypes.c_long
+            buffer = ctypes.create_unicode_buffer(32768)
+            if get_folder(None, 5, None, 0, buffer) == 0 and buffer.value:
+                return Path(buffer.value) / "Entropia Universe" / "chat.log"
+        except (OSError, AttributeError):
+            pass
     return Path.home() / "Documents" / "Entropia Universe" / "chat.log"
 
 
