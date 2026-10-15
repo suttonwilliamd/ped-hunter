@@ -35,7 +35,8 @@ PATTERNS = {
 
 CONVERSION_OUTPUT_ITEM_NAMES = {"oil", "universal ammo"}
 CONVERSION_OUTPUT_ITEM_SUFFIXES = (" ingot",)
-TRADE_SEPARATOR_RE = re.compile(r"\s*(?:\||;|•|—|/)\s*")
+# Split ordinary slashes, but preserve the whitespace-delimited b/o price marker.
+TRADE_SEPARATOR_RE = re.compile(r"(?i)\s*(?:\||;|•|—|(?!(?<=\sb)/o\s)/)\s*")
 WTB_MARKER_RE = re.compile(r"(?i)\b(?:wtb|want\s+to\s+buy)\b")
 WTS_MARKER_RE = re.compile(r"(?i)\b(?:wts|want\s+to\s+sell)\b")
 PRICE_SPLIT_RE = re.compile(r"(?i)\s+(?:@|for|at|paying|offer(?:ing)?|buy(?:ing)?|b/o|bo)\s+")
