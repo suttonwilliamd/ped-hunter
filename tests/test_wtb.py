@@ -1,3 +1,5 @@
+import pytest
+
 from ped_hunter.app import _wtb_listings
 from ped_hunter.parser import extract_wtb_segments
 from ped_hunter.storage import Store
@@ -12,7 +14,34 @@ def test_extract_wtb_segments_from_mixed_trade_message():
     assert listings[0]["want"] == "Mod Merc"
 
 
-def test_wtb_listings_filters_trade_channels_and_parses_qty_and_price(tmp_path):
+@pytest.mark.parametrize("marker", ["b/o", "B/O", "b/O", "B/o"])
+def test_extract_wtb_segments_preserves_buyout_price(marker):
+    listings = extract_wtb_segments(
+        "#trade", "Alice", f"WTB 2x Mod Merc {marker} TT+10% / WTS EP-41"
+    )
+
+    assert len(listings) == 1
+    assert listings[0]["want"] == "Mod Merc"
+    assert listings[0]["quantity"] == 2
+    assert listings[0]["price"] == "TT+10%"
+    assert listings[0]["segment"] == f"WTB 2x Mod Merc {marker} TT+10%"
+
+
+@pytest.mark.parametrize("separator", ["/", " / ", "|", ";", "•", "—"])
+@pytest.mark.parametrize("first_item,second_item", [("Mod Merc", "EP-41"), ("Club", "Oil")])
+def test_extract_wtb_segments_keeps_ordinary_listing_separators(
+    separator, first_item, second_item
+):
+    listings = extract_wtb_segments(
+        "#trade", "Alice", f"WTB {first_item}{separator}WTB {second_item}"
+    )
+
+    assert [listing["want"] for listing in listings] == [first_item, second_item]
+    assert [listing["price"] for listing in listings] == [None, None]
+
+
+@pytest.mark.parametrize("marker", ["@", "b/o", "B/O", "bo"])
+def test_wtb_listings_filters_trade_channels_and_parses_qty_and_price(tmp_path, marker):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")
     store.add_event(
@@ -20,11 +49,11 @@ def test_wtb_listings_filters_trade_channels_and_parses_qty_and_price(tmp_path):
         {
             "kind": "chat",
             "timestamp": "2026-07-05 10:00:00",
-            "raw_message": "[#trade] [Alice] WTB 2x Mod Merc @ TT+10% | WTS something else",
+            "raw_message": f"[#trade] [Alice] WTB 2x Mod Merc {marker} TT+10% | WTS something else",
             "payload": {
                 "channel": "#trade",
                 "speaker": "Alice",
-                "message": "WTB 2x Mod Merc @ TT+10% | WTS something else",
+                "message": f"WTB 2x Mod Merc {marker} TT+10% | WTS something else",
             },
         },
     )
