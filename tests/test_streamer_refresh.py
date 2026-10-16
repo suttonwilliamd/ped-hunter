@@ -10,8 +10,17 @@ from ped_hunter.app import (
     STREAMER_MIN_WIDTH,
     _kill_trend_points,
     _kill_trend_summary,
+    _resize_cursor,
 )
 from ped_hunter.storage import LoadoutRecord, Store
+
+
+@pytest.mark.parametrize(
+    ("windowing_system", "expected"),
+    [("win32", "size_nw_se"), ("x11", "bottom_right_corner"), ("aqua", "bottom_right_corner")],
+)
+def test_resize_cursor_uses_tk_backend(windowing_system: str, expected: str) -> None:
+    assert _resize_cursor(windowing_system) == expected
 
 
 def test_streamer_window_defaults_are_smaller_than_main_dashboard() -> None:
@@ -218,6 +227,14 @@ def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_f
         app._open_streamer_window()
         streamer = app.streamer_window
         assert streamer is not None
+        backend = str(streamer.tk.call("tk", "windowingsystem"))
+        bottom = streamer.outer.pack_slaves()[-1]
+        resize = next(widget for widget in bottom.pack_slaves() if widget.cget("text") == "◢")
+        expected_cursor = "size_nw_se" if backend == "win32" else "bottom_right_corner"
+        assert resize.cget("cursor") == expected_cursor
+        assert resize.bind("<ButtonPress-1>")
+        assert resize.bind("<B1-Motion>")
+        assert resize.bind("<ButtonRelease-1>")
         pack_order = streamer.outer.pack_slaves()
         assert pack_order.index(streamer.kill_chart.master) < pack_order.index(streamer.durability_bar.master)
 
