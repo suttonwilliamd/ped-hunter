@@ -920,9 +920,9 @@ class PedHunterApp(tk.Tk):
             self.chat_path.set(path)
 
     def _open_streamer_window(self) -> None:
+        """Toggle the streamer overlay, using its normal close cleanup."""
         if self.streamer_window and self.streamer_window.winfo_exists():
-            self.streamer_window.lift()
-            self.streamer_window.focus_force()
+            self.streamer_window.destroy()
             return
         self.streamer_window = StreamerWindow(self)
         self.streamer_window.update_from_session(self.store.get_current_session())
