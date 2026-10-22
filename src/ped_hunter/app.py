@@ -946,9 +946,9 @@ class PedHunterApp(tk.Tk):
             self.chat_path.set(path)
 
     def _open_streamer_window(self) -> None:
+        """Toggle the streamer overlay, using its normal close cleanup."""
         if self.streamer_window and self.streamer_window.winfo_exists():
-            self.streamer_window.lift()
-            self.streamer_window.focus_force()
+            self.streamer_window.destroy()
             return
         self.streamer_window = StreamerWindow(self)
         self.streamer_window.update_from_session(self.store.get_current_session())
@@ -1747,6 +1747,11 @@ class PedHunterApp(tk.Tk):
             )
 
 
+def _resize_cursor(windowing_system: str) -> str:
+    """Use Tk's backend, not the host OS; Aqua also supports X cursor names."""
+    return "size_nw_se" if windowing_system == "win32" else "bottom_right_corner"
+
+
 class StreamerWindow(tk.Toplevel):
     """Always-on-top compact overlay inspired by LootNanny's streamer window."""
 
@@ -1864,7 +1869,7 @@ class StreamerWindow(tk.Toplevel):
         bottom.pack(fill="x", pady=(3, 0))
         tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 5), wraplength=230, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
         tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 5)).pack(side="left", padx=(3, 0))
-        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 9, "bold"), cursor="size_nw_se")
+        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 9, "bold"), cursor=_resize_cursor(str(self.tk.call("tk", "windowingsystem"))))
         resize.pack(side="right", padx=(6, 0))
         resize.bind("<ButtonPress-1>", self._start_resize)
         resize.bind("<B1-Motion>", self._resize)
