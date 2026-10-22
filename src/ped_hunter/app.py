@@ -33,6 +33,7 @@ STREAMER_DEFAULT_WIDTH = 420
 STREAMER_DEFAULT_HEIGHT = 300
 STREAMER_MIN_WIDTH = 340
 STREAMER_MIN_HEIGHT = 250
+STREAMER_EDGE_MARGIN = 16
 KILL_CLUSTER_WINDOW_SECONDS = 0.75
 
 
@@ -1752,12 +1753,55 @@ def _resize_cursor(windowing_system: str) -> str:
     return "size_nw_se" if windowing_system == "win32" else "bottom_right_corner"
 
 
+def _streamer_work_area(window: tk.Misc) -> tuple[int, int, int, int]:
+    """Use the dashboard's monitor work area, excluding Windows taskbars/docks.
+
+    Native coordinates and Tk coordinates share this process's DPI context.
+    Other Tk backends (or a failed native lookup) use the Tk screen bounds.
+    """
+    fallback = (0, 0, window.winfo_screenwidth(), window.winfo_screenheight())
+    if str(window.tk.call("tk", "windowingsystem")) != "win32":
+        return fallback
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class MonitorInfo(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                        ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+        user32.MonitorFromWindow.restype = wintypes.HANDLE
+        user32.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MonitorInfo)]
+        user32.GetMonitorInfoW.restype = wintypes.BOOL
+        monitor = user32.MonitorFromWindow(window.winfo_id(), 2)  # nearest monitor
+        info = MonitorInfo()
+        info.cbSize = ctypes.sizeof(info)
+        if monitor and user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+            area = info.rcWork
+            if area.right > area.left and area.bottom > area.top:
+                return area.left, area.top, area.right, area.bottom
+    except (AttributeError, OSError, ValueError):
+        pass
+    return fallback
+
+
+def _bottom_right_position(bounds: tuple[int, int, int, int], width: int, height: int) -> tuple[int, int]:
+    left, top, right, bottom = bounds
+    return max(left, right - width - STREAMER_EDGE_MARGIN), max(top, bottom - height - STREAMER_EDGE_MARGIN)
+
+
 class StreamerWindow(tk.Toplevel):
     """Always-on-top compact overlay inspired by LootNanny's streamer window."""
 
     def __init__(self, app: PedHunterApp) -> None:
         super().__init__(app)
+        self.withdraw()  # fit and place before the first visible frame
         self.app = app
+        self._initial_work_area = _streamer_work_area(app)
+        self._initial_position_pending = True
+        self._user_positioned = False
         self.animator = Animator(self)
         self._feedback_context = None
         self._chart_phase = 1.0
@@ -1765,7 +1809,7 @@ class StreamerWindow(tk.Toplevel):
         self.configure(bg="#020617")
         self.attributes("-topmost", True)
         self.overrideredirect(True)
-        self.geometry(f"{STREAMER_DEFAULT_WIDTH}x{STREAMER_DEFAULT_HEIGHT}+120+120")
+        self.geometry(f"{STREAMER_DEFAULT_WIDTH}x{STREAMER_DEFAULT_HEIGHT}")
         self.minsize(STREAMER_MIN_WIDTH, STREAMER_MIN_HEIGHT)
         self._drag_origin: tuple[int, int] | None = None
         self._resize_origin: tuple[int, int, int, int] | None = None
@@ -2065,6 +2109,7 @@ class StreamerWindow(tk.Toplevel):
         if not self._drag_origin:
             return
         dx, dy = self._drag_origin
+        self._user_positioned = True
         self.geometry(f"+{event.x_root - dx}+{event.y_root - dy}")
 
     def _start_resize(self, event) -> str:
@@ -2078,6 +2123,7 @@ class StreamerWindow(tk.Toplevel):
         width = max(STREAMER_MIN_WIDTH, start_width + (event.x_root - start_x))
         height = max(STREAMER_MIN_HEIGHT, start_height + (event.y_root - start_y))
         self._user_resized = True
+        self._user_positioned = True
         self.geometry(f"{width}x{height}")
         return "break"
 
@@ -2108,7 +2154,14 @@ class StreamerWindow(tk.Toplevel):
             desired_width = max(desired_width, current_width)
             desired_height = max(desired_height, current_height)
         self.minsize(desired_width, desired_height)
-        self.geometry(f"{desired_width}x{desired_height}+{self.winfo_x()}+{self.winfo_y()}")
+        if self._user_positioned:
+            x, y = self.winfo_x(), self.winfo_y()
+        else:
+            x, y = _bottom_right_position(self._initial_work_area, desired_width, desired_height)
+        self.geometry(f"{desired_width}x{desired_height}+{x}+{y}")
+        if self._initial_position_pending:
+            self._initial_position_pending = False
+            self.deiconify()
 
     def destroy(self) -> None:
         self.animator.cancel_all()

@@ -221,8 +221,8 @@ def test_app_defaults_to_last_contributed_session_and_loadout(tmp_path, monkeypa
         app.destroy()
 
 
-def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_fits_contents() -> None:
-    app = PedHunterApp()
+def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_fits_contents(tmp_path) -> None:
+    app = PedHunterApp(store=Store(tmp_path / "streamer-layout.sqlite3"))
     try:
         app._open_streamer_window()
         streamer = app.streamer_window

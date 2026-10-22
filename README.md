@@ -95,6 +95,12 @@ python -m ped_hunter gui --preview
 The clearly labeled preview uses a temporary database and synthetic events. It does
 not read chat logs, write to your real session history, or interrupt a running tracker.
 
+The **Streamer UI** opens in the bottom-right corner of the dashboard's monitor,
+with a 16-pixel inset from the usable desktop edges (above the Windows taskbar).
+It fits its contents before appearing. You can still drag or resize it; live
+refreshes will not snap a manually positioned window back to the corner.
+Closing and reopening the Streamer UI restores the bottom-right starting position.
+
 ## Building the Windows executable
 
 Release executables are built with PyInstaller:
