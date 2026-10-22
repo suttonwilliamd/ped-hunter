@@ -19,6 +19,8 @@ import uuid
 
 from .catalog import Catalog, WeaponRecord
 from .currency import currency_name, format_money
+from .feedback import ActivityStrip, Animator, Snapshot
+from .sounds import CuePlayer
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
@@ -44,13 +46,13 @@ class MetricCard:
 class PedHunterApp(tk.Tk):
     """Main PED Hunter desktop UI."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, store: Store | None = None) -> None:
         super().__init__()
         self.title("PED Hunter")
         self.geometry("1180x720")
         self.minsize(980, 640)
 
-        self.store = Store()
+        self.store = store if store is not None else Store()
         self.catalog = Catalog.load()
         self.session_id: str | None = None
         self.last_size = 0
@@ -118,6 +120,17 @@ class PedHunterApp(tk.Tk):
         self.top_area_expanded = tk.BooleanVar(value=True)
         self.top_toggle_text = tk.StringVar(value="Hide top")
         self.currency_mode = tk.StringVar(value="USD")
+        self.reduced_motion = tk.BooleanVar(value=False)
+        self.feedback_sounds = tk.BooleanVar(value=False)
+        self.cue_player = CuePlayer()
+        self.animator = Animator(self)
+        self._feedback_context = None
+        self._activity_cache: Snapshot | None = None
+        self._chart_context = None
+        self._skill_context = None
+        self._skill_counts: dict[str, int] = {}
+        self._event_context = None
+        self._event_ids: set[str] = set()
 
         self.metric_cards: dict[str, MetricCard] = {}
         self._configure_theme()
@@ -192,6 +205,9 @@ class PedHunterApp(tk.Tk):
             foreground=[("disabled", "#697586"), ("active", text)],
         )
         style.map("TButton", background=[("pressed", "#1f293d"), ("active", "#223049")], foreground=[("active", text)])
+        style.configure("TCheckbutton", background=bg, foreground=muted, font=("Segoe UI", 9), indicatorbackground=panel_2, padding=(3, 2))
+        style.map("TCheckbutton", background=[("active", bg)], foreground=[("selected", text), ("active", text)], indicatorbackground=[("selected", accent), ("active", panel_3)])
+        style.map("TCombobox", fieldbackground=[("readonly", "#0a0f1a")], selectbackground=[("readonly", panel_3)], selectforeground=[("readonly", text)])
         style.configure("TEntry", fieldbackground="#0a0f1a", foreground=text, insertcolor=text, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 5), borderwidth=1)
         style.configure("TCombobox", fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
         style.configure("TSpinbox", fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(7, 4), borderwidth=1)
@@ -250,6 +266,7 @@ class PedHunterApp(tk.Tk):
         ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
         ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
         ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=7, sticky="e")
+        ttk.Checkbutton(header, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all).grid(row=0, column=8, padx=(8, 0))
 
         self._build_session_hero(root, row=1)
 
@@ -334,6 +351,8 @@ class PedHunterApp(tk.Tk):
         self.stop_button = ttk.Button(actions, text="Stop", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=(0, 8))
         ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
+        self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money)
+        self.activity_strip.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         try:
@@ -714,6 +733,8 @@ class PedHunterApp(tk.Tk):
             pady=14,
         )
         text.pack(fill="both", expand=True)
+        ttk.Checkbutton(panel, text="Quiet loot and skill sounds (optional · Windows)", variable=self.feedback_sounds).pack(anchor="w", pady=(10, 0))
+        ttk.Button(panel, text="Preview live feedback (demo data)", command=self._preview_feedback, style="Accent.TButton").pack(anchor="w", pady=(12, 0))
         text.insert(
             "1.0",
             "Getting started\n\n"
@@ -729,6 +750,10 @@ class PedHunterApp(tk.Tk):
             "and streamer panels without crowding the main cockpit.",
         )
         text.configure(state="disabled")
+
+    def _preview_feedback(self) -> None:
+        from .preview import open_preview
+        open_preview()
 
     def _add_metric_card(self, parent: ttk.Frame, column: int, key: str, value: str, label: str) -> None:
         frame = ttk.Frame(parent, style="Card.TFrame", padding=(18, 16))
@@ -760,6 +785,7 @@ class PedHunterApp(tk.Tk):
         yscroll.grid(row=0, column=1, sticky="ns", padx=(8, 0))
         tree.tag_configure("odd", background="#0d1421")
         tree.tag_configure("even", background="#0a0f1a")
+        tree.tag_configure("arrival", background="#123b38", foreground="#d8fffb")
         for col, heading in zip(columns, headings):
             tree.heading(col, text=heading)
             width = 170 if col in {"summary", "setup", "name", "weapon", "aliases"} else 118
@@ -1381,7 +1407,17 @@ class PedHunterApp(tk.Tk):
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"
         self.hero_state.set(state)
+        context = (session.session_id if session else None, self.currency_mode.get(), self.running)
+        animate = context == self._feedback_context and self.running and not self.reduced_motion.get()
+        self._feedback_context = context
+        arrival = self.activity_strip.update_snapshot(self._activity_snapshot(session), self.running)
+        if self.feedback_sounds.get() and (arrival.loot > 0 or arrival.skills):
+            self.cue_player.play("loot" if arrival.loot > 0 else "skill")
         if not session:
+            for key in ("net", "return", "loot", "cost"):
+                self.animator.cancel(key)
+                self.animator.values.pop(key, None)
+                self.animator.targets.pop(key, None)
             self.session_text.set("No sessions yet — start a run to begin collecting data")
             self.hero_session.set("No active session — start a run to begin collecting data")
             self.hero_net.set(self._money(0, signed=True))
@@ -1394,19 +1430,30 @@ class PedHunterApp(tk.Tk):
             return
 
         status = "active" if session.ended_at is None else "ended"
-        setup_name = (session.loadout_name or "").splitlines()[0].strip()
+        setup_name = (session.loadout_name or "").partition("\n")[0].strip()
         setup = f"Hunt · {setup_name}" if setup_name else session.activity.title()
         return_pct = _return_pct(session)
 
         self.session_text.set(f"{session.session_id} • {setup} • {status} • started {session.started_at}")
         self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
-        self.hero_net.set(self._money(session.net_value, signed=True))
-        self.hero_return.set(f"{return_pct:.2f}% Return")
-        self.hero_loot.set(self._money_label("Loot", session.loot_value))
-        self.hero_cost.set(self._money_label("Cost", session.hunting_cost))
+        self.animator.number("net", session.net_value, lambda value: self.hero_net.set(self._money(value, signed=True)), animate)
+        self.animator.number("return", return_pct, lambda value: self.hero_return.set(f"{value:.2f}% Return"), animate)
+        self.animator.number("loot", session.loot_value, lambda value: self.hero_loot.set(self._money_label("Loot", value)), animate)
+        self.animator.number("cost", session.hunting_cost, lambda value: self.hero_cost.set(self._money_label("Cost", value)), animate)
         self.hero_events.set(f"Events {session.events}")
         self.repair_radar_text.set(format_repair_radar(session, self.currency_mode.get()))
         self._set_hero_profit_style(_profit_state(session.net_value))
+
+    def _activity_snapshot(self, session: SessionSummary | None) -> Snapshot:
+        if session is None:
+            return Snapshot(None)
+        cached = self._activity_cache
+        if cached and (cached.session_id, cached.events, cached.loot) == (session.session_id, session.events, session.loot_value):
+            return cached
+        gains = self.store.skill_gains_for_session(session.session_id)
+        snapshot = Snapshot(session.session_id, session.loot_value, session.events, {gain.skill: gain.procs for gain in gains})
+        self._activity_cache = snapshot
+        return snapshot
 
     def _refresh_lifetime_totals(self) -> None:
         totals = self.store.lifetime_totals()
@@ -1482,15 +1529,45 @@ class PedHunterApp(tk.Tk):
         self._on_session_selected()
 
     def _refresh_events(self, session_id: str | None) -> None:
-        self.events_tree.delete(*self.events_tree.get_children())
-        if not session_id:
+        tree = self.events_tree
+        rows = _recent_events(self.store, session_id, limit=80) if session_id else []
+        ids = {str(row["id"]) for row in rows}
+        same = session_id == self._event_context
+        selected = tree.selection()
+        view = tree.yview()
+        follow = not view or view[1] >= 0.99
+        tree.delete(*tree.get_children())
+        for index, row in enumerate(rows):
+            iid = str(row["id"])
+            tag = "even" if index % 2 == 0 else "odd"
+            if same and self.running and not self.reduced_motion.get() and iid not in self._event_ids and row["kind"] in {"loot", "skill"}:
+                tag = "arrival"
+            tree.insert("", "end", iid=iid, tags=(tag,), values=(row["timestamp"] or "", row["kind"], _summarize_event(row, self.currency_mode.get())))
+        if selected and tree.exists(selected[0]):
+            tree.selection_set(selected[0])
+        if follow and rows:
+            tree.see(str(rows[-1]["id"]))
+        elif view:
+            tree.yview_moveto(view[0])
+        self._event_context, self._event_ids = session_id, ids
+        self._fade_tree_arrivals(tree, "events")
+
+    def _fade_tree_arrivals(self, tree: ttk.Treeview, key: str) -> None:
+        self.animator.cancel(key)
+        if not any("arrival" in tree.item(iid, "tags") for iid in tree.get_children()):
             return
-        for index, row in enumerate(_recent_events(self.store, session_id, limit=80)):
-            self.events_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",), values=(row["timestamp"] or "", row["kind"], _summarize_event(row, self.currency_mode.get())))
+
+        def fade() -> None:
+            self.animator.jobs.pop(key, None)
+            for index, iid in enumerate(tree.get_children()):
+                tree.item(iid, tags=("even" if index % 2 == 0 else "odd",))
+        self.animator.jobs[key] = self.after(1200, fade)
 
     def _refresh_skills(self, session_id: str | None) -> None:
         self.skills_tree.delete(*self.skills_tree.get_children())
         if not session_id:
+            self._skill_context = None
+            self._skill_counts = {}
             self.skill_total_text.set("0.0000 XP")
             self.skill_proc_text.set("0 skill gains")
             self.skill_summary_text.set("No session selected — start or select a run to see skill gains.")
@@ -1507,16 +1584,37 @@ class PedHunterApp(tk.Tk):
             )
         else:
             self.skill_summary_text.set("No skill gains recorded for this session yet.")
+        same = session_id == self._skill_context
+        previous = self._skill_counts
+        self._skill_context = session_id
+        self._skill_counts = {gain.skill: gain.procs for gain in gains}
         for index, gain in enumerate(gains):
+            fresh = same and self.running and not self.reduced_motion.get() and gain.procs > previous.get(gain.skill, 0)
             self.skills_tree.insert(
                 "",
                 "end",
-                tags=("even" if index % 2 == 0 else "odd",),
+                tags=("arrival" if fresh else "even" if index % 2 == 0 else "odd",),
                 values=(gain.skill, f"{gain.xp:.4f}", gain.procs, f"{gain.proc_pct:.0f}%"),
             )
+        self._fade_tree_arrivals(self.skills_tree, "skills")
 
     def _refresh_loot_chart(self, session_id: str | None) -> None:
-        self.loot_chart_points = _loot_event_points(self.store, session_id, limit=160) if session_id else []
+        points = _loot_event_points(self.store, session_id, limit=160) if session_id else []
+        previous = getattr(self, "loot_chart_points", [])
+        animate = self._chart_context == session_id and self.running and not self.reduced_motion.get() and previous and points != previous
+        if self._chart_context != session_id:
+            self._loot_chart_max = 0.0
+        self._chart_context = session_id
+        self.loot_chart_points = points
+        self.animator.cancel("loot_chart")
+        self._loot_chart_phase = 1.0
+        if animate:
+            self.animator.tween("loot_chart", self._loot_chart_frame, 400)
+        else:
+            self._draw_loot_chart()
+
+    def _loot_chart_frame(self, phase: float) -> None:
+        self._loot_chart_phase = phase
         self._draw_loot_chart()
 
     def _refresh_wtb(self) -> None:
@@ -1573,7 +1671,9 @@ class PedHunterApp(tk.Tk):
             )
             return
 
-        max_value = max(value for _, value, _ in points) or 1.0
+        peak = max(value for _, value, _ in points)
+        self._loot_chart_max = max(getattr(self, "_loot_chart_max", 0.0), peak)
+        max_value = self._loot_chart_max or 1.0
         tick_values = [0, max_value / 2, max_value]
         for tick in tick_values:
             y = pad_top + plot_h - (tick / max_value * plot_h)
@@ -1587,7 +1687,12 @@ class PedHunterApp(tk.Tk):
         line_points: list[float] = []
         for index, (_timestamp, value, label) in enumerate(points):
             x = pad_left + (step * index if count > 1 else plot_w / 2)
-            y = pad_top + plot_h - (value / max_value * plot_h)
+            phase = getattr(self, "_loot_chart_phase", 1.0) if index == count - 1 else 1.0
+            previous_value = points[index - 1][1] if index else value
+            drawn_value = previous_value + (value - previous_value) * phase
+            if index == count - 1 and count > 1:
+                x -= step * (1 - phase)
+            y = pad_top + plot_h - (drawn_value / max_value * plot_h)
             line_points.extend([x, y])
             canvas.create_line(x, pad_top + plot_h, x, y, fill="#075985", width=2)
             canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=colors["accent"], outline="#e0f2fe")
@@ -1648,7 +1753,10 @@ class StreamerWindow(tk.Toplevel):
     def __init__(self, app: PedHunterApp) -> None:
         super().__init__(app)
         self.app = app
-        self.title("PED Hunter Streamer UI")
+        self.animator = Animator(self)
+        self._feedback_context = None
+        self._chart_phase = 1.0
+        self.title("PED Hunter Streamer UI · Live feedback")
         self.configure(bg="#020617")
         self.attributes("-topmost", True)
         self.overrideredirect(True)
@@ -1671,6 +1779,8 @@ class StreamerWindow(tk.Toplevel):
         }
         self.durability_pct = 0.0
         self.durability_color = "#111827"
+        self.durability_known = False
+        self.durability_label = "Equipment"
         self._fit_after_id: str | None = None
         self._user_resized = False
         self._build()
@@ -1681,18 +1791,20 @@ class StreamerWindow(tk.Toplevel):
         self.after_idle(self._schedule_fit_to_contents)
 
     def _build(self) -> None:
-        self.outer = tk.Frame(self, bg="#020617", highlightbackground=self.app.colors["accent"], highlightthickness=2, padx=8, pady=2)
+        self.outer = tk.Frame(self, bg="#020617", highlightbackground="#254448", highlightthickness=1, padx=10, pady=5)
         self.outer.pack(fill="both", expand=True)
         top = tk.Frame(self.outer, bg="#020617")
         top.pack(fill="x")
-        tk.Label(top, text="◆ PED HUNTER", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 7, "bold")).pack(side="left")
+        self.brand_label = tk.Label(top, text="◆ PED HUNTER", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 7, "bold"))
+        self.brand_label.pack(side="left")
         close = tk.Label(top, text=" × ", bg="#0f1726", fg="#94a3b8", font=("Segoe UI", 9, "bold"), cursor="hand2")
         close.pack(side="right")
         close.bind("<Button-1>", lambda _event: self.destroy())
         close.bind("<Enter>", lambda _event: close.configure(bg="#1f2937", fg=self.app.colors["bad"]))
         close.bind("<Leave>", lambda _event: close.configure(bg="#0f1726", fg="#94a3b8"))
 
-        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 16, "bold"))
+        tk.Label(self.outer, text="NET PROFIT", bg="#020617", fg="#9aaec7", font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(5, 0))
+        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 20, "bold"))
         self.net_label.pack(anchor="w", pady=(1, 0))
         self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10, "bold"))
         self.return_label.pack(anchor="w")
@@ -1708,9 +1820,11 @@ class StreamerWindow(tk.Toplevel):
             stats.columnconfigure(col, weight=1)
             card = tk.Frame(stats, bg="#0b1321", highlightbackground="#1f2a3d", highlightthickness=1)
             card.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
-            tk.Label(card, text=title, bg="#0b1321", fg=tint, font=("Segoe UI", 6, "bold")).pack(anchor="w", padx=8, pady=(4, 0))
-            tk.Label(card, textvariable=self.vars[key], bg="#0b1321", fg="#e5edf8", font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=8, pady=(0, 4))
-        tk.Label(self.outer, textvariable=self.vars["input"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(4, 0))
+            tk.Label(card, text=title, bg="#0b1321", fg=tint, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=8, pady=(4, 0))
+            tk.Label(card, textvariable=self.vars[key], bg="#0b1321", fg="#e5edf8", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=8, pady=(0, 4))
+        self.activity_strip = ActivityStrip(self.outer, reduced_motion=self.app.reduced_motion, money=self.app._money, compact=True)
+        self.activity_strip.pack(fill="x", pady=(6, 2))
+        self.input_label = tk.Label(self.outer, textvariable=self.vars["input"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7, "bold"))
 
         trend = tk.Frame(self.outer, bg="#020617")
         trend.pack(fill="both", expand=True, pady=(4, 0))
@@ -1735,7 +1849,7 @@ class StreamerWindow(tk.Toplevel):
             highlightbackground="#1f2a3d",
             highlightthickness=1,
         ).pack(anchor="w", pady=(3, 1))
-        self.kill_chart = tk.Canvas(trend, height=48, bg="#020617", highlightthickness=0)
+        self.kill_chart = tk.Canvas(trend, height=76, bg="#020617", highlightthickness=0)
         self.kill_chart.pack(fill="both", expand=True)
         self.kill_chart.bind("<Configure>", lambda _event: self._draw_kill_trend_chart())
 
@@ -1769,26 +1883,42 @@ class StreamerWindow(tk.Toplevel):
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = self.app.colors["accent"] if net > 0 else "#f97316" if net < 0 else "#e5edf8"
-        self.vars["net_big"].set(format_money(net, self.app.currency_mode.get(), signed=True))
-        self.vars["return"].set(f"{return_pct:.2f}% Return")
-        self.vars["loot"].set(format_money(float(metrics['loot']), self.app.currency_mode.get()))
-        self.vars["cost"].set(format_money(float(metrics['cost']), self.app.currency_mode.get()))
+        context = (session.session_id if session else None, self.app.currency_mode.get(), self.app.running)
+        animate = context == self._feedback_context and self.app.running and not self.app.reduced_motion.get()
+        self._feedback_context = context
+        self.activity_strip.update_snapshot(self.app._activity_snapshot(session), self.app.running)
+        for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
+            self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
+        self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}% Return"), animate)
         self.vars["kills"].set(f"{kill_count}")
         if int(float(metrics.get("manufacturing_attempt", 0))) > 0:
             self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
+            if not self.input_label.winfo_manager():
+                self.input_label.pack(after=self.activity_strip, anchor="w", pady=(4, 0))
         else:
             self.vars["input"].set("Manufacturing input —")
+            self.input_label.pack_forget()
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
         durability = repair_durability_status(session)
         self.durability_pct = durability["percent"]
+        self.durability_known = durability["label"] != "Durability"
+        self.durability_label = str(durability["label"])
         self.durability_color = durability_color(self.durability_pct)
         self.vars["durability"].set(durability["streamer_text"])
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
         self.vars["kill_trend_badge"].set(_kill_trend_badge(kill_points))
+        previous_points = getattr(self, "kill_trend_points", [])
         self.kill_trend_points = kill_points
         self._draw_durability_bar()
-        self._draw_kill_trend_chart()
+        if animate and previous_points and previous_points != kill_points:
+            self.animator.tween("chart", self._chart_frame, 400)
+        elif not animate:
+            self.animator.cancel("chart")
+            self._chart_phase = 1.0
+            self._draw_kill_trend_chart()
+        else:
+            self._draw_kill_trend_chart()
         self.net_label.configure(fg=color)
         self.return_label.configure(fg=color)
         self._schedule_fit_to_contents()
@@ -1805,8 +1935,12 @@ class StreamerWindow(tk.Toplevel):
         fill_width = int((width - 2) * pct / 100.0)
         if fill_width > 0:
             canvas.create_rectangle(1, 1, fill_width + 1, height - 1, fill=self.durability_color, outline="")
-        if pct <= 0:
-            canvas.create_text(width / 2, height / 2, text="AMP EMPTY", fill="#e5e7eb", font=("Segoe UI", 7, "bold"))
+        if pct <= 0 and self.durability_known:
+            canvas.create_text(width / 2, height / 2, text=f"{self.durability_label.upper()} EMPTY", fill="#fed7aa", font=("Segoe UI", 7, "bold"))
+
+    def _chart_frame(self, phase: float) -> None:
+        self._chart_phase = phase
+        self._draw_kill_trend_chart()
 
     def _draw_kill_trend_chart(self) -> None:
         if not hasattr(self, "kill_chart"):
@@ -1847,7 +1981,17 @@ class StreamerWindow(tk.Toplevel):
         def x_for(index: int) -> float:
             if len(display_points) == 1:
                 return pad_left + plot_w / 2
-            return pad_left + (plot_w * index / (len(display_points) - 1))
+            drawn_index = index
+            if index == len(display_points) - 1:
+                drawn_index -= 1 - self._chart_phase
+            return pad_left + (plot_w * drawn_index / (len(display_points) - 1))
+
+        def value_for(index: int, key: str) -> float:
+            value = float(display_points[index][key])
+            if index == len(display_points) - 1 and index > 0:
+                previous = float(display_points[index - 1][key])
+                return previous + (value - previous) * self._chart_phase
+            return value
 
         def y_for(value: float) -> float:
             ratio = (value - min_value) / (max_value - min_value)
@@ -1865,7 +2009,7 @@ class StreamerWindow(tk.Toplevel):
 
         profit_coords: list[float] = []
         for index, point in enumerate(display_points):
-            profit_coords.extend((x_for(index), y_for(float(point["profit"]))))
+            profit_coords.extend((x_for(index), y_for(value_for(index, "profit"))))
         if len(profit_coords) >= 4:
             fill_base = zero_y if min_value < 0 < max_value else max(height - pad_bottom, 1)
             fill_points = [profit_coords[0], fill_base]
@@ -1882,12 +2026,12 @@ class StreamerWindow(tk.Toplevel):
         for key, color, dash, line_width in series:
             coords: list[float] = []
             for index, point in enumerate(display_points):
-                coords.extend((x_for(index), y_for(float(point[key]))))
+                coords.extend((x_for(index), y_for(value_for(index, key))))
             if len(coords) >= 4:
                 canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
             for index, point in enumerate(display_points):
                 x = x_for(index)
-                value = float(point[key])
+                value = value_for(index, key)
                 y = y_for(value)
                 if key == "profit":
                     fill = "#22c55e" if value >= 0 else "#ef4444"
@@ -1962,6 +2106,7 @@ class StreamerWindow(tk.Toplevel):
         self.geometry(f"{desired_width}x{desired_height}+{self.winfo_x()}+{self.winfo_y()}")
 
     def destroy(self) -> None:
+        self.animator.cancel_all()
         if self._fit_after_id is not None:
             try:
                 self.after_cancel(self._fit_after_id)
@@ -2034,7 +2179,7 @@ def _recent_events(store: Store, session_id: str, limit: int = 50) -> list[dict[
     with store.connect() as conn:
         rows = conn.execute(
             """
-            SELECT timestamp, kind, raw_message, payload
+            SELECT id, timestamp, kind, raw_message, payload
             FROM events
             WHERE session_id = ?
             ORDER BY id DESC

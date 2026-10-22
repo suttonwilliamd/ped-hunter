@@ -73,6 +73,28 @@ ped-hunter stats
 ped-hunter weapon "Frontier Rifle"
 ```
 
+## Live visual feedback
+
+The dashboard and Streamer UI show bundled loot arrivals, actual skill-gain activity,
+rolling monetary totals, and short chart transitions. New loot/skill rows briefly
+highlight. Historical sessions and resumed tracking establish a quiet baseline;
+opening a saved run never replays its loot as new arrivals.
+
+Use **Reduced motion** in the header to settle totals immediately and disable motion
+and flashes. Quiet loot/skill sounds can be enabled in **Help** on Windows; they are
+off by default, bundled, and never overlap. Net profit and costs remain visible;
+visual effects never change records.
+
+To see the effects without waiting for a drop, choose **Help → Preview live feedback**
+or run:
+
+```bash
+python -m ped_hunter gui --preview
+```
+
+The clearly labeled preview uses a temporary database and synthetic events. It does
+not read chat logs, write to your real session history, or interrupt a running tracker.
+
 ## Building the Windows executable
 
 Release executables are built with PyInstaller:

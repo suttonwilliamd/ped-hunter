@@ -94,7 +94,8 @@ def build_parser() -> argparse.ArgumentParser:
     weapon = sub.add_parser("weapon", help="Look up a weapon in the catalog")
     weapon.add_argument("query", help="Weapon name or alias")
 
-    sub.add_parser("gui", help="Launch the Tkinter dashboard")
+    gui = sub.add_parser("gui", help="Launch the Tkinter dashboard")
+    gui.add_argument("--preview", action="store_true", help="Preview visual feedback using an isolated demo database")
 
     return parser
 
@@ -117,6 +118,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "weapon":
         return _weapon_lookup(args.query)
     if args.cmd == "gui":
+        if args.preview:
+            from .preview import main as preview_main
+            preview_main()
+            return 0
         return _launch_gui()
     return 1
 
