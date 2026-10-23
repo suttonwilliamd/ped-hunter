@@ -31,7 +31,9 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 - catalog search with weapon cost/shot details and aliases
 - setup guidance for first-time users
 
-The goal is to keep the useful parts of LootNanny's workflow while avoiding dense legacy form layouts and making room for richer modern catalog sources.
+The main window uses one space-efficient layout by default (1040×640), with tighter controls and a side-by-side profit/return summary; there is no separate Compact mode. Lifetime totals live in **Statistics**, leaving **Dashboard** focused on run history. Saved runs do not populate the live summary until you explicitly start or resume a run.
+
+The goal is to keep the useful parts of LootNanny's workflow while avoiding clutter and making room for richer modern catalog sources.
 
 ## Quick start
 
@@ -80,7 +82,7 @@ rolling monetary totals, and short chart transitions. New loot/skill rows briefl
 highlight. Historical sessions and resumed tracking establish a quiet baseline;
 opening a saved run never replays its loot as new arrivals.
 
-Use **Reduced motion** in the header to settle totals immediately and disable motion
+Use **Reduced motion** in **Help** to settle totals immediately and disable motion
 and flashes. Quiet loot/skill sounds can be enabled in **Help** on Windows; they are
 off by default, bundled, and never overlap. Net profit and costs remain visible;
 visual effects never change records.

@@ -50,8 +50,8 @@ class PedHunterApp(tk.Tk):
     def __init__(self, *, store: Store | None = None) -> None:
         super().__init__()
         self.title("PED Hunter")
-        self.geometry("1180x720")
-        self.minsize(980, 640)
+        self.geometry("1040x640")
+        self.minsize(980, 580)
 
         self.store = store if store is not None else Store()
         self.catalog = Catalog.load()
@@ -82,8 +82,8 @@ class PedHunterApp(tk.Tk):
         self.active_loadout_text = tk.StringVar(value="No active setup — configure one before tracking")
         self.repair_radar_text = tk.StringVar(value="Repair radar: start a fresh run at 100% gun + amp TT")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
-        self.hero_net = tk.StringVar(value="+$0.00")
-        self.hero_return = tk.StringVar(value="0.00% Return")
+        self.hero_net = tk.StringVar(value="—")
+        self.hero_return = tk.StringVar(value="No run in progress")
         self.hero_loot = tk.StringVar(value="Loot $0.00")
         self.hero_cost = tk.StringVar(value="Cost $0.00")
         self.hero_events = tk.StringVar(value="Events 0")
@@ -117,7 +117,6 @@ class PedHunterApp(tk.Tk):
         self.economy_enhancers = tk.StringVar(value="0")
         self.loadout_preview = tk.StringVar(value="Cost/shot: —")
         self.selected_loadout_id: int | None = None
-        self.compact_density = tk.BooleanVar(value=True)
         self.top_area_expanded = tk.BooleanVar(value=True)
         self.top_toggle_text = tk.StringVar(value="Hide top")
         self.currency_mode = tk.StringVar(value="USD")
@@ -140,14 +139,14 @@ class PedHunterApp(tk.Tk):
         self._refresh_all()
 
     def _configure_theme(self) -> None:
-        bg = "#050711"
-        panel = "#0b1020"
-        panel_2 = "#101a2f"
-        panel_3 = "#1a2740"
-        border = "#2f405f"
-        text = "#f3f8ff"
-        muted = "#9aaec7"
-        accent = "#2dd4bf"
+        bg = "#101419"
+        panel = "#181e25"
+        panel_2 = "#202831"
+        panel_3 = "#2b3642"
+        border = "#394654"
+        text = "#edf1f5"
+        muted = "#a5b0bc"
+        accent = "#78c9bb"
         accent_soft = "#0f3438"
         good = "#22c55e"
 
@@ -177,24 +176,24 @@ class PedHunterApp(tk.Tk):
         style.configure("CardTitle.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 11))
         style.configure("CardLabel.TLabel", background=panel_2, foreground=muted, font=("Segoe UI", 9))
         style.configure("HeroKicker.TLabel", background=panel_2, foreground=accent, font=("Segoe UI Semibold", 10))
-        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=("Segoe UI Semibold", 36))
-        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=("Segoe UI Semibold", 36))
-        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 36))
-        style.configure("HeroReturnGood.TLabel", background=panel_2, foreground="#99f6e4", font=("Segoe UI Semibold", 20))
-        style.configure("HeroReturnBad.TLabel", background=panel_2, foreground="#fed7aa", font=("Segoe UI Semibold", 20))
-        style.configure("HeroReturnNeutral.TLabel", background=panel_2, foreground=muted, font=("Segoe UI Semibold", 20))
-        style.configure("HeroSmallValue.TLabel", background="#0c1426", foreground=text, font=("Segoe UI Semibold", 12))
-        style.configure("HeroSmallLabel.TLabel", background="#0c1426", foreground=accent, font=("Segoe UI Semibold", 8))
+        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=("Segoe UI Semibold", 28))
+        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=("Segoe UI Semibold", 28))
+        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 28))
+        style.configure("HeroReturnGood.TLabel", background=panel_2, foreground="#99f6e4", font=("Segoe UI Semibold", 14))
+        style.configure("HeroReturnBad.TLabel", background=panel_2, foreground="#fed7aa", font=("Segoe UI Semibold", 14))
+        style.configure("HeroReturnNeutral.TLabel", background=panel_2, foreground=muted, font=("Segoe UI Semibold", 14))
+        style.configure("HeroSmallValue.TLabel", background="#0f1726", foreground=text, font=("Segoe UI Semibold", 13))
+        style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=("Segoe UI", 9))
         style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=("Segoe UI", 10))
         style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=("Segoe UI Semibold", 9))
         style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=("Segoe UI", 8))
         style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=("Segoe UI Semibold", 9), padding=(12, 5))
-        style.configure("Title.TLabel", background=bg, foreground=accent, font=("Segoe UI Semibold", 20))
+        style.configure("Title.TLabel", background=bg, foreground=accent, font=("Segoe UI Semibold", 16))
         style.configure("Subtitle.TLabel", background=bg, foreground=muted, font=("Segoe UI", 10))
         style.configure("Status.TLabel", background=panel, foreground=muted, font=("Segoe UI", 9))
-        style.configure("Accent.TButton", background=accent, foreground="#031412", font=("Segoe UI Semibold", 9), padding=(12, 6), borderwidth=0, focusthickness=0)
-        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=("Segoe UI", 9), padding=(10, 6), borderwidth=0, focusthickness=0)
-        style.configure("TButton", background=panel_3, foreground=text, padding=(9, 5), borderwidth=0, focusthickness=0)
+        style.configure("Accent.TButton", background=accent, foreground="#031412", font=("Segoe UI Semibold", 9), padding=(10, 4), borderwidth=0, focusthickness=0)
+        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=("Segoe UI", 9), padding=(8, 4), borderwidth=0, focusthickness=0)
+        style.configure("TButton", background=panel_3, foreground=text, padding=(8, 4), borderwidth=0, focusthickness=0)
         style.map(
             "Accent.TButton",
             background=[("disabled", "#2a3444"), ("pressed", "#14b8a6"), ("active", "#5eead4")],
@@ -214,7 +213,7 @@ class PedHunterApp(tk.Tk):
         style.configure("TSpinbox", fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(7, 4), borderwidth=1)
         style.configure("Vertical.TScrollbar", background=panel_3, troughcolor=panel, borderwidth=0, arrowcolor=muted)
         style.configure("TNotebook", background=bg, borderwidth=0, tabmargins=(0, 0, 0, 0), lightcolor=bg, darkcolor=bg, bordercolor=bg)
-        style.configure("TNotebook.Tab", background=bg, foreground=muted, padding=(16, 6), font=("Segoe UI Semibold", 9), borderwidth=0, relief="flat", lightcolor=bg, darkcolor=bg, bordercolor=bg)
+        style.configure("TNotebook.Tab", background=bg, foreground=muted, padding=(11, 4), font=("Segoe UI Semibold", 9), borderwidth=0, relief="flat", lightcolor=bg, darkcolor=bg, bordercolor=bg)
         style.layout("TNotebook.Tab", [("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [("Notebook.label", {"side": "top", "sticky": ""})]})])
         style.map("TNotebook.Tab", background=[("selected", panel_2), ("active", "#101827")], foreground=[("selected", accent), ("active", text)])
         style.configure(
@@ -223,7 +222,7 @@ class PedHunterApp(tk.Tk):
             fieldbackground="#0a0f1a",
             foreground=text,
             bordercolor=panel,
-            rowheight=26,
+            rowheight=23,
             font=("Segoe UI", 9),
             borderwidth=0,
         )
@@ -248,7 +247,7 @@ class PedHunterApp(tk.Tk):
         }
 
     def _build_layout(self) -> None:
-        self.root_frame = ttk.Frame(self, style="Root.TFrame", padding=(12, 10))
+        self.root_frame = ttk.Frame(self, style="Root.TFrame", padding=(8, 6))
         root = self.root_frame
         root.pack(fill="both", expand=True)
         root.columnconfigure(0, weight=1)
@@ -257,23 +256,22 @@ class PedHunterApp(tk.Tk):
         header = ttk.Frame(root, style="Header.TFrame")
         header.grid(row=0, column=0, sticky="ew")
         header.columnconfigure(1, weight=1)
-        ttk.Label(header, text="◆ PED Hunter", style="Title.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(header, text="live profit radar", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(header, text="PED Hunter", style="Title.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(header, text="Hunt tracker", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
         ttk.Label(header, text="Display", style="Muted.TLabel").grid(row=0, column=2, sticky="e", padx=(6, 4))
         currency_picker = ttk.Combobox(header, textvariable=self.currency_mode, values=("USD", "PED"), state="readonly", width=6)
         currency_picker.grid(row=0, column=3, sticky="e", padx=(0, 8))
         currency_picker.bind("<<ComboboxSelected>>", lambda _event: self._refresh_all())
-        ttk.Checkbutton(header, text="Compact", variable=self.compact_density, command=self._apply_density).grid(row=0, column=4, sticky="e", padx=(6, 6))
         ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
         ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
-        ttk.Button(header, text="Refresh", command=self._refresh_all, style="Ghost.TButton").grid(row=0, column=7, sticky="e")
-        ttk.Checkbutton(header, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all).grid(row=0, column=8, padx=(8, 0))
+        # Display preferences live with help/settings rather than competing
+        # with the primary tracking actions in the header.
 
         self._build_session_hero(root, row=1)
 
-        self.controls_panel = ttk.Frame(root, style="Panel.TFrame", padding=(10, 7))
+        self.controls_panel = ttk.Frame(root, style="Panel.TFrame", padding=(8, 4))
         controls = self.controls_panel
-        controls.grid(row=2, column=0, sticky="ew", pady=(7, 8))
+        controls.grid(row=2, column=0, sticky="ew", pady=(4, 5))
         controls.columnconfigure(1, weight=1)
         ttk.Label(controls, text="Chat log", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
         ttk.Entry(controls, textvariable=self.chat_path).grid(row=0, column=1, sticky="ew", padx=(0, 6))
@@ -283,15 +281,17 @@ class PedHunterApp(tk.Tk):
 
         notebook = ttk.Notebook(root)
         notebook.grid(row=3, column=0, sticky="nsew")
-        self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.wtb_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
-        self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 14, 2, 2))
+        self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.wtb_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
         notebook.add(self.dashboard_tab, text="Dashboard")
+        self.statistics_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
+        notebook.add(self.statistics_tab, text="Statistics")
         notebook.add(self.events_tab, text="Events")
         notebook.add(self.skills_tab, text="Skills")
         notebook.add(self.loadouts_tab, text="Setups")
@@ -309,12 +309,11 @@ class PedHunterApp(tk.Tk):
         self._build_wtb_tab()
         self._build_setup_tab()
         self.bind("<Configure>", self._on_resize)
-        self._apply_density()
 
     def _build_session_hero(self, parent: ttk.Frame, *, row: int) -> None:
-        self.hero_panel = ttk.Frame(parent, style="Hero.TFrame", padding=(14, 10))
+        self.hero_panel = ttk.Frame(parent, style="Hero.TFrame", padding=(10, 6))
         hero = self.hero_panel
-        hero.grid(row=row, column=0, sticky="ew", pady=(8, 0))
+        hero.grid(row=row, column=0, sticky="ew", pady=(4, 0))
         hero.columnconfigure(0, weight=0)
         hero.columnconfigure(1, weight=2)
         hero.columnconfigure(2, weight=1)
@@ -323,17 +322,17 @@ class PedHunterApp(tk.Tk):
         self.hero_left = ttk.Frame(hero, style="Hero.TFrame")
         left = self.hero_left
         left.grid(row=0, column=1, sticky="nsew", padx=(0, 12))
-        ttk.Label(left, text="LIVE RUN PULSE", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(left, text="RUN PROFIT / LOSS", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w")
         self.hero_session_label = ttk.Label(left, textvariable=self.hero_session, style="HeroSetup.TLabel", wraplength=540)
-        self.hero_session_label.grid(row=1, column=0, sticky="ew", pady=(2, 4))
+        self.hero_session_label.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(1, 2))
         self.hero_net_label = ttk.Label(left, textvariable=self.hero_net, style="HeroNeutral.TLabel")
         self.hero_net_label.grid(row=2, column=0, sticky="w")
         self.hero_return_label = ttk.Label(left, textvariable=self.hero_return, style="HeroReturnNeutral.TLabel")
-        self.hero_return_label.grid(row=3, column=0, sticky="w")
+        self.hero_return_label.grid(row=2, column=1, sticky="sw", padx=(12, 0), pady=(0, 4))
         self.hero_loadout_label = ttk.Label(left, textvariable=self.active_loadout_text, style="HeroSetup.TLabel", wraplength=540)
-        self.hero_loadout_label.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+        # Full setup details are available in Setups; don't repeat them here.
         self.hero_repair_label = ttk.Label(left, textvariable=self.repair_radar_text, style="HeroSetup.TLabel", wraplength=540)
-        self.hero_repair_label.grid(row=5, column=0, sticky="ew", pady=(2, 0))
+        self.hero_repair_label.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(1, 0))
 
         self.hero_right = ttk.Frame(hero, style="Hero.TFrame")
         right = self.hero_right
@@ -344,16 +343,16 @@ class PedHunterApp(tk.Tk):
         self._add_hero_stat(right, 2, self.hero_events, "EVENTS")
 
         actions = ttk.Frame(right, style="Hero.TFrame")
-        actions.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(9, 0))
-        self.start_button = ttk.Button(actions, text="Start", command=self.start, style="Accent.TButton")
+        actions.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        self.start_button = ttk.Button(actions, text="New run", command=self.start, style="Accent.TButton")
         self.start_button.pack(side="left", padx=(0, 6))
         self.resume_button = ttk.Button(actions, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
         self.resume_button.pack(side="left", padx=(0, 6))
-        self.stop_button = ttk.Button(actions, text="Stop", command=self.stop, state="disabled")
+        self.stop_button = ttk.Button(actions, text="End run", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=(0, 8))
         ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
-        self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money)
-        self.activity_strip.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money, compact=True)
+        self.activity_strip.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(4, 0))
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         try:
@@ -367,9 +366,9 @@ class PedHunterApp(tk.Tk):
         return f"{label} {self._money(value_ped, signed=signed, decimals=decimals)}"
 
     def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> None:
-        frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(9, 7))
+        frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(7, 4))
         frame.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
-        ttk.Frame(frame, style="AccentLine.TFrame", height=2).pack(fill="x", pady=(0, 5))
+        # Quiet supporting metrics; reserve accent color for the main action.
         ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel").pack(anchor="w")
         ttk.Label(frame, textvariable=value, style="HeroSmallValue.TLabel").pack(anchor="w", pady=(2, 0))
 
@@ -384,57 +383,17 @@ class PedHunterApp(tk.Tk):
             self.hero_panel.grid_remove()
             self.controls_panel.grid_remove()
 
-    def _apply_density(self) -> None:
-        compact = self.compact_density.get()
-        root_pad = (12, 10) if compact else 18
-        hero_pad = (14, 10) if compact else (22, 16)
-        controls_pad = (10, 7) if compact else (16, 11)
-        if hasattr(self, "root_frame"):
-            self.root_frame.configure(padding=root_pad)
-        if hasattr(self, "hero_panel"):
-            self.hero_panel.configure(padding=hero_pad)
-        if hasattr(self, "controls_panel"):
-            self.controls_panel.configure(padding=controls_pad)
-        self._configure_density_styles(compact)
-
-    def _configure_density_styles(self, compact: bool) -> None:
-        style = ttk.Style(self)
-        if compact:
-            style.configure("Treeview", rowheight=26, font=("Segoe UI", 9))
-            style.configure("TNotebook.Tab", padding=(16, 6), font=("Segoe UI Semibold", 9))
-            style.configure("Accent.TButton", padding=(12, 6), font=("Segoe UI Semibold", 9))
-            style.configure("Ghost.TButton", padding=(10, 6), font=("Segoe UI", 9))
-            style.configure("TButton", padding=(9, 5))
-            style.configure("HeroNeutral.TLabel", font=("Segoe UI Semibold", 36))
-            style.configure("HeroGood.TLabel", font=("Segoe UI Semibold", 36))
-            style.configure("HeroBad.TLabel", font=("Segoe UI Semibold", 36))
-            style.configure("HeroReturnNeutral.TLabel", font=("Segoe UI Semibold", 20))
-            style.configure("HeroReturnGood.TLabel", font=("Segoe UI Semibold", 20))
-            style.configure("HeroReturnBad.TLabel", font=("Segoe UI Semibold", 20))
-        else:
-            style.configure("Treeview", rowheight=32, font=("Segoe UI", 10))
-            style.configure("TNotebook.Tab", padding=(22, 9), font=("Segoe UI Semibold", 10))
-            style.configure("Accent.TButton", padding=(16, 9), font=("Segoe UI Semibold", 10))
-            style.configure("Ghost.TButton", padding=(14, 9), font=("Segoe UI", 10))
-            style.configure("TButton", padding=(12, 8))
-            style.configure("HeroNeutral.TLabel", font=("Segoe UI Semibold", 48))
-            style.configure("HeroGood.TLabel", font=("Segoe UI Semibold", 48))
-            style.configure("HeroBad.TLabel", font=("Segoe UI Semibold", 48))
-            style.configure("HeroReturnNeutral.TLabel", font=("Segoe UI Semibold", 26))
-            style.configure("HeroReturnGood.TLabel", font=("Segoe UI Semibold", 26))
-            style.configure("HeroReturnBad.TLabel", font=("Segoe UI Semibold", 26))
-
     def _on_resize(self, event: tk.Event) -> None:
         if event.widget is not self:
             return
         width = event.width
-        wrap = max(280, min(620, width // 2))
+        wrap = max(280, min(540, (width - 70) // 2))
         if hasattr(self, "hero_session_label"):
             self.hero_session_label.configure(wraplength=wrap)
             self.hero_loadout_label.configure(wraplength=wrap)
             self.hero_repair_label.configure(wraplength=wrap)
         if hasattr(self, "status_label"):
-            if width < 1080:
+            if width < 1000:
                 self.status_label.grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
             else:
                 self.status_label.grid(row=0, column=3, sticky="e")
@@ -442,14 +401,14 @@ class PedHunterApp(tk.Tk):
     def _build_dashboard_tab(self) -> None:
         tab = self.dashboard_tab
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(0, weight=0)
-        tab.rowconfigure(1, weight=5)
-        tab.rowconfigure(2, weight=1)
+        tab.rowconfigure(0, weight=1)
+        tab.rowconfigure(1, weight=0)
 
-        totals_panel = self._panel(tab, "Overall / Lifetime Totals", 0, 0)
+        self.statistics_tab.columnconfigure(0, weight=1)
+        totals_panel = self._panel(self.statistics_tab, "Lifetime statistics", 0, 0)
         self._build_lifetime_totals(totals_panel)
 
-        recent_panel = self._panel(tab, "Recent sessions", 1, 0)
+        recent_panel = self._panel(tab, "Run history", 0, 0)
         self.sessions_tree = self._tree(
             recent_panel,
             headings=("Started", "Setup", "Return", "Loot", "Cost", "Net", "Events", "Status"),
@@ -457,7 +416,7 @@ class PedHunterApp(tk.Tk):
         )
         self.sessions_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_session_selected())
 
-        action_panel = self._panel(tab, "Selected session", 2, 0)
+        action_panel = self._panel(tab, "Continue a saved run", 1, 0)
         command_card = ttk.Frame(action_panel, style="Card.TFrame", padding=(10, 8))
         command_card.grid(row=0, column=0, sticky="ew")
         command_card.columnconfigure(1, weight=1)
@@ -734,6 +693,8 @@ class PedHunterApp(tk.Tk):
             pady=14,
         )
         text.pack(fill="both", expand=True)
+        ttk.Checkbutton(panel, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all).pack(anchor="w", pady=(10, 0))
+        ttk.Button(panel, text="Refresh saved data", command=self._refresh_all).pack(anchor="w", pady=(6, 0))
         ttk.Checkbutton(panel, text="Quiet loot and skill sounds (optional · Windows)", variable=self.feedback_sounds).pack(anchor="w", pady=(10, 0))
         ttk.Button(panel, text="Preview live feedback (demo data)", command=self._preview_feedback, style="Accent.TButton").pack(anchor="w", pady=(12, 0))
         text.insert(
@@ -767,11 +728,11 @@ class PedHunterApp(tk.Tk):
         self.metric_cards[key] = MetricCard(frame=frame, value=value_var, label=label_var)
 
     def _panel(self, parent: ttk.Frame, title: str, row: int, column: int) -> ttk.Frame:
-        panel = ttk.Frame(parent, style="Panel.TFrame", padding=(10, 8))
-        panel.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else 8, 0), pady=(0 if row == 0 else 8, 0))
+        panel = ttk.Frame(parent, style="Panel.TFrame", padding=(8, 5))
+        panel.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0), pady=(0 if row == 0 else 5, 0))
         panel.columnconfigure(0, weight=1)
         panel.rowconfigure(1, weight=1)
-        ttk.Label(panel, text=title, style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 7))
+        ttk.Label(panel, text=title, style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
         body = ttk.Frame(panel, style="Panel.TFrame")
         body.grid(row=1, column=0, sticky="nsew")
         body.columnconfigure(0, weight=1)
@@ -1400,10 +1361,9 @@ class PedHunterApp(tk.Tk):
             resumed_or_active = self.store.get_session(session_id)
             if resumed_or_active:
                 return resumed_or_active
-        preferred = self._preferred_session()
-        if preferred:
-            return preferred
-        return current or (sessions[0] if sessions else None)
+        # Saved runs belong in history, not in the live summary on launch.
+        # A run becomes the display context only after Start or Resume.
+        return None
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"
@@ -1421,8 +1381,8 @@ class PedHunterApp(tk.Tk):
                 self.animator.targets.pop(key, None)
             self.session_text.set("No sessions yet — start a run to begin collecting data")
             self.hero_session.set("No active session — start a run to begin collecting data")
-            self.hero_net.set(self._money(0, signed=True))
-            self.hero_return.set("0.00% Return")
+            self.hero_net.set("—")
+            self.hero_return.set("No run in progress")
             self.hero_loot.set(self._money(0))
             self.hero_cost.set(self._money(0))
             self.hero_events.set("0")
@@ -1439,9 +1399,9 @@ class PedHunterApp(tk.Tk):
         self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
         self.animator.number("net", session.net_value, lambda value: self.hero_net.set(self._money(value, signed=True)), animate)
         self.animator.number("return", return_pct, lambda value: self.hero_return.set(f"{value:.2f}% Return"), animate)
-        self.animator.number("loot", session.loot_value, lambda value: self.hero_loot.set(self._money_label("Loot", value)), animate)
-        self.animator.number("cost", session.hunting_cost, lambda value: self.hero_cost.set(self._money_label("Cost", value)), animate)
-        self.hero_events.set(f"Events {session.events}")
+        self.animator.number("loot", session.loot_value, lambda value: self.hero_loot.set(self._money(value)), animate)
+        self.animator.number("cost", session.hunting_cost, lambda value: self.hero_cost.set(self._money(value)), animate)
+        self.hero_events.set(str(session.events))
         self.repair_radar_text.set(format_repair_radar(session, self.currency_mode.get()))
         self._set_hero_profit_style(_profit_state(session.net_value))
 

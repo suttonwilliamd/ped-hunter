@@ -89,7 +89,7 @@ def test_live_feedback_and_reduced_motion_do_not_change_records(tmp_path, monkey
         assert any("arrival" in app.events_tree.item(iid, "tags") for iid in app.events_tree.get_children())
         app.reduced_motion.set(True)
         app._refresh_all()
-        assert app.hero_loot.get() == "Loot $0.40"
+        assert app.hero_loot.get() == "$0.40"
         assert overlay.vars["loot"].get() == "$0.40"
         assert not app.activity_strip.animator.jobs
         assert not overlay.activity_strip.animator.jobs
@@ -119,7 +119,8 @@ def test_opening_historical_loot_does_not_celebrate(tmp_path):
     app = PedHunterApp(store=store)
     try:
         app._refresh_all()
-        assert app.activity_strip.headline == "SESSION AT REST"
+        assert app.activity_strip.headline == "READY FOR YOUR NEXT RUN"
+        assert app.hero_net.get() == "—"
         assert not app.activity_strip.animator.jobs
         assert not any("arrival" in app.events_tree.item(iid, "tags") for iid in app.events_tree.get_children())
     finally:

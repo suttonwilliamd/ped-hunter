@@ -216,7 +216,8 @@ def test_app_defaults_to_last_contributed_session_and_loadout(tmp_path, monkeypa
         active = store.get_active_loadout()
         assert active is not None
         assert active.name == "Current rifle"
-        assert app.hero_session.get().startswith("Hunt · Current rifle")
+        assert app.hero_session.get().startswith("No active session")
+        assert app.hero_net.get() == "—"
     finally:
         app.destroy()
 
