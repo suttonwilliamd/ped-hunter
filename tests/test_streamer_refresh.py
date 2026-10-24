@@ -24,10 +24,10 @@ def test_resize_cursor_uses_tk_backend(windowing_system: str, expected: str) -> 
 
 
 def test_streamer_window_defaults_are_smaller_than_main_dashboard() -> None:
-    assert STREAMER_DEFAULT_WIDTH == 440
-    assert STREAMER_DEFAULT_HEIGHT == 400
-    assert STREAMER_MIN_WIDTH == 420
-    assert STREAMER_MIN_HEIGHT == 400
+    assert STREAMER_DEFAULT_WIDTH == 360
+    assert STREAMER_DEFAULT_HEIGHT == 330
+    assert STREAMER_MIN_WIDTH == 260
+    assert STREAMER_MIN_HEIGHT == 240
 
 
 def test_kill_trend_points_roll_up_cost_profit_and_delta(tmp_path) -> None:

@@ -3,7 +3,23 @@
 Design by **BobRoss.bot**, Paperclip task **WIL-15**, 24 October 2026.
 Implementation by Aaron / Pi Coding Assistant.
 
-## Design direction
+## v0.3.35 sizing correction
+
+The owner found the original redesign too large and its resize minimum sticky.
+The implementation now defaults to **360×330** at 100% scaling, with a fixed
+**260×240** minimum. These dimensions and the compact responsive typography
+supersede the original geometry/point-size targets below. Overlay-local pixel
+fonts apply display scaling once and adapt within the user's rectangle; the main
+window and global Tk scaling are untouched. Default body text is 10px, hero 26px,
+return 18px and metric values 14px before DPI/content scaling.
+
+Wrapped labels no longer determine the window minimum. Refreshes reflow content
+without rewriting geometry. Every edge/corner and the footer grip support mouse
+resizing, with a captured drag and release cleanup. Regression tests drive the
+actual Tk bindings, cover 100/125/150/200% Tk scaling, reverse enlargement, and
+verify live updates preserve smaller dimensions and visible footer controls.
+
+## Original design direction
 
 A quiet broadcast instrument, not a miniature dashboard: one dominant result,
 one honest tracking state, one compact trend. BobRoss reviewed the repository
