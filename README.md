@@ -103,6 +103,25 @@ It fits its contents before appearing. You can still drag or resize it; live
 refreshes will not snap a manually positioned window back to the corner.
 Closing and reopening the Streamer UI restores the bottom-right starting position.
 
+The broadcast HUD uses a side-by-side net/return hero, a persistent tracking state,
+and readable 9pt-or-larger supporting text. Its target size is 440×400 at 100%
+scaling; content and display scaling can increase the required height. Large
+monetary totals reflow rather than losing precision. No-session and zero-cost
+returns show `—`, not a misleading return percentage. The chart is always labelled
+**PED**, even when the monetary cards use USD; **Kills*** are inferred event
+clusters, not independently confirmed kills. Query failures are distinguished
+from an empty chart. Unknown durability is a neutral empty track, not an alarm.
+
+The header and background can be dragged. Focus the brand or resize handle with
+Tab, then use arrow keys to move by 10 pixels or Shift+arrows to resize. The close
+button supports Space/Enter, and Escape dismisses only the overlay. Resizing grows
+the chart first and can be reversed without raising the minimum permanently.
+Arrival messages settle back to quiet copy after four seconds, including with
+reduced motion. Preview keeps a persistent **DEMO** state and synthetic-money
+warning and uses the same layout/placement as the production overlay.
+
+Design direction: BobRoss.bot's [streamer HUD specification](docs/streamer-redesign.md).
+
 ## Building the Windows executable
 
 Release executables are built with PyInstaller:

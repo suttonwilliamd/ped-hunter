@@ -29,10 +29,10 @@ POLL_MS = 250
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
-STREAMER_DEFAULT_WIDTH = 420
-STREAMER_DEFAULT_HEIGHT = 300
-STREAMER_MIN_WIDTH = 340
-STREAMER_MIN_HEIGHT = 250
+STREAMER_DEFAULT_WIDTH = 440
+STREAMER_DEFAULT_HEIGHT = 400
+STREAMER_MIN_WIDTH = 420
+STREAMER_MIN_HEIGHT = 400
 STREAMER_EDGE_MARGIN = 16
 KILL_CLUSTER_WINDOW_SECONDS = 0.75
 
@@ -1766,15 +1766,18 @@ class StreamerWindow(tk.Toplevel):
         self._feedback_context = None
         self._chart_phase = 1.0
         self.title("PED Hunter Streamer UI · Live feedback")
-        self.configure(bg="#020617")
+        self.ui_scale = self.winfo_fpixels("1i") / 96
+        self.demo = bool(getattr(app, "preview_mode", False))
+        self.configure(bg="#0B1220")
         self.attributes("-topmost", True)
         self.overrideredirect(True)
-        self.geometry(f"{STREAMER_DEFAULT_WIDTH}x{STREAMER_DEFAULT_HEIGHT}")
-        self.minsize(STREAMER_MIN_WIDTH, STREAMER_MIN_HEIGHT)
+        self.geometry(f"{int(STREAMER_DEFAULT_WIDTH * self.ui_scale)}x{int(STREAMER_DEFAULT_HEIGHT * self.ui_scale)}")
+        self.minsize(int(STREAMER_MIN_WIDTH * self.ui_scale), int(STREAMER_MIN_HEIGHT * self.ui_scale))
         self._drag_origin: tuple[int, int] | None = None
         self._resize_origin: tuple[int, int, int, int] | None = None
         self.vars = {
-            "net_big": tk.StringVar(value="+$0.00"),
+            "state": tk.StringVar(value="IDLE"),
+            "net_big": tk.StringVar(value="—"),
             "return": tk.StringVar(value="0.00% Return"),
             "loot": tk.StringVar(value="$0.00"),
             "cost": tk.StringVar(value="$0.00"),
@@ -1793,113 +1796,227 @@ class StreamerWindow(tk.Toplevel):
         self._fit_after_id: str | None = None
         self._user_resized = False
         self._build()
+        for key in ("net_big", "return", "loot", "cost"):
+            self.vars[key].trace_add("write", self._on_metric_change)
         self.bind("<ButtonPress-1>", self._start_drag)
         self.bind("<B1-Motion>", self._drag)
+        self.bind("<ButtonRelease-1>", lambda _event: setattr(self, "_drag_origin", None))
+        for key in ("Left", "Right", "Up", "Down"):
+            self.bind(f"<{key}>", self._keyboard_geometry)
+            self.bind(f"<Shift-{key}>", self._keyboard_geometry)
         self.bind("<Escape>", lambda _event: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self.destroy)
         self.after_idle(self._schedule_fit_to_contents)
 
     def _build(self) -> None:
-        self.outer = tk.Frame(self, bg="#020617", highlightbackground="#254448", highlightthickness=1, padx=10, pady=5)
+        from .overlay_feedback import OverlayActivityStrip
+        bg, surface, primary, secondary = "#0B1220", "#131E2E", "#F1F5F9", "#B8C5D6"
+        self.content_width = int((STREAMER_DEFAULT_WIDTH - 26) * self.ui_scale)
+        self.outer = tk.Frame(self, bg=bg, highlightbackground="#334155", highlightthickness=1,
+                              padx=round(12 * self.ui_scale), pady=round(8 * self.ui_scale))
         self.outer.pack(fill="both", expand=True)
-        top = tk.Frame(self.outer, bg="#020617")
+        self._wrap_labels = []
+
+        def label(parent, *, size=9, bold=False, fg=secondary, **kwargs):
+            return tk.Label(parent, bg=parent.cget("bg"), fg=fg,
+                            font=("Segoe UI", size, "bold" if bold else "normal"), **kwargs)
+
+        def wrapped(parent, variable):
+            widget = label(parent, textvariable=variable, wraplength=self.content_width, justify="left", anchor="w")
+            self._wrap_labels.append(widget)
+            return widget
+
+        top = tk.Frame(self.outer, bg=bg)
         top.pack(fill="x")
-        self.brand_label = tk.Label(top, text="◆ PED HUNTER", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 7, "bold"))
+        self.brand_label = label(top, text="PED HUNTER", bold=True, fg="#5EEAD4", cursor="fleur", takefocus=True)
         self.brand_label.pack(side="left")
-        close = tk.Label(top, text=" × ", bg="#0f1726", fg="#94a3b8", font=("Segoe UI", 9, "bold"), cursor="hand2")
-        close.pack(side="right")
-        close.bind("<Button-1>", lambda _event: self.destroy())
-        close.bind("<Enter>", lambda _event: close.configure(bg="#1f2937", fg=self.app.colors["bad"]))
-        close.bind("<Leave>", lambda _event: close.configure(bg="#0f1726", fg="#94a3b8"))
+        self.close_button = tk.Button(top, text="×", command=self.destroy, bg=surface, fg=primary,
+                                     activebackground="#334155", activeforeground="#FDA4AF",
+                                     font=("Segoe UI", 12), bd=0, padx=6, pady=0, takefocus=True,
+                                     highlightthickness=1, highlightcolor="#5EEAD4", cursor="hand2")
+        self.close_button.pack(side="right", padx=(8, 0))
+        self.close_button.bind("<Return>", lambda _event: self.destroy())
+        self.state_label = label(top, textvariable=self.vars["state"], bold=True, fg="#5EEAD4")
+        self.state_label.pack(side="right")
 
-        tk.Label(self.outer, text="NET PROFIT", bg="#020617", fg="#9aaec7", font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(5, 0))
-        self.net_label = tk.Label(self.outer, textvariable=self.vars["net_big"], bg="#020617", fg="#e5edf8", font=("Segoe UI", 20, "bold"))
-        self.net_label.pack(anchor="w", pady=(1, 0))
-        self.return_label = tk.Label(self.outer, textvariable=self.vars["return"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 10, "bold"))
-        self.return_label.pack(anchor="w")
+        self.hero = tk.Frame(self.outer, bg=bg)
+        self.hero.pack(fill="x", pady=(6, 6))
+        self.hero.columnconfigure(0, weight=3)
+        self.hero.columnconfigure(1, weight=2)
+        self.net_caption = label(self.hero, text="NET PROFIT", bold=True)
+        self.net_label = label(self.hero, textvariable=self.vars["net_big"], size=24, bold=True, fg=primary)
+        self.return_caption = label(self.hero, text="RETURN", bold=True)
+        self.return_label = label(self.hero, textvariable=self.vars["return"], size=16, bold=True, fg=primary)
+        self._hero_stacked = None
 
-        stats = tk.Frame(self.outer, bg="#020617")
-        stats.pack(fill="x", pady=(4, 0))
-        stat_specs = (
-            ("loot", "Loot", "#38bdf8"),
-            ("cost", "Cost", "#fb923c"),
-            ("kills", "Kills", "#22c55e"),
-        )
-        for col, (key, title, tint) in enumerate(stat_specs):
-            stats.columnconfigure(col, weight=1)
-            card = tk.Frame(stats, bg="#0b1321", highlightbackground="#1f2a3d", highlightthickness=1)
-            card.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 7, 0))
-            tk.Label(card, text=title, bg="#0b1321", fg=tint, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=8, pady=(4, 0))
-            tk.Label(card, textvariable=self.vars[key], bg="#0b1321", fg="#e5edf8", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=8, pady=(0, 4))
-        self.activity_strip = ActivityStrip(self.outer, reduced_motion=self.app.reduced_motion, money=self.app._money, compact=True)
-        self.activity_strip.pack(fill="x", pady=(6, 2))
-        self.input_label = tk.Label(self.outer, textvariable=self.vars["input"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 7, "bold"))
+        self.stats = tk.Frame(self.outer, bg=surface, padx=8, pady=5)
+        self.stats.pack(fill="x")
+        self.stat_cells = []
+        for key, title in (("loot", "Loot"), ("cost", "Cost"), ("kills", "Kills*")):
+            cell = tk.Frame(self.stats, bg=surface)
+            label(cell, text=title, bold=True, fg="#FDBA74" if key == "cost" else secondary).pack(anchor="w")
+            label(cell, textvariable=self.vars[key], size=12, bold=True, fg=primary).pack(anchor="w")
+            self.stat_cells.append(cell)
+        self._stats_stacked = None
+        self.activity_strip = OverlayActivityStrip(self.outer, reduced_motion=self.app.reduced_motion,
+                                                    money=self.app._money, width=self.content_width)
+        self.activity_strip.pack(fill="x", pady=(8, 0))
+        self.input_label = wrapped(self.outer, self.vars["input"])
 
-        trend = tk.Frame(self.outer, bg="#020617")
-        trend.pack(fill="both", expand=True, pady=(4, 0))
-        header = tk.Frame(trend, bg="#020617")
-        header.pack(fill="x")
-
-        tk.Label(header, text="Kill trend", bg="#020617", fg="#d8fffb", font=("Segoe UI", 8, "bold")).pack(side="left")
-        legend = tk.Frame(header, bg="#020617")
-        legend.pack(side="right")
-        for label, tint in (("Cost", "#fb923c"), ("Avg", "#38bdf8"), ("Profit", "#22c55e")):
-            chip = tk.Frame(legend, bg="#0b1321", highlightbackground="#1f2a3d", highlightthickness=1)
-            chip.pack(side="left", padx=(0, 5))
-            tk.Label(chip, text=label, bg="#0b1321", fg=tint, font=("Segoe UI", 7, "bold"), padx=6, pady=2).pack()
-        tk.Label(
-            trend,
-            textvariable=self.vars["kill_trend_badge"],
-            bg="#0b1321",
-            fg="#d8fffb",
-            font=("Segoe UI", 6, "bold"),
-            padx=6,
-            pady=1,
-            highlightbackground="#1f2a3d",
-            highlightthickness=1,
-        ).pack(anchor="w", pady=(3, 1))
-        self.kill_chart = tk.Canvas(trend, height=76, bg="#020617", highlightthickness=0)
-        self.kill_chart.pack(fill="both", expand=True)
+        trend = tk.Frame(self.outer, bg=bg)
+        trend.pack(fill="both", expand=True, pady=(8, 0))
+        label(trend, text="Kill trend · PED", bold=True, fg=primary).pack(anchor="w")
+        legend = tk.Frame(trend, bg=bg)
+        legend.pack(anchor="w")
+        for text, tint in (("— Cost", "#FDBA74"), ("- - Avg cost", "#7DD3FC"), ("● Profit", "#86EFAC")):
+            label(legend, text=text, fg=tint).pack(side="left", padx=(0, 8))
+        label(trend, text="* Inferred from event clusters").pack(anchor="w")
+        self.kill_chart = tk.Canvas(trend, width=1, height=round(76 * self.ui_scale), bg=surface, highlightthickness=0)
+        self.kill_chart.pack(fill="both", expand=True, pady=(4, 0))
         self.kill_chart.bind("<Configure>", lambda _event: self._draw_kill_trend_chart())
+        wrapped(trend, self.vars["kill_trend_badge"]).pack(fill="x", pady=(4, 0))
 
-        durability = tk.Frame(self.outer, bg="#020617")
-        durability.pack(fill="x", pady=(4, 0))
-        tk.Label(durability, textvariable=self.vars["durability"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 6, "bold")).pack(anchor="w")
-        self.durability_bar = tk.Canvas(durability, height=8, bg="#020617", highlightthickness=0)
-        self.durability_bar.pack(fill="x", pady=(3, 0))
+        durability = tk.Frame(self.outer, bg=bg)
+        durability.pack(fill="x", pady=(8, 0))
+        wrapped(durability, self.vars["durability"]).pack(fill="x")
+        self.durability_bar = tk.Canvas(durability, width=1, height=round(6 * self.ui_scale), bg=surface, highlightthickness=0)
+        self.durability_bar.pack(fill="x", pady=(4, 0))
         self.durability_bar.bind("<Configure>", lambda _event: self._draw_durability_bar())
 
-        bottom = tk.Frame(self.outer, bg="#020617")
-        bottom.pack(fill="x", pady=(3, 0))
-        tk.Label(bottom, textvariable=self.vars["loadout"], bg="#020617", fg="#94a3b8", font=("Segoe UI", 5), wraplength=230, justify="left").pack(side="left", fill="x", expand=True, anchor="w")
-        tk.Label(bottom, textvariable=self.vars["damage"], bg="#020617", fg="#64748b", font=("Segoe UI", 5)).pack(side="left", padx=(3, 0))
-        resize = tk.Label(bottom, text="◢", bg="#020617", fg=self.app.colors["accent"], font=("Segoe UI", 9, "bold"), cursor=_resize_cursor(str(self.tk.call("tk", "windowingsystem"))))
-        resize.pack(side="right", padx=(6, 0))
-        resize.bind("<ButtonPress-1>", self._start_resize)
-        resize.bind("<B1-Motion>", self._resize)
-        resize.bind("<ButtonRelease-1>", self._stop_resize)
+        bottom = tk.Frame(self.outer, bg=bg)
+        bottom.pack(fill="x", pady=(6, 0))
+        self.loadout_label = label(bottom, text="No active session", anchor="w", takefocus=True)
+        self.loadout_label.pack(side="left", fill="x", expand=True)
+        label(bottom, textvariable=self.vars["damage"]).pack(side="left", padx=(6, 6))
+        self.resize_handle = label(bottom, text="◢", fg="#5EEAD4", takefocus=True,
+                                  cursor=_resize_cursor(str(self.tk.call("tk", "windowingsystem"))))
+        self.resize_handle.pack(side="right", ipadx=4, ipady=2)
+        self.resize_handle.bind("<ButtonPress-1>", self._start_resize)
+        self.resize_handle.bind("<B1-Motion>", self._resize)
+        self.resize_handle.bind("<ButtonRelease-1>", self._stop_resize)
+        self._loadout_tip = None
+        self.loadout_label.bind("<Enter>", self._show_loadout)
+        self.loadout_label.bind("<FocusIn>", self._show_loadout)
+        self.loadout_label.bind("<Leave>", self._hide_loadout)
+        self.loadout_label.bind("<FocusOut>", self._hide_loadout)
+        for widget in (self.brand_label, self.loadout_label, self.resize_handle):
+            widget.bind("<FocusIn>", lambda event: event.widget.configure(highlightthickness=1, highlightbackground="#5EEAD4"), add="+")
+            widget.bind("<FocusOut>", lambda event: event.widget.configure(highlightthickness=0), add="+")
+        self.bind("<Configure>", self._on_overlay_configure, add="+")
+
+    def _on_overlay_configure(self, event) -> None:
+        if event.widget == self:
+            self._layout_values()
+
+    def _on_metric_change(self, *_args) -> None:
+        previous = (self._hero_stacked, self._stats_stacked)
+        self._layout_values()
+        if previous != (self._hero_stacked, self._stats_stacked):
+            self._schedule_fit_to_contents()
+
+    def _layout_values(self) -> None:
+        import tkinter.font as tkfont
+        width = max(self.content_width, self.outer.winfo_width() - round(26 * self.ui_scale))
+        for widget in self._wrap_labels:
+            widget.configure(wraplength=width)
+        net_width = tkfont.Font(self, font=self.net_label.cget("font")).measure(self.vars["net_big"].get())
+        return_width = tkfont.Font(self, font=self.return_label.cget("font")).measure(self.vars["return"].get())
+        stacked = net_width + return_width + 24 * self.ui_scale > width
+        if stacked != self._hero_stacked:
+            self._hero_stacked = stacked
+            self.net_caption.grid(row=0, column=0, sticky="w")
+            self.net_label.grid(row=1, column=0, sticky="w")
+            self.return_caption.grid(row=2 if stacked else 0, column=0 if stacked else 1, sticky="w" if stacked else "e")
+            self.return_label.grid(row=3 if stacked else 1, column=0 if stacked else 1, sticky="w" if stacked else "e")
+        metric_font = tkfont.Font(self, family="Segoe UI", size=12, weight="bold")
+        needs_stack = (max(metric_font.measure(self.vars[key].get()) for key in ("loot", "cost", "kills"))
+                       * 3 + 32 * self.ui_scale > width)
+        if needs_stack != self._stats_stacked:
+            self._stats_stacked = needs_stack
+            for index, cell in enumerate(self.stat_cells):
+                self.stats.columnconfigure(index, weight=0 if needs_stack else 1, uniform="" if needs_stack else "metric")
+                cell.grid(row=index if needs_stack else 0, column=0 if needs_stack else index, sticky="ew", padx=(0, 6))
+        font = tkfont.Font(self, font=self.loadout_label.cget("font"))
+        available = max(40, width - round(135 * self.ui_scale))
+        name = self.vars["loadout"].get()
+        text = name
+        while text and font.measure(text + ("…" if text != name else "")) > available:
+            text = text[:-1]
+        self.loadout_label.configure(text=text + ("…" if text != name else ""))
+
+    def _show_loadout(self, _event=None) -> None:
+        self._hide_loadout()
+        tip = self._loadout_tip = tk.Toplevel(self)
+        tip.overrideredirect(True)
+        tip.attributes("-topmost", True)
+        tk.Label(tip, text=self.vars["loadout"].get(), font=("Segoe UI", 9), wraplength=self.content_width,
+                 bg="#131E2E", fg="#F1F5F9", padx=8, pady=5).pack()
+        tip.update_idletasks()
+        tip.geometry(f"+{self.winfo_x()}+{max(0, self.winfo_y() - tip.winfo_reqheight())}")
+
+    def _hide_loadout(self, _event=None) -> None:
+        if self._loadout_tip is not None:
+            self._loadout_tip.destroy()
+            self._loadout_tip = None
+
+    def _keyboard_geometry(self, event) -> str:
+        dx, dy = {"Left": (-10, 0), "Right": (10, 0), "Up": (0, -10), "Down": (0, 10)}[event.keysym]
+        left, top, right, bottom = _streamer_work_area(self)
+        self._user_positioned = True
+        if event.state & 1:
+            self._user_resized = True
+            min_w, min_h = self.minsize()
+            width = max(min_w, min(right - left, self.winfo_width() + dx))
+            height = max(min_h, min(bottom - top, self.winfo_height() + dy))
+            x = max(left, min(self.winfo_x(), right - width))
+            y = max(top, min(self.winfo_y(), bottom - height))
+            self.geometry(f"{width}x{height}+{x}+{y}")
+        else:
+            x = max(left, min(self.winfo_x() + dx, right - self.winfo_width()))
+            y = max(top, min(self.winfo_y() + dy, bottom - self.winfo_height()))
+            self.geometry(f"+{x}+{y}")
+        return "break"
 
     def update_from_session(self, session: SessionSummary | None) -> None:
         metrics = streamer_metrics(session)
+        self._trend_error = False
         try:
             kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
         except Exception:
             # A malformed/very large historical session must not take down live
             # log ingestion or the main dashboard just because the overlay chart
             # cannot be refreshed.
+            self._trend_error = True
+            self._kill_trend_key = None
             kill_points = []
         kill_count = len(kill_points)
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
-        color = self.app.colors["accent"] if net > 0 else "#f97316" if net < 0 else "#e5edf8"
-        context = (session.session_id if session else None, self.app.currency_mode.get(), self.app.running)
-        animate = context == self._feedback_context and self.app.running and not self.app.reduced_motion.get()
+        color = "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
+        state = ("STOPPED" if session and session.ended_at else
+                 "TRACKING" if session and self.app.running else
+                 "PAUSED" if session else "WAITING FOR RUN" if self.app.running else "IDLE")
+        live = state == "TRACKING"
+        self.vars["state"].set(f"{'DEMO · ' if self.demo else ''}{state}")
+        self.state_label.configure(fg="#5EEAD4" if live else "#B8C5D6")
+        self.activity_strip.set_context(state, self.demo)
+        context = (session.session_id if session else None, self.app.currency_mode.get(), live)
+        animate = context == self._feedback_context and live and not self.app.reduced_motion.get()
         self._feedback_context = context
-        self.activity_strip.update_snapshot(self.app._activity_snapshot(session), self.app.running)
+        self.activity_strip.update_snapshot(self.app._activity_snapshot(session), live)
         for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
             self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
-        self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}% Return"), animate)
-        self.vars["kills"].set(f"{kill_count}")
+        if not session:
+            self.animator.cancel("net_big")
+            self.vars["net_big"].set("—")
+        if session and float(metrics["cost"]) > 0:
+            self.return_caption.configure(text="RETURN")
+            self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}%"), animate)
+        else:
+            self.animator.cancel("return")
+            self.vars["return"].set("—")
+            self.return_caption.configure(text="RETURN · NO COST YET" if session else "RETURN")
+        self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
         if int(float(metrics.get("manufacturing_attempt", 0))) > 0:
             self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
             if not self.input_label.winfo_manager():
@@ -1913,10 +2030,24 @@ class StreamerWindow(tk.Toplevel):
         self.durability_pct = durability["percent"]
         self.durability_known = durability["label"] != "Durability"
         self.durability_label = str(durability["label"])
-        self.durability_color = durability_color(self.durability_pct)
-        self.vars["durability"].set(durability["streamer_text"])
+        self.durability_color = ("#FDA4AF" if self.durability_pct <= 10 else
+                                 "#FDBA74" if self.durability_pct <= 30 else "#86EFAC")
+        durability_text = str(durability["streamer_text"])
+        if self.durability_known and self.durability_pct <= 0:
+            durability_text += " · EMPTY"
+        self.vars["durability"].set(durability_text)
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
-        self.vars["kill_trend_badge"].set(_kill_trend_badge(kill_points))
+        if self._trend_error:
+            summary = "Trend unavailable · totals still shown"
+        elif kill_points:
+            latest = kill_points[-1]
+            change = ("first point" if len(kill_points) == 1 else "= unchanged" if not latest["delta_profit"] else
+                      f"{latest['trend_symbol']} {float(latest['delta_profit']):+.2f} vs prev")
+            summary = (f"K{latest['kill']} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
+                       f"Cost {float(latest['cost']):.2f} · Cumulative avg cost {float(latest['avg_cost']):.2f} PED")
+        else:
+            summary = "No kill points yet"
+        self.vars["kill_trend_badge"].set(summary)
         previous_points = getattr(self, "kill_trend_points", [])
         self.kill_trend_points = kill_points
         self._draw_durability_bar()
@@ -1929,7 +2060,8 @@ class StreamerWindow(tk.Toplevel):
         else:
             self._draw_kill_trend_chart()
         self.net_label.configure(fg=color)
-        self.return_label.configure(fg=color)
+        self.return_label.configure(fg="#F1F5F9")
+        self._layout_values()
         self._schedule_fit_to_contents()
 
     def _draw_durability_bar(self) -> None:
@@ -1941,11 +2073,10 @@ class StreamerWindow(tk.Toplevel):
         pct = max(0.0, min(100.0, self.durability_pct))
         canvas.delete("all")
         canvas.create_rectangle(0, 0, width, height, fill="#111827", outline="#1f2937", width=1)
-        fill_width = int((width - 2) * pct / 100.0)
+        fill_width = int((width - 2) * pct / 100.0) if self.durability_known else 0
         if fill_width > 0:
             canvas.create_rectangle(1, 1, fill_width + 1, height - 1, fill=self.durability_color, outline="")
-        if pct <= 0 and self.durability_known:
-            canvas.create_text(width / 2, height / 2, text=f"{self.durability_label.upper()} EMPTY", fill="#fed7aa", font=("Segoe UI", 7, "bold"))
+
 
     def _chart_frame(self, phase: float) -> None:
         self._chart_phase = phase
@@ -1960,22 +2091,23 @@ class StreamerWindow(tk.Toplevel):
         points = getattr(self, "kill_trend_points", [])
         display_points = points[-16:]
         canvas.delete("all")
-        canvas.create_rectangle(0, 0, width, height, fill="#08111f", outline="#14233a")
+        canvas.create_rectangle(0, 0, width, height, fill="#131E2E", outline="")
         if not display_points:
             canvas.create_text(
-                width / 2,
-                height / 2,
-                text="No completed kills yet — loot a mob to plot cost, average, and profit per kill.",
-                fill="#94a3b8",
-                font=("Segoe UI", 8),
-                width=max(width - 24, 80),
+                width / 2, height / 2,
+                text=("Trend unavailable · totals still shown" if getattr(self, "_trend_error", False) else
+                      "No kill points yet\nCombat and loot events build this trend"),
+                fill="#B8C5D6", font=("Segoe UI", 9), width=max(width - 24, 80), justify="center",
             )
             return
 
-        pad_left = 34
-        pad_right = 10
-        pad_top = 8
-        pad_bottom = 16
+        import tkinter.font as tkfont
+        axis_font = tkfont.Font(self, family="Segoe UI", size=9)
+        pad_left = max(round(40 * self.ui_scale), max(axis_font.measure(f"{float(p[k]):+.2f}")
+                       for p in display_points for k in ("cost", "avg_cost", "profit")) + 10)
+        pad_right = round(14 * self.ui_scale)
+        pad_top = axis_font.metrics("linespace") // 2 + 3
+        pad_bottom = axis_font.metrics("linespace") + 5
         plot_w = max(width - pad_left - pad_right, 1)
         plot_h = max(height - pad_top - pad_bottom, 1)
         values = [0.0]
@@ -2009,28 +2141,16 @@ class StreamerWindow(tk.Toplevel):
         tick_values = [min_value, (min_value + max_value) / 2, max_value]
         for tick in tick_values:
             y = y_for(tick)
-            canvas.create_line(pad_left, y, width - pad_right, y, fill="#18253a")
-            canvas.create_text(pad_left - 5, y, text=f"{tick:+.1f}", anchor="e", fill="#64748b", font=("Segoe UI", 7))
+            canvas.create_line(pad_left, y, width - pad_right, y, fill="#334155")
+            canvas.create_text(pad_left - 5, y, text=f"{tick:+.2f}", anchor="e", fill="#B8C5D6", font=("Segoe UI", 9))
 
         zero_y = y_for(0.0)
-        if min_value < 0 < max_value:
-            canvas.create_line(pad_left, zero_y, width - pad_right, zero_y, fill="#334155", dash=(3, 2))
-
-        profit_coords: list[float] = []
-        for index, point in enumerate(display_points):
-            profit_coords.extend((x_for(index), y_for(value_for(index, "profit"))))
-        if len(profit_coords) >= 4:
-            fill_base = zero_y if min_value < 0 < max_value else max(height - pad_bottom, 1)
-            fill_points = [profit_coords[0], fill_base]
-            fill_points.extend(profit_coords)
-            fill_points.extend([profit_coords[-2], fill_base])
-            fill_color = "#123827" if float(display_points[-1]["profit"]) >= 0 else "#3a1f1f"
-            canvas.create_polygon(*fill_points, fill=fill_color, outline="", stipple="gray50")
+        canvas.create_line(pad_left, zero_y, width - pad_right, zero_y, fill="#B8C5D6", dash=(3, 2))
 
         series = [
-            ("cost", "#fb923c", None, 2),
-            ("avg_cost", "#38bdf8", (4, 2), 2),
-            ("profit", "#22c55e", None, 2),
+            ("cost", "#FDBA74", None, 2),
+            ("avg_cost", "#7DD3FC", (4, 2), 2),
+            ("profit", "#86EFAC", None, 2),
         ]
         for key, color, dash, line_width in series:
             coords: list[float] = []
@@ -2043,27 +2163,25 @@ class StreamerWindow(tk.Toplevel):
                 value = value_for(index, key)
                 y = y_for(value)
                 if key == "profit":
-                    fill = "#22c55e" if value >= 0 else "#ef4444"
+                    fill = "#86EFAC" if value >= 0 else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
                     canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill, outline="")
-                    canvas.create_text(x, y - 9, text=str(point["trend_symbol"]), fill=fill, font=("Segoe UI", 7, "bold"))
                 else:
                     radius = 2 if index == len(display_points) - 1 else 1
                     canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="")
 
-        latest = display_points[-1]
-        canvas.create_text(
-            width - pad_right,
-            pad_top + 1,
-            text=f"K{latest['kill']}",
-            anchor="ne",
-            fill="#d8fffb",
-            font=("Segoe UI", 7, "bold"),
-        )
+        for index, anchor in ((0, "w"), (len(display_points) - 1, "e")):
+            canvas.create_text(x_for(index), height - 2, text=f"K{display_points[index]['kill']}",
+                               anchor="s" if len(display_points) == 1 else "sw" if anchor == "w" else "se",
+                               fill="#B8C5D6", font=("Segoe UI", 9))
+            if len(display_points) == 1:
+                break
 
 
     def _start_drag(self, event) -> None:
-        self._drag_origin = (event.x, event.y)
+        if getattr(event, "widget", None) in (self.close_button, self.resize_handle):
+            return
+        self._drag_origin = (event.x_root - self.winfo_x(), event.y_root - self.winfo_y()) if hasattr(event, "widget") else (event.x, event.y)
 
     def _drag(self, event) -> None:
         if not self._drag_origin:
@@ -2080,8 +2198,9 @@ class StreamerWindow(tk.Toplevel):
         if not self._resize_origin:
             return "break"
         start_x, start_y, start_width, start_height = self._resize_origin
-        width = max(STREAMER_MIN_WIDTH, start_width + (event.x_root - start_x))
-        height = max(STREAMER_MIN_HEIGHT, start_height + (event.y_root - start_y))
+        min_width, min_height = self.minsize()
+        width = max(min_width, start_width + (event.x_root - start_x))
+        height = max(min_height, start_height + (event.y_root - start_y))
         self._user_resized = True
         self._user_positioned = True
         self.geometry(f"{width}x{height}")
@@ -2106,14 +2225,15 @@ class StreamerWindow(tk.Toplevel):
         if not self.winfo_exists():
             return
         self.update_idletasks()
-        desired_width = max(STREAMER_MIN_WIDTH, self.outer.winfo_reqwidth())
-        desired_height = max(STREAMER_MIN_HEIGHT, self.outer.winfo_reqheight())
-        current_width = max(self.winfo_width(), desired_width)
-        current_height = max(self.winfo_height(), desired_height)
-        if self._user_resized:
-            desired_width = max(desired_width, current_width)
-            desired_height = max(desired_height, current_height)
-        self.minsize(desired_width, desired_height)
+        self._layout_values()
+        self.update_idletasks()
+        min_width = max(round(STREAMER_MIN_WIDTH * self.ui_scale), self.outer.winfo_reqwidth())
+        min_height = max(round(STREAMER_MIN_HEIGHT * self.ui_scale), self.outer.winfo_reqheight())
+        # Content minimum is independent of the user's size: growing must not
+        # permanently ratchet the minimum upward.
+        self.minsize(min_width, min_height)
+        desired_width = max(min_width, self.winfo_width() if self._user_resized else round(STREAMER_DEFAULT_WIDTH * self.ui_scale))
+        desired_height = max(min_height, self.winfo_height() if self._user_resized else round(STREAMER_DEFAULT_HEIGHT * self.ui_scale))
         if self._user_positioned:
             x, y = self.winfo_x(), self.winfo_y()
         else:
@@ -2124,6 +2244,7 @@ class StreamerWindow(tk.Toplevel):
             self.deiconify()
 
     def destroy(self) -> None:
+        self._hide_loadout()
         self.animator.cancel_all()
         if self._fit_after_id is not None:
             try:

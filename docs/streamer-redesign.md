@@ -1,0 +1,96 @@
+# Streamer HUD redesign — v0.3.33
+
+Design by **BobRoss.bot**, Paperclip task **WIL-15**, 24 October 2026.
+Implementation by Aaron / Pi Coding Assistant.
+
+## Design direction
+
+A quiet broadcast instrument, not a miniature dashboard: one dominant result,
+one honest tracking state, one compact trend. BobRoss reviewed the repository
+at f32c52c; the design handoff was code-grounded, not a claimed Windows visual review.
+
+### Layout and typography
+
+- Target 440×400 at 100% scaling, 420×400 minimum before measured content needs.
+  Respect display scaling, readable fonts, and essential text over fixed height.
+- Opaque borderless always-on-top window, 1px border, 12px interior padding,
+  related 4px gaps and section 8px gaps.
+- Persistent state/close in header; two-column net profit and return hero.
+- Net 24pt bold, return 16pt bold, metric values 12pt bold, supporting text 9pt.
+- Shared Loot/Cost/Kills surface instead of three heavy cards. Large amounts
+  reflow into rows; no monetary abbreviation or precision loss.
+- Compact activity area, conditional manufacturing row, PED chart with inline
+  legend and inferred-kill disclosure, latest exact summary, durability, footer.
+- Loadout alone may ellipsize, with full name available on focus or hover.
+
+### Palette
+
+| Role | Hex |
+| --- | --- |
+| Background | `#0B1220` |
+| Surface | `#131E2E` |
+| Border | `#334155` |
+| Primary text | `#F1F5F9` |
+| Supporting text | `#B8C5D6` |
+| Accent/tracking | `#5EEAD4` |
+| Positive | `#86EFAC` |
+| Cost/warning | `#FDBA74` |
+| Negative | `#FDA4AF` |
+| Average cost | `#7DD3FC` |
+
+Signs, labels, markers and dashed average lines communicate without relying on
+color. Return remains neutral rather than being profit-colored.
+
+### Truthful state and feedback
+
+`TRACKING` requires a displayed unended session and running ingestion state.
+Retained unended sessions are `PAUSED`; ended displayed sessions are `STOPPED`.
+No session is `IDLE`, or `WAITING FOR RUN` when ingestion is running without a
+valid displayed session. Existing Stop clears the live session and becomes Idle;
+this redesign does not invent a pause workflow or change tracking lifecycle.
+
+No session or no cost means no meaningful return: show an em dash. Preserve
+net/loot/cost currency formatting, conditional manufacturing input in PED and
+attempt counts. Preview retains DEMO branding and a synthetic-money warning.
+
+Bundled loot and real skill counts remain in the activity area. Arrival copy
+returns to quiet text after four seconds. Session changes/resume establish a
+quiet baseline. Reduced motion keeps immediate values and readable arrival copy
+without motion. Main-dashboard activity presentation and sound policy remain
+unchanged.
+
+### Chart and equipment
+
+- Cost, cumulative average cost and profit remain visible; plot the latest 16
+  points but count the complete history. Chart values remain PED in USD mode.
+- Label `Kills*` and `* Inferred from event clusters`: the existing algorithm is
+  an inference, not an authoritative kill count. No financial formula changes.
+- Measured axis gutter, readable signed ticks, zero baseline, first/latest kill
+  indices, markers for a single point. No decorative fill or tiny per-point arrows.
+- Latest profit, direction/delta, exact cost and cumulative average remain in a
+  wrapped summary. Distinguish query failure from a real empty chart.
+- Preserve durability role/percentage/approximate shots, use a neutral unfilled
+  track for unknown durability, orange at <=30%, rose at <=10%, readable EMPTY
+  label at zero. Durability remains an estimate based on existing inputs.
+
+### Interaction
+
+Preserve fit-before-show and initial bottom-right placement 16px inside the
+monitor's usable work area. Drag and resize never snap back on refresh. Content
+minimum must not ratchet upward after user enlargement. Resize grows chart, not
+fonts. Header/background drag; release clears drag state. Escape and close only
+dismiss the overlay. Close and move/resize targets support keyboard focus;
+arrows move and Shift+arrows resize by 10px, clamped to work area/minimum.
+
+## Verification scope
+
+Automated regression coverage exercises monetary reflow, inferred counts beyond
+16, empty/error chart distinction and recovery, manufacturing row visibility,
+known/unknown/empty durability, keyboard geometry, persistent demo/retained states,
+arrival expiry/reduced motion, placement and reversible minimum sizing. Temporary
+synthetic databases are used, never the player's logs or history.
+
+Windows screenshots are captured separately from isolated synthetic sessions.
+Tk scaling checks are not a substitute for testing every real monitor's Windows
+DPI configuration or broadcast pipeline. Native multi-monitor and broadcast
+capture acceptance should be verified on the user's actual setup.

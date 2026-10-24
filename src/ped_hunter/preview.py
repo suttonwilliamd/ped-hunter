@@ -29,6 +29,7 @@ def main() -> None:
         loadout = LoadoutRecord(id=None, name="DEMO · Frontier rifle", weapon="Frontier Rifle", ammo_burn=100, decay=0.0002, cost_per_shot=0.0102)
         sid = store.start_session("hunt", loadout)
         app = app_module.PedHunterApp(store=store)
+        app.preview_mode = True
         app.title("PED Hunter · VISUAL PREVIEW · synthetic data")
         app.session_id = sid
         app.currency_mode.set("PED")
@@ -42,9 +43,8 @@ def main() -> None:
         app._open_streamer_window()
         overlay = app.streamer_window
         overlay.title("PED Hunter · DEMO feedback overlay")
-        overlay.geometry(f"460x430+{min(1260, max(0, app.winfo_screenwidth() - 480))}+100")
-        # The compact window must identify simulated money as clearly as the main one.
-        overlay.brand_label.configure(text="◆ PED HUNTER · DEMO")
+        # Exercise production content fitting and placement. The persistent
+        # DEMO state and activity copy remain visible after playback completes.
         app.geometry("1180x780+60+60")
         notebook = app.events_tab.master
         notebook.select(app.events_tab)

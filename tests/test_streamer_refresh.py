@@ -24,10 +24,10 @@ def test_resize_cursor_uses_tk_backend(windowing_system: str, expected: str) -> 
 
 
 def test_streamer_window_defaults_are_smaller_than_main_dashboard() -> None:
-    assert STREAMER_DEFAULT_WIDTH == 420
-    assert STREAMER_DEFAULT_HEIGHT == 300
-    assert STREAMER_MIN_WIDTH == 340
-    assert STREAMER_MIN_HEIGHT == 250
+    assert STREAMER_DEFAULT_WIDTH == 440
+    assert STREAMER_DEFAULT_HEIGHT == 400
+    assert STREAMER_MIN_WIDTH == 420
+    assert STREAMER_MIN_HEIGHT == 400
 
 
 def test_kill_trend_points_roll_up_cost_profit_and_delta(tmp_path) -> None:
@@ -240,8 +240,9 @@ def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_f
         assert pack_order.index(streamer.kill_chart.master) < pack_order.index(streamer.durability_bar.master)
 
         app.update_idletasks()
-        assert streamer.winfo_width() == streamer.winfo_reqwidth()
-        assert streamer.winfo_height() == streamer.winfo_reqheight()
+        assert streamer.winfo_width() >= streamer.winfo_reqwidth()
+        assert streamer.winfo_height() >= streamer.winfo_reqheight()
+        assert streamer.winfo_width() >= STREAMER_DEFAULT_WIDTH
 
         long_loadout = LoadoutRecord(
             id=None,
@@ -270,8 +271,8 @@ def test_streamer_chart_section_renders_before_the_lower_priority_sections_and_f
         assert streamer.vars["cost"].get() == "$0.00"
         assert streamer.vars["kills"].get() == "1"
 
-        assert streamer.winfo_width() == streamer.winfo_reqwidth()
-        assert streamer.winfo_height() == streamer.winfo_reqheight()
+        assert streamer.winfo_width() >= streamer.winfo_reqwidth()
+        assert streamer.winfo_height() >= streamer.winfo_reqheight()
 
         initial_chart_height = streamer.kill_chart.winfo_height()
         streamer.geometry(f"{streamer.winfo_width()}x{streamer.winfo_height() + 120}")
