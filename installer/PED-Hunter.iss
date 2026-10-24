@@ -1,5 +1,5 @@
 #define MyAppName "PED Hunter"
-#define MyAppVersion "0.3.36"
+#define MyAppVersion "0.3.37"
 #define MyAppPublisher "suttonwilliamd"
 #define MyAppExeName "PED-Hunter.exe"
 

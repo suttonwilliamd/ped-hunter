@@ -136,6 +136,37 @@ after four seconds without moving the HUD, including with
 reduced motion. Preview keeps a persistent **DEMO** state and synthetic-money
 warning and uses the same layout/placement as the production overlay.
 
+### Crafting inputs in the streamer
+
+Use **Manufacturing → Add material cost** before the batch. This books the full
+configured batch TT cost once in the session; it is not charged again per receipt.
+The streamer immediately shows the saved blueprint, TT input per attempt and
+`observed/planned` groups, even before the first result arrives. While crafting,
+it also shows batch returns, booked input and net against that booked input.
+The top cards are explicitly **booked whole-session** totals, including hunting;
+chart values and input/batch figures remain **PED** when the cards use USD.
+
+Real crafting logs often contain only `You received ...` lines, not an explicit
+success/failure notice. Product, returned ingredients, residue and shrapnel in
+one receipt group share one configured input cost. Craft receipts crossing a
+clock-second boundary stay together. **C** labels mark craft groups; **K** labels
+mark hunting clusters. The Groups* count is not a confirmed click/kill count.
+Craft chart averages/deltas are within a batch; hunting averages stay separate.
+Hover/focus the footer for full blueprint, cost-source and inference details.
+
+A newly added setup starts a new batch at its saved event position; outgoing
+attacks switch attribution back to hunting. Streamer attribution never prices
+older receipts retroactively or treats stale unused setup entries as a future
+FIFO queue. Completely
+silent failures are unobservable, so observed groups can be fewer than planned
+attempts while the entire entered budget remains booked. Extra craft groups
+beyond the configured plan have **unknown** input/profit, not free profit; add a
+new setup for a new batch. TT estimates do not include material markup.
+
+Saved runs are reprojected read-only using their existing setup records: no
+history rewrite, rebilling, or manual re-entry is needed. Craft progress updates
+retain the same fixed-layout and resize behavior.
+
 Design direction: BobRoss.bot's [streamer HUD specification](docs/streamer-redesign.md).
 
 ## Building the Windows executable

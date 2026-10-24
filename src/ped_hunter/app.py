@@ -1916,7 +1916,9 @@ class StreamerWindow(tk.Toplevel):
             cell = tk.Frame(self.stats, bg=surface)
             cell.pack_propagate(False)
             cell.grid(row=0, column=index, sticky="nsew")
-            label(cell, text=title, bold=True, fg="#FDBA74" if key == "cost" else secondary).pack(anchor="w")
+            title_label = label(cell, text=title, bold=True, fg="#FDBA74" if key == "cost" else secondary)
+            title_label.pack(anchor="w")
+            setattr(self, {"loot": "loot_title", "cost": "cost_title", "kills": "count_title"}[key], title_label)
             fixed_text(cell, key, size=12, bold=True, fg=primary).pack(fill="both", expand=True)
             self.stat_cells.append(cell)
         self.activity_strip = OverlayActivityStrip(self.outer, reduced_motion=self.app.reduced_motion,
@@ -1932,7 +1934,8 @@ class StreamerWindow(tk.Toplevel):
         self.chart_header = chart_header = tk.Frame(trend, bg=bg)
         chart_header.pack(fill="x")
         chart_header.pack_propagate(False)
-        label(chart_header, text="* Inferred clusters · PED", fg=secondary).pack(side="left")
+        self.chart_note = label(chart_header, text="* Inferred clusters · PED", fg=secondary)
+        self.chart_note.pack(side="left")
         legend = tk.Frame(chart_header, bg=bg)
         legend.pack(side="right")
         for text, tint in (("— Cost", "#FDBA74"), ("- - Avg", "#7DD3FC"), ("● Profit", "#86EFAC")):
@@ -2125,7 +2128,7 @@ class StreamerWindow(tk.Toplevel):
         tip = self._loadout_tip = tk.Toplevel(self)
         tip.overrideredirect(True)
         tip.attributes("-topmost", True)
-        tk.Label(tip, text=self.vars["loadout"].get(), font=self._font(), wraplength=self.content_width,
+        tk.Label(tip, text=getattr(self, "_footer_detail", self.vars["loadout"].get()), font=self._font(), wraplength=self.content_width,
                  bg="#131E2E", fg="#F1F5F9", padx=8, pady=5).pack()
         tip.update_idletasks()
         tip.geometry(f"+{self.winfo_x()}+{max(0, self.winfo_y() - tip.winfo_reqheight())}")
@@ -2173,35 +2176,56 @@ class StreamerWindow(tk.Toplevel):
             self._kill_trend_key = None
             kill_points = []
         kill_count = len(kill_points)
+        plan = self.manufacturing_plan = getattr(kill_points, "manufacturing", None)
+        has_crafting = (getattr(kill_points, "has_crafting", False) or
+                        int(float(metrics.get("manufacturing_attempt", 0))) > 0)
+        unpriced_groups = getattr(kill_points, "unknown_craft_groups", 0)
+        craft_active = bool(plan and plan.active)
+        incomplete_cost = bool(unpriced_groups and (
+            (craft_active and (plan.per_attempt is None or plan.observed > plan.attempts)) or
+            (not plan and kill_points and kill_points[-1].get("kind") == "craft")))
+        self._has_crafting = has_crafting
+        self.net_caption.configure(text="NET · COST UNKNOWN" if incomplete_cost else "BOOKED SESSION NET" if has_crafting else "NET PROFIT")
+        self.loot_title.configure(text="Returns" if has_crafting else "Loot")
+        self.cost_title.configure(text="Known cost" if incomplete_cost else "Booked cost" if has_crafting else "Cost")
+        self.count_title.configure(text="Groups*" if has_crafting else "Kills*")
+        self.chart_note.configure(text="* Prior groups · PED" if craft_active and not plan.observed and kill_points else
+                                  "* Observed groups · PED" if has_crafting else "* Inferred clusters · PED")
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
-        color = "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
+        color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
         state = ("STOPPED" if session and session.ended_at else
                  "TRACKING" if session and self.app.running else
                  "PAUSED" if session else "WAITING FOR RUN" if self.app.running else "IDLE")
         live = state == "TRACKING"
         self.vars["state"].set(f"{'DEMO · ' if self.demo else ''}{state}")
         self.state_label.configure(fg="#5EEAD4" if live else "#B8C5D6")
-        self.activity_strip.set_context(state, self.demo)
+        self.activity_strip.set_context(state, self.demo, crafting=craft_active)
         context = (session.session_id if session else None, self.app.currency_mode.get(), live)
         animate = context == self._feedback_context and live and not self.app.reduced_motion.get()
         self._feedback_context = context
         self.activity_strip.update_snapshot(self.app._activity_snapshot(session), live)
         for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
             self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
-        if not session:
+        if not session or incomplete_cost:
             self.animator.cancel("net_big")
             self.vars["net_big"].set("—")
-        if session and float(metrics["cost"]) > 0:
-            self.return_caption.configure(text="RETURN")
+        if session and float(metrics["cost"]) > 0 and not incomplete_cost:
+            self.return_caption.configure(text="BOOKED RETURN" if has_crafting else "RETURN")
             self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}%"), animate)
         else:
             self.animator.cancel("return")
             self.vars["return"].set("—")
-            self.return_caption.configure(text="RETURN · NO COST YET" if session else "RETURN")
+            self.return_caption.configure(text="RETURN · UNKNOWN" if incomplete_cost else "RETURN · NO COST YET" if session else "RETURN")
         self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
-        if int(float(metrics.get("manufacturing_attempt", 0))) > 0:
-            self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
+        if has_crafting:
+            if plan:
+                price = "unknown" if plan.per_attempt is None else f"{plan.per_attempt:.2f} PED"
+                self.vars["input"].set(f"{'TT input' if craft_active else 'Last TT input'} {price} · {plan.observed}/{plan.attempts} observed*")
+            elif int(float(metrics.get("manufacturing_attempt", 0))) > 0:
+                self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
+            else:
+                self.vars["input"].set("Craft inputs unknown — add blueprint + attempts")
             if not self.input_slot.winfo_manager():
                 self.input_slot.pack(after=self.activity_strip, fill="x", pady=(4, 0))
                 self.input_label.pack(fill="both", expand=True)
@@ -2223,18 +2247,29 @@ class StreamerWindow(tk.Toplevel):
         durability_text = str(durability["streamer_text"])
         if self.durability_known and self.durability_pct <= 0:
             durability_text += " · EMPTY"
+        self._footer_detail = str(metrics["loadout"])
+        if plan:
+            self._footer_detail = (f"{plan.blueprint}\n{plan.attempts} planned at {plan.per_attempt if plan.per_attempt is not None else 'unknown'} PED/attempt; "
+                                   f"{plan.booked_cost:.2f} PED booked once in session cost (TT only, no markup).\n"
+                                   f"Batch returns {plan.returns:.4f} PED; net against booked batch cost {plan.returns - plan.booked_cost:+.4f} PED.\n"
+                                   f"{plan.observed} observed groups. Receipts are grouped, not confirmed clicks; silent failures are not observable.\n"
+                                   f"The hero is whole-session totals against entered/booked costs, including hunting. {unpriced_groups} historical craft groups have no attributed input price. "
+                                   "C = craft group; K = hunting cluster. "
+                                   "Chart averages/deltas are within a crafting batch or hunting, not between the two.")
+            if craft_active:
+                self.vars["loadout"].set(f"Crafting: {plan.blueprint}")
+                self.vars["damage"].set(f"{plan.observed}/{plan.attempts}*")
+                durability_text = (f"Batch return {plan.returns:.2f} · booked {plan.booked_cost:.2f} · "
+                                   f"net {plan.returns - plan.booked_cost:+.2f} PED")
+                if incomplete_cost:
+                    durability_text = "Cost coverage incomplete · add a new crafting setup"
+                self.durability_known = False
         self.vars["durability"].set(durability_text)
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
-        if self._trend_error:
-            summary = "Trend unavailable · totals still shown"
-        elif kill_points:
-            latest = kill_points[-1]
-            change = ("first point" if len(kill_points) == 1 else "= unchanged" if not latest["delta_profit"] else
-                      f"{latest['trend_symbol']} {float(latest['delta_profit']):+.2f} vs prev")
-            summary = (f"K{latest['kill']} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
-                       f"Cost {float(latest['cost']):.2f} · Cumulative avg cost {float(latest['avg_cost']):.2f} PED")
-        else:
-            summary = "No kill points yet"
+        summary = ("Trend unavailable · totals still shown" if self._trend_error else
+                   f"Craft setup armed · 0/{plan.attempts} observed\nBatch {plan.booked_cost:.2f} PED booked; waiting for receipts" if craft_active and not plan.observed else
+                   _streamer_trend_detail(kill_points) if kill_points else
+                   "No observed craft groups yet · inputs booked" if has_crafting else "No kill points yet")
         self.vars["kill_trend_badge"].set(summary)
         previous_points = getattr(self, "kill_trend_points", [])
         self.kill_trend_points = kill_points
@@ -2282,23 +2317,21 @@ class StreamerWindow(tk.Toplevel):
             canvas.create_text(
                 width / 2, height / 2,
                 text=("Trend unavailable · totals still shown" if getattr(self, "_trend_error", False) else
+                      "Waiting for crafting receipts\nInputs are booked; silent attempts are unobservable" if getattr(self, "_has_crafting", False) else
                       "No kill points yet\nCombat and loot events build this trend"),
                 fill="#B8C5D6", font=self._font(), width=max(width - 16, 60), justify="center",
             )
             return
 
         axis_font = self._font(8)
-        pad_left = max(round(30 * self._content_scale), max(axis_font.measure(f"{float(p[k]):+.2f}")
-                       for p in display_points for k in ("cost", "avg_cost", "profit")) + 8)
+        known_values = [float(p[k]) for p in display_points for k in ("cost", "avg_cost", "profit") if p[k] is not None]
+        pad_left = max(round(30 * self._content_scale), max((axis_font.measure(f"{v:+.2f}") for v in known_values), default=0) + 8)
         pad_right = round(10 * self._content_scale)
         pad_top = axis_font.metrics("linespace") // 2 + 3
         pad_bottom = axis_font.metrics("linespace") + 5
         plot_w = max(width - pad_left - pad_right, 1)
         plot_h = max(height - pad_top - pad_bottom, 1)
-        values = [0.0]
-        values.extend(float(point["cost"]) for point in display_points)
-        values.extend(float(point["avg_cost"]) for point in display_points)
-        values.extend(float(point["profit"]) for point in display_points)
+        values = [0.0, *known_values]
         min_value = min(values)
         max_value = max(values)
         if math.isclose(min_value, max_value):
@@ -2312,11 +2345,16 @@ class StreamerWindow(tk.Toplevel):
                 drawn_index -= 1 - self._chart_phase
             return pad_left + (plot_w * drawn_index / (len(display_points) - 1))
 
-        def value_for(index: int, key: str) -> float:
-            value = float(display_points[index][key])
+        def value_for(index: int, key: str) -> float | None:
+            current = display_points[index]
+            if current[key] is None:
+                return None
+            value = float(current[key])
             if index == len(display_points) - 1 and index > 0:
-                previous = float(display_points[index - 1][key])
-                return previous + (value - previous) * self._chart_phase
+                previous = display_points[index - 1]
+                if (previous[key] is not None and previous.get("kind") == current.get("kind") and
+                        previous.get("plan_event_id") == current.get("plan_event_id")):
+                    return float(previous[key]) + (value - float(previous[key])) * self._chart_phase
             return value
 
         def y_for(value: float) -> float:
@@ -2340,12 +2378,22 @@ class StreamerWindow(tk.Toplevel):
         for key, color, dash, line_width in series:
             coords: list[float] = []
             for index, point in enumerate(display_points):
-                coords.extend((x_for(index), y_for(value_for(index, key))))
+                value = value_for(index, key)
+                if value is None:
+                    if len(coords) >= 4:
+                        canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
+                    coords = []
+                else:
+                    coords.extend((x_for(index), y_for(value)))
             if len(coords) >= 4:
                 canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
             for index, point in enumerate(display_points):
                 x = x_for(index)
                 value = value_for(index, key)
+                if value is None:
+                    if key == "profit":
+                        canvas.create_text(x, y_for(0.0), text="?", fill="#B8C5D6", font=axis_font)
+                    continue
                 y = y_for(value)
                 if key == "profit":
                     fill = "#86EFAC" if value >= 0 else "#FDA4AF"
@@ -2356,7 +2404,7 @@ class StreamerWindow(tk.Toplevel):
                     canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="")
 
         for index, anchor in ((0, "w"), (len(display_points) - 1, "e")):
-            canvas.create_text(x_for(index), height - 2, text=f"K{display_points[index]['kill']}",
+            canvas.create_text(x_for(index), height - 2, text=display_points[index].get("label", f"K{display_points[index]['kill']}"),
                                anchor="s" if len(display_points) == 1 else "sw" if anchor == "w" else "se",
                                fill="#B8C5D6", font=axis_font)
             if len(display_points) == 1:
@@ -3014,133 +3062,55 @@ def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) ->
                 """
                 SELECT id, timestamp, kind, payload
                 FROM events
-                WHERE session_id = ?
-                ORDER BY COALESCE(timestamp, ''), id
+                WHERE session_id = ? AND kind IN ('combat', 'loot', 'craft', 'manufacturing_offset')
+                ORDER BY id
                 """,
                 (session_id,),
             )
 
-    points: list[dict[str, object]] = []
-    cluster_cost = 0.0
-    cluster_loot = 0.0
-    cluster_started = False
-    loot_phase = False
-    last_loot_ts: float | None = None
-    kill_number = 0
-    previous_profit: float | None = None
-    total_cost = 0.0
+    from .activity_trend import build_activity_points
+    return build_activity_points(iter_rows(), KILL_CLUSTER_WINDOW_SECONDS)
 
-    def finalize_cluster() -> None:
-        nonlocal cluster_cost, cluster_loot, cluster_started, loot_phase, last_loot_ts
-        nonlocal kill_number, previous_profit, total_cost
-        if not cluster_started and cluster_cost == 0.0 and cluster_loot == 0.0:
-            return
-        kill_number += 1
-        profit = cluster_loot - cluster_cost
-        total_cost += cluster_cost
-        average_cost = total_cost / kill_number
-        if previous_profit is None:
-            delta_profit = 0.0
-            trend_symbol = "•"
-        else:
-            delta_profit = profit - previous_profit
-            if math.isclose(delta_profit, 0.0, abs_tol=1e-9):
-                trend_symbol = "="
-            elif delta_profit > 0:
-                trend_symbol = "↑"
-            else:
-                trend_symbol = "↓"
-        points.append(
-            {
-                "kill": kill_number,
-                "timestamp": "" if last_loot_ts is None else datetime.fromtimestamp(last_loot_ts).isoformat(timespec="seconds"),
-                "loot": cluster_loot,
-                "cost": cluster_cost,
-                "avg_cost": average_cost,
-                "profit": profit,
-                "delta_profit": delta_profit,
-                "trend_symbol": trend_symbol,
-                "loot_events": 1,
-            }
-        )
-        previous_profit = profit
-        cluster_cost = 0.0
-        cluster_loot = 0.0
-        cluster_started = False
-        loot_phase = False
-        last_loot_ts = None
 
-    def combat_cost(payload: dict[str, object]) -> float:
-        shot_cost = payload.get("shot_cost")
-        if shot_cost is not None:
-            return float(shot_cost or 0.0)
-        return float(payload.get("ammo_cost") or 0.0) + float(payload.get("repair_decay") or 0.0)
-
-    for row in iter_rows():
-        try:
-            payload = json.loads(str(row["payload"] or "{}"))
-        except json.JSONDecodeError:
-            payload = {}
-        kind = str(row["kind"] or "")
-        event_ts = _parse_event_timestamp(row["timestamp"])
-        if kind == "combat":
-            if cluster_started and loot_phase:
-                finalize_cluster()
-            if not cluster_started:
-                cluster_started = True
-            cluster_cost += combat_cost(payload)
-            loot_phase = False
-            continue
-        if kind != "loot":
-            continue
-        try:
-            loot_value = float(payload.get("value") or 0.0)
-        except (TypeError, ValueError):
-            continue
-        item_name = str(payload.get("item_name") or "")
-        if loot_value <= 0 or is_conversion_output_item(item_name):
-            continue
-
-        if not cluster_started:
-            cluster_started = True
-        if loot_phase and event_ts is not None and last_loot_ts is not None and (event_ts - last_loot_ts) > KILL_CLUSTER_WINDOW_SECONDS:
-            finalize_cluster()
-            cluster_started = True
-        cluster_loot += loot_value
-        loot_phase = True
-        last_loot_ts = event_ts
-
-    finalize_cluster()
-    return points
+def _streamer_trend_detail(points: list[dict[str, object]]) -> str:
+    latest = points[-1]
+    label = latest.get("label", f"K{latest['kill']}")
+    if latest["cost"] is None or latest["profit"] is None:
+        return (f"{label} · Cost unknown · Return {float(latest['loot']):.2f} PED\n"
+                "Add input setup; no per-group profit inferred")
+    first = latest.get("first_point", len(points) == 1)
+    change = ("first group" if first else "= unchanged" if not latest["delta_profit"] else
+              f"{latest['trend_symbol']} {float(latest['delta_profit']):+.2f} vs prev")
+    scope = "Batch avg" if latest.get("kind") == "craft" else "Cumulative avg cost"
+    return (f"{label} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
+            f"Cost {float(latest['cost']):.2f} · {scope} {float(latest['avg_cost']):.2f} PED")
 
 
 def _kill_trend_summary(points: list[dict[str, object]]) -> str:
     if not points:
-        return "No completed kills yet — loot a mob to plot cost, average, profit, and delta per kill."
+        return ("No observed craft groups yet — configured inputs are booked." if getattr(points, "has_crafting", False) else
+                "No completed kills yet — loot a mob to plot cost, average, profit, and delta per kill.")
     latest = points[-1]
+    if latest["cost"] is None or latest["profit"] is None:
+        return _streamer_trend_detail(points)
     profit = float(latest["profit"])
     cost = float(latest["cost"])
     avg_cost = float(latest["avg_cost"])
     delta_profit = float(latest["delta_profit"])
-    if len(points) == 1:
-        trend_text = "first kill"
+    if latest.get("first_point", len(points) == 1):
+        trend_text = "first craft group" if latest.get("kind") == "craft" else "first kill"
     elif math.isclose(delta_profit, 0.0, abs_tol=1e-9):
         trend_text = "flat vs prev"
     else:
         trend_text = f"{delta_profit:+.2f} vs prev"
-    return f"K{int(latest['kill'])} • cost {cost:.2f} • avg {avg_cost:.2f} • profit {profit:+.2f} • {latest['trend_symbol']} {trend_text}"
+    label = latest.get("label", f"K{int(latest['kill'])}")
+    return f"{label} • cost {cost:.2f} • avg {avg_cost:.2f} • profit {profit:+.2f} • {latest['trend_symbol']} {trend_text}"
 
 
 def _kill_trend_badge(points: list[dict[str, object]]) -> str:
     if not points:
-        return "Waiting for first kill"
-    latest = points[-1]
-    profit = float(latest["profit"])
-    delta_profit = float(latest["delta_profit"])
-    arrow = latest["trend_symbol"]
-    if len(points) == 1:
-        return f"K{int(latest['kill'])} • {profit:+.2f} PED • first kill"
-    return f"K{int(latest['kill'])} • {profit:+.2f} PED • {arrow} {delta_profit:+.2f} vs prev"
+        return "Waiting for first craft group" if getattr(points, "has_crafting", False) else "Waiting for first kill"
+    return _streamer_trend_detail(points).splitlines()[0]
 
 
 

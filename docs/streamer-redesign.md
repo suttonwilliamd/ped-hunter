@@ -3,6 +3,36 @@
 Design by **BobRoss.bot**, Paperclip task **WIL-15**, 24 October 2026.
 Implementation by Aaron / Pi Coding Assistant.
 
+## v0.3.37 crafting-cost attribution
+
+The owner's live log records crafting as received product, returned materials,
+residue and shrapnel, without the explicit craft-success/failure notices expected
+by the old allocator. The batch budget was already in the session ledger, but
+the hunting-only chart ignored it and the manufacturing row stayed hidden.
+
+- Project relevant events in insertion order so timestamp-less manual setup
+  records keep their actual boundary. A saved setup is available before results.
+- Attribute one configured TT input to each observed crafting receipt group,
+  including partial/failed returns with no crafted product. Allow adjacent clock
+  seconds inside a craft receipt; keep ordinary hunting's narrower grouping.
+- Honor explicit craft notices without counting their output again. Do not infer
+  completely silent failures or extrapolate input cost beyond the saved budget.
+- Use C/K labels and Groups*, with per-batch crafting averages/deltas and separate
+  hunting averages. The chart remains PED; unknown costs create gaps/? markers,
+  never zero-cost profit. Current over-budget/unpriced crafting suppresses a
+  misleading net/return; historical attribution gaps remain disclosed in the
+  footer while booked session totals remain available for subsequent activity.
+- Label the hero as booked whole-session net/return and the cost card as booked
+  cost. The crafting footer shows blueprint and observed/planned groups; the
+  former durability-text slot shows batch returns, booked cost and booked net.
+  Incoming damage/healing does not disarm crafting; outgoing attacks restore
+  weapon context. Last saved TT input remains visible afterward.
+- One pure, read-only projection supplies both chart and setup context. Existing
+  session billing remains unchanged; no historical allocations are invented or
+  persisted. Relevant kinds are streamed with snapshot-key caching.
+- All v0.3.36 fixed allocations remain in place, including during crafting
+  progress, quiet reset, currency changes and return to hunting.
+
 ## v0.3.36 layout-stability correction
 
 Live updates must not re-run the overlay's global fitting loop. The v0.3.35

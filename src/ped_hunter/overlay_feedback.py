@@ -22,8 +22,10 @@ class OverlayActivityStrip(ActivityStrip):
             self.after_cancel(self._reset_job)
             self._reset_job = None
 
-    def set_context(self, state: str, demo: bool = False) -> None:
+    def set_context(self, state: str, demo: bool = False, *, crafting: bool = False) -> None:
         self.demo = demo
+        mode_changed = getattr(self, "crafting", False) != crafting
+        self.crafting = crafting
         self.quiet_headline = {
             "TRACKING": "Waiting for new events",
             "PAUSED": "Tracking paused · totals held",
@@ -32,9 +34,12 @@ class OverlayActivityStrip(ActivityStrip):
             "WAITING FOR RUN": "Waiting for an active run",
         }[state]
         self.quiet_detail = ("Synthetic events · not real money" if demo else
+                             "Craft groups inferred; silent failures unobservable" if crafting and state == "TRACKING" else
                              "Loot and skill gains appear here" if state == "TRACKING" else
                              "Start or resume in PED Hunter" if state in ("IDLE", "WAITING FOR RUN") else
                              "Resume or start a run in PED Hunter")
+        if mode_changed and self._reset_job is None:
+            self._quiet()
 
     def _quiet(self):
         self._reset_job = None
@@ -54,7 +59,8 @@ class OverlayActivityStrip(ActivityStrip):
                 self._quiet()
             else:
                 if arrival.loot > 0:
-                    self.headline = f"+{self.money(arrival.loot)} loot recorded"
+                    source = "craft return" if getattr(self, "crafting", False) else "loot"
+                    self.headline = f"+{self.money(arrival.loot)} {source} recorded"
                 if self.demo:
                     self.detail = "Synthetic events · not real money"
                 self._reset_job = self.after(4000, self._quiet)
