@@ -3,6 +3,34 @@
 Design by **BobRoss.bot**, Paperclip task **WIL-15**, 24 October 2026.
 Implementation by Aaron / Pi Coding Assistant.
 
+## v0.3.36 layout-stability correction
+
+Live updates must not re-run the overlay's global fitting loop. The v0.3.35
+text-length cache and wrapped activity height could repeatedly change fonts,
+stacking and section positions without a user resize, especially during numeric
+animation or long skill arrivals.
+
+- Keep the two-column hero and three-column metrics in fixed allocations.
+- Reserve stable heights for activity, latest-point summary, durability and
+  footer. Activity is exactly two single-line slots; presentation may ellipsize
+  long text, while the complete original headline/detail remain in memory.
+- Global sizing uses only the window rectangle and whether the manufacturing
+  section is present, not current strings. Recompute on actual resize or an
+  explicit section visibility change, not on animation/data ticks or movement.
+- Fit static template heights without pumping idle events between candidates;
+  intermediate font/layout candidates must never be painted.
+- Exceptionally long monetary values may shrink only their own independent
+  field font. Do not expand it again between ordinary values/animation frames;
+  restore the font budget on the next actual layout change. Never abbreviate
+  monetary precision or rearrange other sections to fit it.
+- Nine new regression cases check fixed positions/fonts across digit thresholds,
+  animation frames, long activity and quiet resets, zero-cost transitions,
+  manufacturing attempts and large money. Stability runs at default, minimum
+  and enlarged sizes; the existing resize/DPI tests remain in place.
+
+This correction supersedes earlier content-driven reflow and activity wrapping
+requirements below. The 360×330 default and 260×240 minimum are unchanged.
+
 ## v0.3.35 sizing correction
 
 The owner found the original redesign too large and its resize minimum sticky.

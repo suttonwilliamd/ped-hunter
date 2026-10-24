@@ -113,9 +113,11 @@ Closing and reopening the Streamer UI restores the bottom-right starting positio
 
 The broadcast HUD uses a side-by-side net/return hero, a persistent tracking state,
 and compact overlay-local typography. Its default size is **360×330** at 100%
-scaling, with a **260×240** minimum. Fonts and spacing adapt inside the chosen
-rectangle without changing the main window's scaling. Large monetary totals
-reflow rather than losing precision. No-session and zero-cost
+scaling, with a **260×240** minimum. Fonts and spacing adapt when you resize,
+not on live-data or animation ticks. The hero, metrics, activity, chart summary,
+and footer keep stable slots inside the chosen rectangle without changing the
+main window's scaling. Large monetary totals fit their own field's font without
+moving other sections or losing precision. No-session and zero-cost
 returns show `—`, not a misleading return percentage. The chart is always labelled
 **PED**, even when the monetary cards use USD; **Kills*** are inferred event
 clusters, not independently confirmed kills. Query failures are distinguished
@@ -127,8 +129,10 @@ small handle. Live refreshes preserve the chosen rectangle, and enlargement
 never raises the minimum. Focus the brand or resize handle with
 Tab, then use arrow keys to move by 10 pixels or Shift+arrows to resize. The close
 button supports Space/Enter, and Escape dismisses only the overlay. Enlargement gives the chart more room; shrinking adapts fonts, spacing, and
-wrapping instead of imposing a minimum based on previously enlarged content.
-Arrival messages settle back to quiet copy after four seconds, including with
+field allocations instead of imposing a minimum based on previously enlarged content.
+Activity uses two fixed single-line slots; long messages ellipsize visually
+without changing the strip's height. Arrival messages settle back to quiet copy
+after four seconds without moving the HUD, including with
 reduced motion. Preview keeps a persistent **DEMO** state and synthetic-money
 warning and uses the same layout/placement as the production overlay.
 

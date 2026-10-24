@@ -1810,6 +1810,7 @@ class StreamerWindow(tk.Toplevel):
         self.ui_scale = self.winfo_fpixels("1i") / 96
         self._content_scale = self.ui_scale
         self._layout_busy = False
+        self._layout_geometry_key = None
         self._resize_capture = None
         self.demo = bool(getattr(app, "preview_mode", False))
         self.configure(bg="#0B1220")
@@ -1840,8 +1841,9 @@ class StreamerWindow(tk.Toplevel):
         self._fit_after_id: str | None = None
         self._user_resized = False
         self._build()
-        for key in ("net_big", "return", "loot", "cost"):
-            self.vars[key].trace_add("write", self._on_metric_change)
+        for key in self._fixed_labels:
+            self.vars[key].trace_add("write", lambda *_args, key=key: self._on_metric_change(key))
+        self.vars["loadout"].trace_add("write", lambda *_args: self._update_loadout_text())
         self.bind("<ButtonPress-1>", self._start_drag)
         self.bind("<B1-Motion>", self._drag)
         self.bind("<ButtonRelease-1>", lambda _event: setattr(self, "_drag_origin", None))
@@ -1860,19 +1862,25 @@ class StreamerWindow(tk.Toplevel):
         self.outer = tk.Frame(self, bg=bg, highlightbackground="#334155", highlightthickness=1,
                               padx=round(8 * self.ui_scale), pady=round(6 * self.ui_scale))
         self.outer.pack(fill="both", expand=True)
-        self._wrap_labels = []
+        self._fixed_labels, self._fixed_fonts, self._fixed_widths = {}, {}, {}
 
         def label(parent, *, size=9, bold=False, fg=secondary, **kwargs):
             return tk.Label(parent, bg=parent.cget("bg"), fg=fg,
                             font=self._font(size, bold), **kwargs)
 
-        def wrapped(parent, variable):
-            widget = label(parent, textvariable=variable, wraplength=self.content_width, justify="left", anchor="w")
-            self._wrap_labels.append(widget)
+        def fixed_text(parent, key, *, size=9, bold=False, fg=secondary, anchor="w"):
+            # Independent fonts can fit exceptionally large values without
+            # changing another field's font, row height, or column allocation.
+            font = self._font(size, bold).copy()
+            widget = tk.Label(parent, textvariable=self.vars[key], width=1, anchor=anchor,
+                              justify="left", font=font, bg=parent.cget("bg"), fg=fg)
+            self._fixed_labels[key] = widget
+            self._fixed_fonts[key] = (font, self._fonts[size, bold][1])
             return widget
 
-        top = tk.Frame(self.outer, bg=bg)
+        self.header = top = tk.Frame(self.outer, bg=bg)
         top.pack(fill="x")
+        top.pack_propagate(False)
         self.brand_label = label(top, text="PED HUNTER", bold=True, fg="#5EEAD4", cursor="fleur", takefocus=True)
         self.brand_label.pack(side="left")
         self.close_button = tk.Button(top, text="×", command=self.destroy, bg=surface, fg=primary,
@@ -1886,32 +1894,44 @@ class StreamerWindow(tk.Toplevel):
 
         self.hero = tk.Frame(self.outer, bg=bg)
         self.hero.pack(fill="x", pady=(4, 4))
-        self.hero.columnconfigure(0, weight=3)
-        self.hero.columnconfigure(1, weight=2)
-        self.net_caption = label(self.hero, text="NET PROFIT", bold=True)
-        self.net_label = label(self.hero, textvariable=self.vars["net_big"], size=24, bold=True, fg=primary)
-        self.return_caption = label(self.hero, text="RETURN", bold=True)
-        self.return_label = label(self.hero, textvariable=self.vars["return"], size=16, bold=True, fg=primary)
-        self._hero_stacked = None
+        self.hero.grid_propagate(False)
+        self.hero.columnconfigure(0, weight=3, uniform="hero")
+        self.hero.columnconfigure(1, weight=2, uniform="hero")
+        self.net_caption = label(self.hero, text="NET PROFIT", bold=True, width=1, anchor="w")
+        self.net_label = fixed_text(self.hero, "net_big", size=24, bold=True, fg=primary)
+        self.return_caption = label(self.hero, text="RETURN", bold=True, width=1, anchor="e")
+        self.return_label = fixed_text(self.hero, "return", size=16, bold=True, fg=primary, anchor="e")
+        self.net_caption.grid(row=0, column=0, sticky="nsew")
+        self.net_label.grid(row=1, column=0, sticky="nsew")
+        self.return_caption.grid(row=0, column=1, sticky="nsew")
+        self.return_label.grid(row=1, column=1, sticky="nsew")
 
         self.stats = tk.Frame(self.outer, bg=surface, padx=6, pady=3)
         self.stats.pack(fill="x")
+        self.stats.grid_propagate(False)
+        self.stats.rowconfigure(0, weight=1)
         self.stat_cells = []
-        for key, title in (("loot", "Loot"), ("cost", "Cost"), ("kills", "Kills*")):
+        for index, (key, title) in enumerate((("loot", "Loot"), ("cost", "Cost"), ("kills", "Kills*"))):
+            self.stats.columnconfigure(index, weight=1, uniform="metric")
             cell = tk.Frame(self.stats, bg=surface)
+            cell.pack_propagate(False)
+            cell.grid(row=0, column=index, sticky="nsew")
             label(cell, text=title, bold=True, fg="#FDBA74" if key == "cost" else secondary).pack(anchor="w")
-            label(cell, textvariable=self.vars[key], size=12, bold=True, fg=primary).pack(anchor="w")
+            fixed_text(cell, key, size=12, bold=True, fg=primary).pack(fill="both", expand=True)
             self.stat_cells.append(cell)
-        self._stats_stacked = None
         self.activity_strip = OverlayActivityStrip(self.outer, reduced_motion=self.app.reduced_motion,
                                                     money=self.app._money, width=self.content_width)
         self.activity_strip.pack(fill="x", pady=(4, 0))
-        self.input_label = wrapped(self.outer, self.vars["input"])
+        self.input_slot = tk.Frame(self.outer, bg=bg)
+        self.input_slot.pack_propagate(False)
+        self.input_label = fixed_text(self.input_slot, "input")
 
-        trend = tk.Frame(self.outer, bg=bg)
+        self.trend = trend = tk.Frame(self.outer, bg=bg)
         trend.pack(fill="both", expand=True, pady=(4, 0))
-        chart_header = tk.Frame(trend, bg=bg)
+        trend.pack_propagate(False)
+        self.chart_header = chart_header = tk.Frame(trend, bg=bg)
         chart_header.pack(fill="x")
+        chart_header.pack_propagate(False)
         label(chart_header, text="* Inferred clusters · PED", fg=secondary).pack(side="left")
         legend = tk.Frame(chart_header, bg=bg)
         legend.pack(side="right")
@@ -1920,23 +1940,34 @@ class StreamerWindow(tk.Toplevel):
         self.kill_chart = tk.Canvas(trend, width=1, height=round(54 * self.ui_scale), bg=surface, highlightthickness=0)
         self.kill_chart.pack(fill="both", expand=True, pady=(4, 0))
         self.kill_chart.bind("<Configure>", lambda _event: self._draw_kill_trend_chart())
-        wrapped(trend, self.vars["kill_trend_badge"]).pack(fill="x", pady=(4, 0))
+        self.summary_slot = tk.Frame(trend, bg=bg)
+        self.summary_slot.pack(fill="x", pady=(4, 0))
+        self.summary_slot.pack_propagate(False)
+        fixed_text(self.summary_slot, "kill_trend_badge", anchor="nw").pack(fill="both", expand=True)
 
-        durability = tk.Frame(self.outer, bg=bg)
+        self.durability_section = durability = tk.Frame(self.outer, bg=bg)
         durability.pack(fill="x", pady=(4, 0))
-        wrapped(durability, self.vars["durability"]).pack(fill="x")
+        durability.pack_propagate(False)
+        self.durability_text_slot = tk.Frame(durability, bg=bg)
+        self.durability_text_slot.pack(fill="x")
+        self.durability_text_slot.pack_propagate(False)
+        fixed_text(self.durability_text_slot, "durability").pack(fill="both", expand=True)
         self.durability_bar = tk.Canvas(durability, width=1, height=round(6 * self.ui_scale), bg=surface, highlightthickness=0)
         self.durability_bar.pack(fill="x", pady=(4, 0))
         self.durability_bar.bind("<Configure>", lambda _event: self._draw_durability_bar())
 
-        bottom = tk.Frame(self.outer, bg=bg)
+        self.footer = bottom = tk.Frame(self.outer, bg=bg)
         bottom.pack(fill="x", pady=(4, 0))
-        self.loadout_label = label(bottom, text="No active session", anchor="w", takefocus=True)
-        self.loadout_label.pack(side="left", fill="x", expand=True)
-        label(bottom, textvariable=self.vars["damage"]).pack(side="left", padx=(6, 6))
+        bottom.pack_propagate(False)
         self.resize_handle = label(bottom, text="◢", fg="#5EEAD4", takefocus=True,
                                   cursor=_resize_cursor(str(self.tk.call("tk", "windowingsystem"))))
         self.resize_handle.pack(side="right", ipadx=4, ipady=2)
+        self.damage_slot = tk.Frame(bottom, bg=bg)
+        self.damage_slot.pack(side="right", fill="y", padx=(6, 6))
+        self.damage_slot.pack_propagate(False)
+        fixed_text(self.damage_slot, "damage", anchor="e").pack(fill="both", expand=True)
+        self.loadout_label = label(bottom, text="No active session", anchor="w", width=1, takefocus=True)
+        self.loadout_label.pack(side="left", fill="both", expand=True)
         self.resize_handle.bind("<ButtonPress-1>", self._start_resize)
         self.resize_handle.bind("<B1-Motion>", self._resize)
         self.resize_handle.bind("<ButtonRelease-1>", self._stop_resize)
@@ -1962,7 +1993,9 @@ class StreamerWindow(tk.Toplevel):
                 remember_spacing(widget)
         remember_spacing(self.outer)
         self._build_resize_edges()
+        self._font(8)  # Chart tick font is part of the template, even before the first kill.
         self.bind("<Configure>", self._on_overlay_configure, add="+")
+        self.outer.bind("<Configure>", self._on_overlay_configure, add="+")
 
     def _font(self, size=9, bold=False):
         import tkinter.font as tkfont
@@ -1974,12 +2007,28 @@ class StreamerWindow(tk.Toplevel):
         return self._fonts[key][0]
 
     def _on_overlay_configure(self, event) -> None:
-        if event.widget == self and not self._layout_busy:
-            self._schedule_fit_to_contents()
+        if event.widget in (self, self.outer) and not self._layout_busy:
+            # Moving the window, or changing text in it, is not a resize.
+            size = (self.winfo_width(), self.winfo_height())
+            if not self._layout_geometry_key or self._layout_geometry_key[:2] != size:
+                self._schedule_fit_to_contents()
 
-    def _on_metric_change(self, *_args) -> None:
+    def _on_metric_change(self, key) -> None:
         if not self._layout_busy:
-            self._schedule_fit_to_contents()
+            self._fit_fixed_text(key)
+
+    def _fit_fixed_text(self, key) -> None:
+        available = self._fixed_widths.get(key, 0)
+        if available <= 0:
+            return
+        font, _ = self._fixed_fonts[key]
+        lines = self.vars[key].get().splitlines() or [""]
+        size = abs(int(font.cget("size")))
+        # Only an actual overflow can shrink this field. Do not grow it again
+        # on the next animation frame/value; reset its budget on a real resize.
+        while size > 1 and max(font.measure(line) for line in lines) > available:
+            size -= 1
+            font.configure(size=-size)
 
     def _set_content_scale(self, factor) -> None:
         scale = self.ui_scale * factor
@@ -2002,49 +2051,68 @@ class StreamerWindow(tk.Toplevel):
     def _layout_values(self) -> None:
         width = self.winfo_width() if self.winfo_width() > 1 else round(STREAMER_DEFAULT_WIDTH * self.ui_scale)
         height = self.winfo_height() if self.winfo_height() > 1 else round(STREAMER_DEFAULT_HEIGHT * self.ui_scale)
-        shape = (width, height, self.return_caption.cget("text"), bool(self.input_label.winfo_manager()),
-                 tuple((len(value.get()), value.get().count("\n")) for value in self.vars.values()),
-                 len(self.activity_strip.headline), len(self.activity_strip.detail))
-        factor = (self._content_scale / self.ui_scale if getattr(self, "_layout_shape", None) == shape else
-                  min(1.0, width / (STREAMER_DEFAULT_WIDTH * self.ui_scale), height / (STREAMER_DEFAULT_HEIGHT * self.ui_scale)))
+        factor = min(1.0, width / (STREAMER_DEFAULT_WIDTH * self.ui_scale), height / (STREAMER_DEFAULT_HEIGHT * self.ui_scale))
+        # Fit a fixed template, never the current strings. No idle-event pumping
+        # here: intermediate font/layout candidates must not become visible.
         for _ in range(4):
             factor = max(0.55, factor)
             self._set_content_scale(factor)
-            content_width = max(40, width - 2 * round(8 * self._content_scale) - 2)
-            self.content_width = content_width
-            self._layout_metrics(content_width)
-            self.update_idletasks()
-            required = self.outer.winfo_reqheight()
+            self.content_width = max(40, width - 2 * round(8 * self._content_scale) - 2)
+            required = self._layout_metrics(self.content_width)
             if required <= height or factor <= 0.55:
                 break
             factor *= (height - 4) / required
-        self._layout_shape = shape
+        for key in self._fixed_labels:
+            self._fit_fixed_text(key)
+        self._update_loadout_text()
         self._draw_kill_trend_chart()
 
-    def _layout_metrics(self, width) -> None:
-        for widget in self._wrap_labels:
-            if int(widget.cget("wraplength")) != width:
-                widget.configure(wraplength=width)
-        net_width = max(self._font(24, True).measure(self.vars["net_big"].get()), self._font(9, True).measure("NET PROFIT"))
-        return_width = max(self._font(16, True).measure(self.vars["return"].get()), self._font(9, True).measure(self.return_caption.cget("text")))
-        stacked = net_width + return_width + 12 * self._content_scale > width
-        if stacked != self._hero_stacked:
-            self._hero_stacked = stacked
-            self.net_caption.grid(row=0, column=0, sticky="w")
-            self.net_label.grid(row=1, column=0, sticky="w")
-            self.return_caption.grid(row=2 if stacked else 0, column=0 if stacked else 1, sticky="w" if stacked else "e")
-            self.return_label.grid(row=3 if stacked else 1, column=0 if stacked else 1, sticky="w" if stacked else "e")
-        metric_font = self._font(12, True)
-        needs_stack = (max(metric_font.measure(self.vars[key].get()) for key in ("loot", "cost", "kills"))
-                       * 3 + 20 * self._content_scale > width)
-        if needs_stack != self._stats_stacked:
-            self._stats_stacked = needs_stack
-            for index, cell in enumerate(self.stat_cells):
-                self.stats.columnconfigure(index, weight=0 if needs_stack else 1, uniform="" if needs_stack else "metric")
-                cell.grid(row=index if needs_stack else 0, column=0 if needs_stack else index, sticky="ew", padx=(0, round(4 * self._content_scale)))
+    def _layout_metrics(self, width) -> int:
+        scale = self._content_scale
+        caption_height = self._font(9, True).metrics("linespace") + 2
+        body_height = self._font().metrics("linespace") + 2
+        net_height = self._font(24, True).metrics("linespace") + 2
+        metric_height = self._font(12, True).metrics("linespace") + 2
+        self.header.configure(height=max(caption_height, self._font(12).metrics("linespace") + 4))
+        self.hero.configure(height=caption_height + net_height)
+        self.hero.rowconfigure(0, minsize=caption_height, weight=0)
+        self.hero.rowconfigure(1, minsize=net_height, weight=1)
+        self.stats.configure(height=caption_height + metric_height + 2 * round(3 * scale))
+        for cell in self.stat_cells:
+            cell.grid_configure(padx=(0, round(4 * scale)))
+        self.input_slot.configure(height=body_height)
+        if self.input_slot.winfo_manager():
+            self.input_slot.pack_configure(pady=(round(4 * scale), 0))
+        self.chart_header.configure(height=body_height)
+        self.summary_slot.configure(height=2 * self._font().metrics("linespace") + 2)
+        self.trend.configure(height=body_height + int(self.kill_chart.cget("height")) +
+                             int(self.summary_slot.cget("height")) + 2 * round(4 * scale))
+        self.durability_text_slot.configure(height=body_height)
+        self.durability_section.configure(height=body_height + int(self.durability_bar.cget("height")) + round(4 * scale))
+        self.footer.configure(height=body_height + 2 * round(2 * scale))
+        self.damage_slot.configure(width=round(72 * scale))
+        for font, pixels in self._fixed_fonts.values():
+            font.configure(size=-max(6, round(pixels * scale)))
+        self._fixed_widths = {key: width - 4 for key in self._fixed_labels}
+        self._fixed_widths.update(net_big=width * 3 // 5 - 4, **{"return": width * 2 // 5 - 4},
+                                 damage=round(72 * scale) - 4)
+        for key in ("loot", "cost", "kills"):
+            self._fixed_widths[key] = (width - 2 * round(6 * scale)) // 3 - round(4 * scale) - 4
+        self._loadout_width = max(10, width - round(110 * scale))
+        required = 2 * round(6 * scale) + 2  # outer padding and border
+        for widget in self.outer.pack_slaves():
+            required += int(widget.cget("height"))
+            info = widget.pack_info()
+            for key in ("pady", "ipady"):
+                value = info[key]
+                parts = value if isinstance(value, tuple) else self.tk.splitlist(str(value))
+                required += int(parts[0]) + int(parts[-1])
+        return required
+
+    def _update_loadout_text(self) -> None:
         font = self._font()
-        available = max(40, width - round(100 * self._content_scale))
-        name = self.vars["loadout"].get()
+        available = getattr(self, "_loadout_width", self.content_width - round(110 * self._content_scale))
+        name = " ".join(self.vars["loadout"].get().split())
         text = name
         while text and font.measure(text + ("…" if text != name else "")) > available:
             text = text[:-1]
@@ -2134,11 +2202,16 @@ class StreamerWindow(tk.Toplevel):
         self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
         if int(float(metrics.get("manufacturing_attempt", 0))) > 0:
             self.vars["input"].set(f"Manufacturing input {float(metrics['last_input_cost']):.2f} PED • attempt {int(float(metrics['manufacturing_attempt']))}/{int(float(metrics['manufacturing_attempts_total']))}")
-            if not self.input_label.winfo_manager():
-                self.input_label.pack(after=self.activity_strip, anchor="w", pady=(4, 0))
+            if not self.input_slot.winfo_manager():
+                self.input_slot.pack(after=self.activity_strip, fill="x", pady=(4, 0))
+                self.input_label.pack(fill="both", expand=True)
+                self._schedule_fit_to_contents()
         else:
             self.vars["input"].set("Manufacturing input —")
-            self.input_label.pack_forget()
+            if self.input_slot.winfo_manager():
+                self.input_label.pack_forget()
+                self.input_slot.pack_forget()
+                self._schedule_fit_to_contents()
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
         self.vars["loadout"].set(str(metrics["loadout"]))
         durability = repair_durability_status(session)
@@ -2176,7 +2249,6 @@ class StreamerWindow(tk.Toplevel):
             self._draw_kill_trend_chart()
         self.net_label.configure(fg=color)
         self.return_label.configure(fg="#F1F5F9")
-        self._schedule_fit_to_contents()
 
     def _draw_durability_bar(self) -> None:
         canvas = self.durability_bar
@@ -2388,13 +2460,18 @@ class StreamerWindow(tk.Toplevel):
         self._fit_after_id = None
         if not self.winfo_exists() or self._layout_busy:
             return
+        width = self.winfo_width() if self.winfo_width() > 1 else round(STREAMER_DEFAULT_WIDTH * self.ui_scale)
+        height = self.winfo_height() if self.winfo_height() > 1 else round(STREAMER_DEFAULT_HEIGHT * self.ui_scale)
+        key = (width, height, bool(self.input_slot.winfo_manager()))
+        if not self._initial_position_pending and key == self._layout_geometry_key:
+            return
         self._layout_busy = True
         try:
-            self.update_idletasks()
             # Never derive a minimum from labels wrapped to the *current*
             # width. That turns user enlargement into a permanent size floor.
             self.minsize(round(STREAMER_MIN_WIDTH * self.ui_scale), round(STREAMER_MIN_HEIGHT * self.ui_scale))
             self._layout_values()
+            self._layout_geometry_key = key
             if self._initial_position_pending:
                 width = round(STREAMER_DEFAULT_WIDTH * self.ui_scale)
                 height = round(STREAMER_DEFAULT_HEIGHT * self.ui_scale)

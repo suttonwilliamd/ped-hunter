@@ -23,9 +23,9 @@ def gesture(app, window, width, height):
     x, y = grip.winfo_rootx() + 2, grip.winfo_rooty() + 2
     grip.event_generate('<ButtonPress-1>', x=2, y=2, rootx=x, rooty=y)
     grip.event_generate('<B1-Motion>', rootx=x + width - old_width, rooty=y + height - old_height)
-    app.update_idletasks()
+    app.update()  # Deliver native Configure events before checking responsive layout.
     grip.event_generate('<ButtonRelease-1>', rootx=x + width - old_width, rooty=y + height - old_height)
-    app.update_idletasks()
+    app.update()
 
 
 def test_default_hud_is_compact_at_current_display_scale(hud):

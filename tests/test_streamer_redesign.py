@@ -13,7 +13,7 @@ def hud(tmp_path):
     app = appmod.PedHunterApp(store=Store(tmp_path / 'hud.sqlite3'))
     app.reduced_motion.set(True)
     app._open_streamer_window()
-    app.update_idletasks()
+    app.update()  # Map and lay out native Tk windows, not just pending idle tasks.
     yield app, app.streamer_window
     app.destroy()
 
@@ -113,19 +113,21 @@ def test_enlarging_does_not_ratchet_minimum_and_can_shrink_again(hud):
     assert overlay.winfo_height() == minimum[1]
 
 
-def test_large_money_reflows_without_losing_digits(hud):
+def test_large_money_fits_without_losing_digits(hud):
     app, overlay = hud
     overlay.vars['net_big'].set('+12345678.90 PED')
     overlay.vars['return'].set('123456.78%')
     overlay.vars['loot'].set('12345678.90 PED')
     overlay.vars['cost'].set('12345678.90 PED')
     app.update_idletasks()
-    # Compact responsive fonts may allow the hero to share a row; assert the
-    # actual financial strings and allocated widths, not a particular grid.
+    # The financial field may fit its font inside a stable slot, but must
+    # neither abbreviate money nor switch the layout to a different grid.
     assert overlay.vars['net_big'].get() == '+12345678.90 PED'
     assert overlay.vars['loot'].get() == '12345678.90 PED'
     assert overlay.vars['cost'].get() == '12345678.90 PED'
-    assert overlay.net_label.winfo_width() >= overlay.net_label.winfo_reqwidth()
+    import tkinter.font as tkfont
+    font = tkfont.nametofont(overlay.net_label.cget('font'), root=overlay)
+    assert font.measure(overlay.vars['net_big'].get()) <= overlay.net_label.winfo_width() - 4
 
 
 def test_header_keyboard_move_resize_and_drag_release(hud, monkeypatch):

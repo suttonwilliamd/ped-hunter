@@ -80,14 +80,28 @@ class OverlayActivityStrip(ActivityStrip):
         inset = max(5, round(8 * self._scale))
         gap = max(1, round(2 * self._scale))
         padding = max(2, round(3 * self._scale))
-        usable = max(60, width - inset * 2)
-        # Measure wrapped canvas text so long skill names never get clipped.
-        self.create_rectangle(0, 0, 3, 1000, fill="#5EEAD4" if self.live else "#334155", outline="")
-        first = self.create_text(inset, padding, anchor="nw", text=self.headline,
-                                 font=bold, fill="#F1F5F9", width=usable)
-        box = self.bbox(first)
-        y = box[3] + gap if box else 25
-        second = self.create_text(inset, y, anchor="nw", text=self.detail,
-                                  font=font, fill="#B8C5D6", width=usable)
-        box = self.bbox(second)
-        self.configure(height=(box[3] + padding if box else 32), bg="#131E2E")
+        usable = max(1, width - inset * 2)
+        # Reserve exactly two single-line slots. Loot/skill arrivals and their
+        # quiet reset must not change this canvas's height or move the HUD.
+        height = bold.metrics("linespace") + gap + font.metrics("linespace") + 2 * padding
+        if int(self.cget("height")) != height:
+            self.configure(height=height)
+
+        def elide(text, text_font):
+            text = " ".join(text.split())
+            if text_font.measure(text) <= usable:
+                return text
+            low, high = 0, len(text)
+            while low < high:
+                middle = (low + high + 1) // 2
+                if text_font.measure(text[:middle] + "…") <= usable:
+                    low = middle
+                else:
+                    high = middle - 1
+            return text[:low] + "…"
+
+        self.create_rectangle(0, 0, 3, height, fill="#5EEAD4" if self.live else "#334155", outline="")
+        self.create_text(inset, padding, anchor="nw", text=elide(self.headline, bold),
+                         font=bold, fill="#F1F5F9")
+        self.create_text(inset, padding + bold.metrics("linespace") + gap, anchor="nw",
+                         text=elide(self.detail, font), font=font, fill="#B8C5D6")
