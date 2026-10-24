@@ -63,6 +63,14 @@ $chatLog = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Entropia Uni
 ped-hunter monitor --chat-log "$chatLog"
 ```
 
+PED Hunter buffers a line until its newline arrives, including split UTF-8
+writes, and follows log truncation/replacement without treating byte offsets as
+text-mode seek cookies. Start/Resume still skips existing history. The source
+log is never modified. After 30 seconds with no new bytes, the status line warns
+that the file is not changing; if you are actively playing, check in-game chat
+logging and the selected path. No file changes alone do **not** prove a parser
+failure or a disconnected game. New data clears the warning automatically.
+
 5. Ask for stats:
 
 ```bash

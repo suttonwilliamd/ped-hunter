@@ -48,6 +48,24 @@ def test_retained_session_state_and_demo_never_claim_false_tracking(hud):
     assert overlay.vars['state'].get() == 'DEMO · STOPPED'
 
 
+def test_identical_snapshots_do_not_requery_entire_trend_history(hud, monkeypatch):
+    app, overlay = hud
+    sid = app.store.start_session('hunt')
+    original = appmod._kill_trend_points
+    calls = []
+    def query(*args):
+        calls.append(args)
+        return original(*args)
+    monkeypatch.setattr(appmod, '_kill_trend_points', query)
+    overlay.update_from_session(app.store.get_session(sid))
+    overlay.update_from_session(app.store.get_session(sid))
+    assert len(calls) == 1
+    app.store.add_event(sid, {'kind': 'loot', 'raw_message': 'test', 'payload': {'value': 1}})
+    overlay.update_from_session(app.store.get_session(sid))
+    assert len(calls) == 2
+    assert overlay.vars['kills'].get() == '1'
+
+
 def test_query_failure_is_distinct_from_no_kills_and_recovers(hud, monkeypatch):
     app, overlay = hud
     sid = app.store.start_session('hunt')

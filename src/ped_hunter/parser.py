@@ -11,21 +11,25 @@ from typing import Any
 TIMESTAMP_RE = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<body>.+)$")
 SYSTEM_PREFIX = r"\[System\](?:\s*:\s*|\s+\[\]\s*)"
 CHANNEL_RE = re.compile(r"^\[(?P<channel>[^\]]+)\](?:\s+\[(?P<speaker>.*?)\])?\s*(?P<message>.*)$")
+# Accept numbers, not arbitrary runs of digits/dots/commas. Malformed input
+# must not raise during conversion and discard the rest of an ingestion batch.
+NUMBER = r"\d+(?:\.\d+)?"
+QUANTITY = r"\d+(?:,\d{3})*"
 PATTERNS = {
-    "loot": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*received\s*(?:\[(?P<loot_item_bracketed>.+?)\]|(?P<loot_item_plain>.+?))\s*x\s*\(?([\d,]+)\)?\s*Value:\s*([\d.]+)\s*PED(?:\s+from\s+.+)?$"),
-    "damage": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*inflicted\s*([\d.]+)\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*[\d.]+\s*PED)?\.?$"),
-    "damage_taken": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*took\s*([\d.]+)\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
-    "critical": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Additional\s*damage!\s*You\s*inflicted\s*([\d.]+)\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*[\d.]+\s*PED)?\.?$"),
-    "critical_armor": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Armor\s*penetration!\s*You\s*took\s*([\d.]+)\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
+    "loot": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*received\s*(?:\[(?P<loot_item_bracketed>.+?)\]|(?P<loot_item_plain>.+?))\s*x\s*\(?({QUANTITY})\)?\s*Value:\s*({NUMBER})\s*PED(?:\s+from\s+.+)?$"),
+    "damage": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*inflicted\s*({NUMBER})\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*{NUMBER}\s*PED)?\.?$"),
+    "damage_taken": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*took\s*({NUMBER})\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
+    "critical": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Additional\s*damage!\s*You\s*inflicted\s*({NUMBER})\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*{NUMBER}\s*PED)?\.?$"),
+    "critical_armor": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Armor\s*penetration!\s*You\s*took\s*({NUMBER})\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
     "miss": re.compile(rf"{SYSTEM_PREFIX}\s*The\s*attack\s*missed\s*you\.?$"),
     "dodge": re.compile(rf"{SYSTEM_PREFIX}\s*.*Dodged.*your\s*attack\.?$"),
     "evade": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*Evaded\s*the\s*attack\.?$"),
-    "heal": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*healed\s*yourself\s*([\d.]+)\s*points\.?$"),
+    "heal": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*healed\s*yourself\s*({NUMBER})\s*points\.?$"),
     "weapon": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*equipped\s*(.+)$"),
-    "skill": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*([\d.]+)\s*experience\s*in\s*your\s*(.+?)\s*skill"),
-    "skill_gain": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*([\d.]+)\s*(.+)$"),
-    "skill_alt": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*gained\s*([\d.]+)\s*(.+)$"),
-    "skill_improved": re.compile(rf"{SYSTEM_PREFIX}\s*Your\s*(.+?)\s*has\s*improved\s*by\s*([\d.]+)$"),
+    "skill": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*({NUMBER})\s*experience\s*in\s*your\s*(.+?)\s*skill"),
+    "skill_gain": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*({NUMBER})(?![\d.])\s*(.+)$"),
+    "skill_alt": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*gained\s*({NUMBER})(?![\d.])\s*(.+)$"),
+    "skill_improved": re.compile(rf"{SYSTEM_PREFIX}\s*Your\s*(.+?)\s*has\s*improved\s*by\s*({NUMBER})$"),
     "craft_success": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*successfully\s*crafted\s*(.+)$"),
     "craft_fail": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*failed\s*to\s*craft\s*(.+)$"),
     "picked_up": re.compile(rf"{SYSTEM_PREFIX}\s*Picked\s*up\s*(.+?)(?:\s*\((\d+)\))?$"),

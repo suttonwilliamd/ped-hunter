@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import logging
 import math
 import queue
 from datetime import datetime
 from pathlib import Path
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import uuid
@@ -21,11 +23,13 @@ from .catalog import Catalog, WeaponRecord
 from .currency import currency_name, format_money
 from .feedback import ActivityStrip, Animator, Snapshot
 from .sounds import CuePlayer
+from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
 POLL_MS = 250
+LOG_IDLE_WARNING_SECONDS = 30.0
 AMP_CATEGORIES = {"BLP Amp", "Energy Amp", "Melee Amp", "MF Amp"}
 SCOPE_CATEGORIES = {"Scope"}
 SIGHT_CATEGORIES = {"Sight"}
@@ -308,6 +312,7 @@ class PedHunterApp(tk.Tk):
         self._build_catalog_tab()
         self._build_wtb_tab()
         self._build_setup_tab()
+        notebook.bind("<<NotebookTabChanged>>", lambda _event: self._refresh_visible_tab())
         self.bind("<Configure>", self._on_resize)
 
     def _build_session_hero(self, parent: ttk.Frame, *, row: int) -> None:
@@ -1127,44 +1132,64 @@ class PedHunterApp(tk.Tk):
     def _drain_log_queue(self) -> None:
         self._log_drain_pending = False
         parsed_total = 0
-        while True:
-            try:
-                kind, payload = self._log_queue.get_nowait()
-            except queue.Empty:
-                break
-            if kind == "parsed":
-                parsed_total += int(payload)
-            elif kind == "error":
-                self.status_text.set(str(payload))
-            elif kind == "status":
-                self.status_text.set(str(payload))
-        if parsed_total:
-            self.status_text.set(f"Parsed {parsed_total} new event{'s' if parsed_total != 1 else ''}")
-            self._refresh_live_views()
-            self._schedule_full_refresh()
-        worker = self._log_worker
-        if self.running and worker and worker.is_alive():
-            self._schedule_log_drain()
+        notice = None
+        try:
+            while True:
+                try:
+                    kind, payload = self._log_queue.get_nowait()
+                except queue.Empty:
+                    break
+                if kind == "parsed":
+                    parsed_total += int(payload)
+                elif kind in {"error", "status"}:
+                    notice = str(payload)
+            if parsed_total:
+                self.status_text.set(f"Parsed {parsed_total} new event{'s' if parsed_total != 1 else ''}")
+                try:
+                    self._refresh_live_views()
+                except Exception as exc:
+                    # Ingestion has already committed. A broken/closed drawing
+                    # widget must not kill the only callback draining the queue.
+                    logging.exception("Live display refresh failed; ingestion continues")
+                    notice = f"Events saved; display refresh failed: {exc}"
+                finally:
+                    self._schedule_full_refresh()
+            if notice:
+                self.status_text.set(notice)
+        finally:
+            worker = self._log_worker
+            if self.running and worker and worker.is_alive():
+                self._schedule_log_drain()
 
     def _log_worker_loop(self, path: Path, session_id: str, start_size: int, stop_event: threading.Event) -> None:
-        last_size = start_size
+        tail = LogTail(path, start_size)
         last_ingested_log_line: str | None = None
+        last_activity = time.monotonic()
+        last_notice = None
         while not stop_event.is_set():
             try:
-                size = path.stat().st_size
-                if size < last_size:
-                    last_size = 0
-                parsed = 0
-                if size > last_size:
-                    with path.open("r", encoding="utf-8", errors="ignore") as fh:
-                        fh.seek(last_size)
-                        lines = fh.readlines()
-                        last_size = fh.tell()
+                previous_offset = tail.offset
+                lines = tail.read_lines()
+                now = time.monotonic()
+                if tail.offset != previous_offset or lines:
+                    last_activity = now
+                    if last_notice is not None:
+                        self._log_queue.put(("status", f"Reading new lines from {path.name}"))
+                    last_notice = None
+                if lines:
                     parsed, last_ingested_log_line = self._process_lines(lines, session_id, last_ingested_log_line)
-                if parsed:
-                    self._log_queue.put(("parsed", parsed))
-            except Exception as exc:  # pragma: no cover - defensive UI guard
-                self._log_queue.put(("error", f"Tracking error: {exc}"))
+                    if parsed:
+                        self._log_queue.put(("parsed", parsed))
+                if now - last_activity >= LOG_IDLE_WARNING_SECONDS:
+                    notice = (f"No changes in {path.name} for 30s — if playing, check Entropia's chat logging and the selected file")
+                    if notice != last_notice:
+                        self._log_queue.put(("status", notice))
+                        last_notice = notice
+            except Exception as exc:
+                notice = f"Tracking error: {exc}"
+                if notice != last_notice:
+                    self._log_queue.put(("error", notice))
+                    last_notice = notice
             if stop_event.wait(POLL_MS / 1000.0):
                 break
 
@@ -1289,20 +1314,36 @@ class PedHunterApp(tk.Tk):
         if self._full_refresh_pending:
             return
         self._full_refresh_pending = True
-        self.after(150, self._run_full_refresh)
+        # Secondary tables must leave time for Windows to paint while a game
+        # is consuming CPU/GPU time. Live totals have their own faster path.
+        self.after(1500, self._run_full_refresh)
 
     def _run_full_refresh(self) -> None:
         self._full_refresh_pending = False
         if not self.running and self.session_id is None:
             return
-        self._refresh_all()
+        self._refresh_visible_tab()
+
+    def _refresh_visible_tab(self) -> None:
+        """Keep hidden tables, lifetime queries and catalog work off live ticks."""
+        selected = self.dashboard_tab.master.select()
+        session_id = self._session_id_value()
+        if selected == str(self.dashboard_tab):
+            self._refresh_sessions(self.store.list_recent_sessions(20))
+        elif selected == str(self.statistics_tab):
+            self._refresh_lifetime_totals()
+        elif selected == str(self.events_tab):
+            self._refresh_events(session_id)
+            self._refresh_loot_chart(session_id)
+        elif selected == str(self.skills_tab):
+            self._refresh_skills(session_id)
+        elif selected == str(self.wtb_tab):
+            self._refresh_wtb()
 
     def _refresh_live_views(self) -> None:
-        current = self.store.get_current_session()
-        display = self._display_session(current, [])
+        session_id = self._session_id_value()
+        display = self.store.get_session(session_id) if session_id else None
         self._refresh_metrics(display, [])
-        if self._selected_session_id():
-            self._on_session_selected()
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
 
@@ -1980,8 +2021,15 @@ class StreamerWindow(tk.Toplevel):
     def update_from_session(self, session: SessionSummary | None) -> None:
         metrics = streamer_metrics(session)
         self._trend_error = False
+        # Main refreshes and display changes often repeat the same snapshot.
+        # Never replay the entire event history twice for identical totals.
+        trend_key = (session.session_id, session.events) if session else (None, 0)
         try:
-            kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+            if getattr(self, "_kill_trend_key", None) == trend_key:
+                kill_points = self.kill_trend_points
+            else:
+                kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+                self._kill_trend_key = trend_key
         except Exception:
             # A malformed/very large historical session must not take down live
             # log ingestion or the main dashboard just because the overlay chart

@@ -12,6 +12,7 @@ import json
 from contextlib import contextmanager
 
 from .catalog import Catalog
+from .log_tail import LogTail
 from .parser import parse_line
 from .storage import Store
 
@@ -227,10 +228,9 @@ def _monitor(chat_log: Path, db_path: Path | None, activity: str, once: bool) ->
     catalog = Catalog.load()
     session_id = store.start_session(activity)
     print(f"Started session {session_id} ({activity})")
-    last_size = 0
+    tail = LogTail(chat_log)
 
     def process_new_lines(lines: list[str]) -> None:
-        nonlocal last_size
         for raw in lines:
             event = parse_line(raw)
             if not event:
@@ -243,15 +243,10 @@ def _monitor(chat_log: Path, db_path: Path | None, activity: str, once: bool) ->
             print(f"Waiting for chat log: {chat_log}")
             time.sleep(1)
             continue
-        size = chat_log.stat().st_size
-        if size < last_size:
-            last_size = 0
-        if size > last_size:
-            with chat_log.open("r", encoding="utf-8", errors="ignore") as fh:
-                fh.seek(last_size)
-                new_lines = fh.readlines()
-                last_size = fh.tell()
-            process_new_lines(new_lines)
+        try:
+            process_new_lines(tail.read_lines())
+        except FileNotFoundError:
+            continue  # Rotation raced the existence check; retry next poll.
         if once:
             break
         time.sleep(1)

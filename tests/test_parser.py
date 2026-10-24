@@ -117,6 +117,16 @@ def test_parse_repair_success_marker():
     assert event.payload["repair_reset"] is True
 
 
+@pytest.mark.parametrize('line', [
+    '[System] [] You inflicted 9..6 points of damage',
+    '[System] [] You received Shrapnel x (1) Value: ... PED',
+    '[System] [] You received Shrapnel x (,,) Value: 0.1 PED',
+    '[System] [] You have gained ... experience in your Rifle skill',
+])
+def test_malformed_numbers_are_ignored_instead_of_crashing_a_batch(line):
+    assert parse_line(line) is None
+
+
 def test_parse_global_chat_and_channel_messages():
     global_event = parse_line("2026-07-01 23:47:21 [Globals] [] Bulletproof Turk Turk killed a creature (Void Umbranoid Acolyte) with a value of 58 PED!")
     channel_event = parse_line("2026-07-01 23:47:01 [#disi] [Doomsdib Doomsdib Doomsdib] yea im slow grinding it. and F2P makes it harder lol")
