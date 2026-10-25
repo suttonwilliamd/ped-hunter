@@ -41,7 +41,19 @@ Download the Windows `.exe` from the latest GitHub release, or run from source:
 
 Running `PED-Hunter.exe` with no arguments opens the dashboard. Command-line subcommands are still available from a terminal.
 
-1. Install Python 3.11+
+1. Install Python **3.11 or newer** (including Tkinter; the standard python.org Windows installer includes it). From the repository root, create an isolated environment and install the project. PowerShell activation is not required:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+.\.venv\Scripts\python.exe -m ped_hunter doctor
+.\.venv\Scripts\python.exe -m ped_hunter gui
+```
+
+Use the installed environment's Python for the commands below (on Windows,
+replace `python` with `.\.venv\Scripts\python.exe`). Installing the project supplies
+the declared `watchdog>=6.0.0` runtime dependency and the `ped-hunter` entry point.
+
 2. Create the normalized catalog:
 
 ```bash
@@ -82,6 +94,36 @@ ped-hunter stats
 ```bash
 ped-hunter weapon "Frontier Rifle"
 ```
+
+## Read-only setup diagnostics
+
+```powershell
+.\.venv\Scripts\python.exe -m ped_hunter doctor --json
+.\.venv\Scripts\python.exe -m ped_hunter doctor --chat-log 'C:\path\you\explicitly\selected\chat.log'
+```
+
+`ped-hunter doctor` checks Python >=3.11, Tkinter **import only** (no window),
+and the declared watchdog dependency's module presence and installed version
+(>=6.0.0). It uses only the standard library and does not import watchdog itself.
+An optional explicit `--chat-log PATH` checks a regular file can be opened for
+reading, then closes it **without reading any bytes**. No log is selected by
+default; there is no home scan or game-data discovery. It does not initialize
+SQLite, touch catalogs, acquire the GUI lock, start monitoring/GUI, download seeds,
+or access the network.
+
+Exit 0 means **only selected checks passed**; 1 means at least one failed;
+2 means invalid command usage. Missing, non-file and unreadable paths fail.
+Import/file checks cannot prove display health, game connectivity, or log-format
+health, nor constitute native GUI acceptance. An ACL/file change after the check
+can still prevent subsequent monitoring.
+
+JSON schema version 1 has `schema_version`, overall `status` (`pass`/`fail`),
+`checks`, and `limitation`. Each check has `name`, `status`, fixed `detail`, and
+`version` (sanitized version or null). No executable/home/log paths, usernames,
+environment values, raw exceptions, or chat contents are emitted. Share **only
+reviewed doctor output** for support; do not paste the command line (which may
+contain your private path), game logs, environment dumps, or crash logs. Diagnostics
+intentionally omit private error detail rather than masking failure status.
 
 ## Live visual feedback
 
@@ -197,6 +239,14 @@ For `Frontier Hunting Rifle, Adjusted`, the catalog uses 180 ammo per shot, 0.02
 For convenience, PED Hunter also accepts the shorthand:
 
 - `Frontier Rifle` → `Frontier Hunting Rifle`
+
+## Changelog
+
+### Unreleased
+
+- Add read-only `doctor` setup checks, redacted text/JSON diagnostics, and optional explicit log-file readability checks without reading chat contents.
+- Correct Windows source setup instructions for Python >=3.11 and add safe diagnostic-sharing guidance.
+- Add bounded Windows Python 3.11/3.13 diagnostics/CLI CI alongside unchanged full Linux jobs; this is not a full Windows GUI acceptance claim.
 
 ## Notes
 
