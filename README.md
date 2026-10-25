@@ -105,11 +105,16 @@ ped-hunter weapon "Frontier Rifle"
 `ped-hunter doctor` checks Python >=3.11, Tkinter **import only** (no window),
 and the declared watchdog dependency's module presence and installed version
 (>=6.0.0). It uses only the standard library and does not import watchdog itself.
+The conservative version allowlist accepts numeric releases and `a`/`b`/`rc`
+suffixes, not complete PEP 440 syntax. A compatible post/local build such as
+`6.0.0.post1` or `6.0.0+vendor.1` currently produces a failed check with a null
+version; that result alone does not establish that the installed package is too old.
 An optional explicit `--chat-log PATH` checks a regular file can be opened for
 reading, then closes it **without reading any bytes**. No log is selected by
 default; there is no home scan or game-data discovery. It does not initialize
 SQLite, touch catalogs, acquire the GUI lock, start monitoring/GUI, download seeds,
-or access the network.
+or make explicit network requests. Select a trusted local file: the operating
+system can perform network filesystem access for UNC or network-mounted paths.
 
 Exit 0 means **only selected checks passed**; 1 means at least one failed;
 2 means invalid command usage. Missing, non-file and unreadable paths fail.
