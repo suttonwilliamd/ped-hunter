@@ -18,7 +18,8 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[('data/catalog', 'data/catalog'), *tcl_datas, *copy_metadata('watchdog')],
-    hiddenimports=[],
+    # Doctor inspects this declared dependency via find_spec, not an import.
+    hiddenimports=['watchdog'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['tools\\pyinstaller_tcl_runtime.py'],

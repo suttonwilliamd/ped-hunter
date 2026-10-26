@@ -132,11 +132,11 @@ intentionally omit private error detail rather than masking failure status.
 
 ## Frozen Windows diagnostics qualification (not a release)
 
-The `Windows frozen diagnostics / Python 3.13` public Actions job builds the
-**unchanged** `PED-Hunter.spec` in an ephemeral Windows runner. Build tooling is
+The `Windows frozen diagnostics / Python 3.13` public Actions job builds
+`PED-Hunter.spec` in an ephemeral Windows runner. Build tooling is
 pinned to PyInstaller **6.16.0** (verified PyPI Python 3.13 support and Windows
 amd64 wheel); watchdog **6.0.0** avoids the doctor's documented version-syntax
-limit. No dependency/spec/application repair is presumed by this instrumentation.
+limit. The instrumentation does not itself establish runtime repair.
 For an equivalent build in a disposable Windows Python 3.13 environment:
 
 ```powershell
@@ -175,18 +175,29 @@ The first actual Windows Python 3.13 run, **40266034306** at commit `32c0963`,
 failed both frozen doctor calls: Python/Tkinter passed, watchdog failed, and the
 explicit synthetic-log check passed. Install/build/firewall setup succeeded;
 both calls returned valid redacted JSON, and the EXE was correctly not uploaded.
-The report does not identify the exact watchdog failure cause; detailed build-log
-or TOC evidence is not available. Doctor queries watchdog's distribution version
-before module discovery, while the spec previously supplied catalog/Tcl data but
-no explicit distribution metadata. The bounded candidate adds PyInstaller's
-`copy_metadata('watchdog')` to Analysis data without changing doctor or CI checks.
-This tests a **missing-metadata hypothesis**, not a runtime-proven fix. The spec
-regression checks sentinel metadata propagation and preservation of existing
-packaging settings; it does not freeze or run Windows code. Independent review
-and a fresh unchanged hosted Windows smoke at the candidate head must confirm
-or refute the hypothesis before merge or EXE acceptance. Another red result calls
-for evidence review, not skipped checks, fake green, source substitution or
-repeated speculative fixes.
+The sanitized report does not distinguish missing module from missing metadata.
+Subsequent read-only PyInstaller **6.16.0 Linux static graph** inspection of
+`32c0963` found doctor/app/LogTail but neither the unused `log_watcher` nor
+`watchdog`. It also found automatic collection of `watchdog-6.0.0.dist-info`
+from the literal metadata version query. Recognizing `find_spec('watchdog')` in
+bytecode does not automatically collect that package. Thus the earlier
+**missing-metadata-only hypothesis is insufficient**; `2cce4bf` is not a proven
+runtime repair. This graph is not Windows archive-membership or runtime proof.
+
+The bounded corrective candidate explicitly requests the **real `watchdog`
+package** in Analysis `hiddenimports`, matching doctor's dynamic module-presence
+check without importing it in doctor or changing version policy. It retains
+`copy_metadata('watchdog')` for deterministic direct-dependency metadata packaging,
+not as evidence that automatic metadata collection failed. No collect-all or
+watcher-backend expansion is needed for this presence check. The spec regression
+executes the spec, verifies that the exact real-package request reaches Analysis,
+and preserves sentinel metadata propagation and all other packaging settings.
+It fails on `2cce4bf`; it does not freeze or run Windows code. Root owns independent
+scoped review and **one controlled actual Windows CI rerun at the reviewed head**
+with the existing smoke/firewall/state/redaction/artifact gates unchanged. Only
+that run can confirm or refute runtime repair. Another red result calls for
+evidence review, not skipped checks, fake green, source substitution or repeated
+speculative fixes.
 
 ## Live visual feedback
 

@@ -15,7 +15,7 @@ SPEC = Path(__file__).resolve().parents[1] / "PED-Hunter.spec"
 
 
 @pytest.mark.parametrize("tcl_names", [(), ("tcl8.6",), ("tcl8.6", "tk8.6")])
-def test_spec_propagates_metadata_and_preserves_packaging(monkeypatch, tmp_path, tcl_names):
+def test_spec_collects_watchdog_and_metadata_and_preserves_packaging(monkeypatch, tmp_path, tcl_names):
     python_root = tmp_path / "python"
     for name in tcl_names:
         (python_root / "tcl" / name).mkdir(parents=True)
@@ -78,9 +78,12 @@ def test_spec_propagates_metadata_and_preserves_packaging(monkeypatch, tmp_path,
         ("data/catalog", "data/catalog"), *expected_tcl, *expected_metadata,
     ]
     assert requests == [(("watchdog",), {})]  # only the direct distribution
+    # The real package must reach Analysis, not merely be mentioned/imported by
+    # spec setup code. find_spec in doctor does not collect the module graph.
+    assert options["hiddenimports"] == ["watchdog"]
     assert args == (["tools\\pyinstaller_entry.py"],)
     assert {key: value for key, value in options.items() if key != "datas"} == {
-        "pathex": ["src"], "binaries": [], "hiddenimports": [], "hookspath": [],
+        "pathex": ["src"], "binaries": [], "hiddenimports": ["watchdog"], "hookspath": [],
         "hooksconfig": {}, "runtime_hooks": ["tools\\pyinstaller_tcl_runtime.py"],
         "excludes": [], "noarchive": False, "optimize": 0,
     }
