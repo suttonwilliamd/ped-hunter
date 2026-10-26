@@ -130,6 +130,50 @@ reviewed doctor output** for support; do not paste the command line (which may
 contain your private path), game logs, environment dumps, or crash logs. Diagnostics
 intentionally omit private error detail rather than masking failure status.
 
+## Frozen Windows diagnostics qualification (not a release)
+
+The `Windows frozen diagnostics / Python 3.13` public Actions job builds the
+**unchanged** `PED-Hunter.spec` in an ephemeral Windows runner. Build tooling is
+pinned to PyInstaller **6.16.0** (verified PyPI Python 3.13 support and Windows
+amd64 wheel); watchdog **6.0.0** avoids the doctor's documented version-syntax
+limit. No dependency/spec/application repair is presumed by this instrumentation.
+For an equivalent build in a disposable Windows Python 3.13 environment:
+
+```powershell
+python -m pip install . "watchdog==6.0.0" "pyinstaller==6.16.0"
+python -m PyInstaller --clean --noconfirm PED-Hunter.spec
+python tools/frozen_doctor_smoke.py dist/PED-Hunter.exe --report frozen-evidence/report.json
+```
+
+The portable stdlib helper accepts the actual executable, never falls back to
+source Python, and runs only `doctor --json` and `doctor --json --chat-log` with
+a synthetic local fixture. Each invocation has a 60-second timeout. It requires
+exit 0, exact schema 1, passing Python 3.13/Tkinter/watchdog checks, strictly
+allowlisted redacted values, empty stderr, unchanged fixture bytes and no new
+application files/directories. HOME, USERPROFILE, APPDATA, LOCALAPPDATA, cwd and
+temporary paths are isolated. The existing spec's cwd `_MEI*` one-file extraction
+is classified separately from application state and must be cleaned on exit.
+A surviving extraction directory also fails the probe; it is not labeled a DB
+or catalog defect. Temporary child output is polled with a 16 KiB limit per
+stream and never copied into reports or artifact uploads.
+
+CI blocks this executable's outbound traffic using an ephemeral runner firewall
+rule before invoking it (rule failure fails the job). The helper itself is not
+a network/GUI API tracer or an OS sandbox; this gate neither exercises GUI/game
+commands nor proves absence of attempted network calls. Use the manual invocation
+only in an equally disposable, network-restricted environment, never against a
+real game profile. It does not prove native display/game/log-format health.
+
+CI uploads only a bounded sanitized boolean/check-status JSON report, including
+explicit failures, and uploads the tested EXE **only on success**. Both expire
+after **one day**. Build/setup failures retain fixed CI-stage outcomes instead
+of raw errors. No tag, release, signing, deployment or publication job is added.
+Existing source test job names and tests are retained; helper fake-executable
+unit tests are **not** frozen Windows acceptance. The first actual hosted result
+must establish whether the current frozen doctor works. A red result is evidence
+for review and a separately authorized minimal repair, not permission to alter
+the spec, skip checks, fake green, or substitute source execution.
+
 ## Live visual feedback
 
 The dashboard and Streamer UI show bundled loot arrivals, actual skill-gain activity,
