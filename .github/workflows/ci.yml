@@ -14,6 +14,70 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows-frozen-doctor:
+    name: Windows frozen diagnostics / Python 3.13
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact proposed head (or pushed main)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - name: Install isolated build dependencies
+        id: frozen-install
+        # PyPI 6.16.0 declares Python 3.13 support and supplies a win_amd64 wheel.
+        # Pin watchdog to a numeric version accepted by the existing doctor.
+        run: python -m pip install . "watchdog==6.0.0" "pyinstaller==6.16.0"
+      - name: Record tested commit and build unchanged spec
+        id: frozen-build
+        run: |
+          git rev-parse HEAD
+          python -m PyInstaller --clean --noconfirm PED-Hunter.spec
+      - name: Block executable outbound network in ephemeral runner
+        id: frozen-network
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/PED-Hunter.exe').Path
+          New-NetFirewallRule -DisplayName 'PED frozen doctor smoke outbound deny' -Direction Outbound -Program $exe -Action Block -Profile Any | Out-Null
+      - name: Smoke only the built executable (no source fallback)
+        id: frozen-smoke
+        run: python tools/frozen_doctor_smoke.py dist/PED-Hunter.exe --report frozen-evidence/report.json
+      - name: Preserve explicit sanitized setup/build failure evidence
+        if: ${{ always() && steps.frozen-smoke.outcome != 'success' }}
+        env:
+          INSTALL_OUTCOME: ${{ steps.frozen-install.outcome }}
+          BUILD_OUTCOME: ${{ steps.frozen-build.outcome }}
+          NETWORK_OUTCOME: ${{ steps.frozen-network.outcome }}
+          SMOKE_OUTCOME: ${{ steps.frozen-smoke.outcome }}
+        run: >-
+          python -c "import json,os,pathlib; p=pathlib.Path('frozen-evidence/report.json');
+          d=json.loads(p.read_text()) if p.exists() else {'report_schema':1,'status':'fail','smoke_not_completed':True};
+          allowed=('success','failure','cancelled','skipped');
+          d['ci_stages']={k:os.environ[k] if os.environ.get(k) in allowed else 'unknown' for k in ('INSTALL_OUTCOME','BUILD_OUTCOME','NETWORK_OUTCOME','SMOKE_OUTCOME')};
+          p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(d,indent=2)+'\n')"
+      - name: Upload bounded sanitized report even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-frozen-doctor-report
+          path: frozen-evidence/report.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload tested EXE only after successful smoke
+        if: ${{ success() && steps.frozen-smoke.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-frozen-doctor-tested-exe
+          path: dist/PED-Hunter.exe
+          if-no-files-found: error
+          retention-days: 1
+
   windows-doctor:
     name: Windows diagnostics / Python ${{ matrix.python-version }}
     runs-on: windows-latest

@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+from PyInstaller.utils.hooks import copy_metadata
+
 python_root = Path(sys.base_prefix)
 tcl_root = python_root / 'tcl'
 tcl_datas = []
@@ -15,8 +17,9 @@ a = Analysis(
     ['tools\\pyinstaller_entry.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('data/catalog', 'data/catalog'), *tcl_datas],
-    hiddenimports=[],
+    datas=[('data/catalog', 'data/catalog'), *tcl_datas, *copy_metadata('watchdog')],
+    # Doctor inspects this declared dependency via find_spec, not an import.
+    hiddenimports=['watchdog'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['tools\\pyinstaller_tcl_runtime.py'],
