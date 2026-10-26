@@ -169,10 +169,24 @@ explicit failures, and uploads the tested EXE **only on success**. Both expire
 after **one day**. Build/setup failures retain fixed CI-stage outcomes instead
 of raw errors. No tag, release, signing, deployment or publication job is added.
 Existing source test job names and tests are retained; helper fake-executable
-unit tests are **not** frozen Windows acceptance. The first actual hosted result
-must establish whether the current frozen doctor works. A red result is evidence
-for review and a separately authorized minimal repair, not permission to alter
-the spec, skip checks, fake green, or substitute source execution.
+unit tests are **not** frozen Windows acceptance.
+
+The first actual Windows Python 3.13 run, **40266034306** at commit `32c0963`,
+failed both frozen doctor calls: Python/Tkinter passed, watchdog failed, and the
+explicit synthetic-log check passed. Install/build/firewall setup succeeded;
+both calls returned valid redacted JSON, and the EXE was correctly not uploaded.
+The report does not identify the exact watchdog failure cause; detailed build-log
+or TOC evidence is not available. Doctor queries watchdog's distribution version
+before module discovery, while the spec previously supplied catalog/Tcl data but
+no explicit distribution metadata. The bounded candidate adds PyInstaller's
+`copy_metadata('watchdog')` to Analysis data without changing doctor or CI checks.
+This tests a **missing-metadata hypothesis**, not a runtime-proven fix. The spec
+regression checks sentinel metadata propagation and preservation of existing
+packaging settings; it does not freeze or run Windows code. Independent review
+and a fresh unchanged hosted Windows smoke at the candidate head must confirm
+or refute the hypothesis before merge or EXE acceptance. Another red result calls
+for evidence review, not skipped checks, fake green, source substitution or
+repeated speculative fixes.
 
 ## Live visual feedback
 

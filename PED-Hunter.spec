@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+from PyInstaller.utils.hooks import copy_metadata
+
 python_root = Path(sys.base_prefix)
 tcl_root = python_root / 'tcl'
 tcl_datas = []
@@ -15,7 +17,7 @@ a = Analysis(
     ['tools\\pyinstaller_entry.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('data/catalog', 'data/catalog'), *tcl_datas],
+    datas=[('data/catalog', 'data/catalog'), *tcl_datas, *copy_metadata('watchdog')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
