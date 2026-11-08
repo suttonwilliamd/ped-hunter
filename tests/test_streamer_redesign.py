@@ -195,5 +195,4 @@ def test_chart_is_ped_even_in_usd_and_counts_more_than_sixteen(hud):
     assert overlay.vars['kills'].get() == '20'
     assert 'PED' in overlay.vars['kill_trend_badge'].get()
     assert '$' in overlay.vars['loot'].get()
-    assert 'Cumulative avg cost' in overlay.vars['kill_trend_badge'].get()
     assert overlay.return_label.cget('fg') == '#F1F5F9'

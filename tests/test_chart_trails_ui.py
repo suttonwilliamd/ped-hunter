@@ -95,7 +95,7 @@ def assert_projected_envelopes(overlay, projection):
             continue
         for column, series in enumerate(('cost', 'avg_cost', 'loot')):
             known = [sample[column] for sample in history if sample[column] is not None]
-            if not known or min(known) == max(known):
+            if not known or math.isclose(min(known), max(known), abs_tol=1e-12):
                 continue
             items = tagged_series(canvas, point['event_id'], series)
             coords = vertices(canvas, items)
@@ -227,6 +227,94 @@ def test_native_geometry_reprojects_for_resize_and_large_adaptive_loot(hud, monk
     # or clip historical observations and the ordinary final return marker.
     assert 0 <= center(canvas, final)[1] < projection['y_for'](10)
     assert overlay.kill_trail_histories[active][-1] == (5, 3, 10_000_010)
+
+
+def test_shared_cost_revisions_follow_existing_fans_through_reload_resize_and_range(hud, monkeypatch):
+    app, overlay, sid = hud
+    for second in (0, 4, 8, 12, 16):
+        for _ in range(5):
+            event(app, sid, 'combat', second=second, shot_cost=0.1, loadout='Uniform carbine')
+        event(app, sid, 'loot', second=second, value=0.6, item_name='Shrapnel')
+        refresh(app, overlay, sid)
+    first = None
+    for _ in range(15):  # Three typical creatures before the first receipt.
+        event_id = event(app, sid, 'combat', second=20, shot_cost=0.1, loadout='Uniform carbine')
+        first = event_id if first is None else first
+        refresh(app, overlay, sid)
+    event(app, sid, 'loot', second=22, value=0.4, item_name='Shrapnel')
+    refresh(app, overlay, sid)
+    raw_before = overlay._raw_kill_trend_points
+    assert raw_before[-1]['cost'] == pytest.approx(1.5)
+    second_id = event(app, sid, 'loot', second=24, value=0.8, item_name='Shrapnel')
+    refresh(app, overlay, sid)
+    assert not overlay._attribution_error
+    assert overlay.kill_trend_points.attribution_pending == pytest.approx(0.5)
+    assert overlay.kill_trend_points[-2]['cost'] == pytest.approx(0.5)
+    third = event(app, sid, 'loot', second=28, value=0.2, item_name='Shrapnel')
+    refresh(app, overlay, sid)
+    estimated = overlay.kill_trend_points[-3:]
+    assert [p['event_id'] for p in estimated] == [first, second_id, third]
+    assert [p['cost'] for p in estimated] == pytest.approx([0.5] * 3)
+    assert overlay.kill_trend_points.attribution_pending == pytest.approx(0)
+    assert raw_before[-1]['cost'] == pytest.approx(1.5)  # Old animation snapshot is immutable.
+    assert app.store.get_session(sid).hunting_cost == pytest.approx(4)
+    assert sum(p['cost'] for p in overlay.kill_trend_points) == pytest.approx(4)
+    history = overlay.kill_trail_histories[first]
+    assert max(s[0] for s in history) == pytest.approx(1.5)
+    assert history[-1][0] == pytest.approx(0.5)
+    assert [overlay.kill_chart.itemcget(i, 'fill') for i in ordinary_markers(overlay.kill_chart)[-3:]] == [
+        '#FDA4AF', '#86EFAC', '#FDA4AF']
+    assert len(overlay.kill_chart.find_withtag('estimate')) == 3
+    saved = app.store.load_chart_trails(sid, [first, second_id, third])
+    app._open_streamer_window()
+    app._open_streamer_window()
+    app.update()
+    overlay = app.streamer_window
+    projection = projection_spy(monkeypatch, overlay)
+    refresh(app, overlay, sid)
+    assert [p['cost'] for p in overlay.kill_trend_points[-3:]] == pytest.approx([0.5] * 3)
+    assert app.store.load_chart_trails(sid, [first, second_id, third]) == saved
+    assert_projected_envelopes(overlay, projection)
+    old_width = overlay.kill_chart.winfo_width()
+    overlay.geometry(f'{overlay.winfo_width() + 180}x{overlay.winfo_height() + 100}')
+    app.update()
+    overlay._chart_frame(1)
+    assert overlay.kill_chart.winfo_width() > old_width
+    assert_projected_envelopes(overlay, projection)
+    for _ in range(5):
+        event(app, sid, 'combat', second=32, shot_cost=0.1, loadout='Uniform carbine')
+    event(app, sid, 'loot', second=34, value=10_000_000, item_name='Shrapnel')
+    refresh(app, overlay, sid)
+    assert not overlay._attribution_error
+    assert app.store.load_chart_trails(sid, [first, second_id, third]) == saved
+    assert_projected_envelopes(overlay, projection)
+    final = ordinary_markers(overlay.kill_chart)[-1]
+    assert center(overlay.kill_chart, final) == pytest.approx(
+        (projection['x_for'](len(projection['points']) - 1), projection['y_for'](10_000_000)))
+
+
+def test_unsupported_shared_cost_has_unknown_not_free_profit_markers(hud, monkeypatch):
+    app, overlay, sid = hud
+    projection = projection_spy(monkeypatch, overlay)
+    for _ in range(3):
+        event(app, sid, 'combat', shot_cost=0.3, loadout='No baseline')
+    event(app, sid, 'loot', second=2, value=0.1, item_name='Shrapnel')
+    refresh(app, overlay, sid)
+    for second in (4, 8):
+        event(app, sid, 'loot', second=second, value=0.2, item_name='Shrapnel')
+        refresh(app, overlay, sid)
+    points = overlay.kill_trend_points
+    assert not overlay._attribution_error
+    assert all(p['cost'] is None and p['profit'] is None for p in points)
+    assert points.attribution_pending == pytest.approx(0.9)
+    assert app.store.get_session(sid).hunting_cost == pytest.approx(0.9)
+    assert overlay.vars['cost'].get() == '0.90 PED'
+    markers = ordinary_markers(overlay.kill_chart)
+    assert len(markers) == 3
+    assert all(overlay.kill_chart.itemcget(i, 'fill') == '#B8C5D6' for i in markers)
+    assert all(overlay.kill_chart.itemcget(i, 'outline') == '#FBBF24' for i in markers)
+    assert_projected_envelopes(overlay, projection)
+
 
 
 def chart_point(event_id, number, cost, loot, kind='hunt', plan=None):

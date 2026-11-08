@@ -5,7 +5,7 @@ and pre-feature groups acquire no history merely by appearing in a chart.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 import math
 from typing import Protocol
 
@@ -106,7 +106,8 @@ class TrailRecorder:
         self._active_id: int | None = None
 
     def update(
-        self, session_id: str | None, points: Sequence[dict], live: bool
+        self, session_id: str | None, points: Sequence[dict], live: bool,
+        revised_event_ids: Collection[int] = (),
     ) -> dict[int, tuple[Sample, ...]]:
         if session_id != self._session_id:
             self._session_id = session_id
@@ -139,6 +140,11 @@ class TrailRecorder:
             observed.append(self._active_id)
         if latest_id is not None:
             observed.append(latest_id)
+        # Reconsidered allocations are new observations of an earlier endpoint,
+        # not a reconstruction of its missing past. Only extend existing trails.
+        observed.extend(event_id for event_id in by_id
+                        if event_id in revised_event_ids and self._histories.get(event_id)
+                        and event_id not in observed)
         changed: dict[int, tuple[Sample, ...]] = {}
         for event_id in observed:
             point = by_id[event_id]

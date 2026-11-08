@@ -235,7 +235,7 @@ and footer keep stable slots inside the chosen rectangle without changing the
 main window's scaling. Large monetary totals fit their own field's font without
 moving other sections or losing precision. No-session and zero-cost
 returns show `—`, not a misleading return percentage. The chart is always labelled
-**PED**, even when the monetary cards use USD; **Kills*** are inferred event
+**PED**, even when the monetary cards use USD; **Groups*** are inferred event
 clusters, not independently confirmed kills. Query failures are distinguished
 from an empty chart. Unknown durability is a neutral empty track, not an alarm.
 
@@ -263,8 +263,43 @@ window. Resize, monitor-scale changes, and automatic chart range changes reproje
 the raw data together with the current lines. The range includes visible trail
 extrema: an exceptionally large return can compress smaller values on the
 existing linear scale, but signed profit text and profit/loss markers remain.
-Session totals, recent arrivals, and the ordinary cost/average/return series are
-unchanged.
+Session totals, recent arrivals, and the cost/average/return series remain
+available; revised per-group costs are explicitly marked as estimates.
+
+Recent hunting input can be shared across several receipts when creatures are
+killed before looting. An unusually expensive interval followed by little or no
+new input triggers a **bounded reconsideration**, not proof of a particular kill
+allocation. A robust reference needs at least five clean, completed, same-setup
+intervals from the latest 32. Variable/mixed costs or insufficient evidence stay
+ambiguous rather than falling back to invented equal shares.
+
+The mutable window is limited to **12 receipt groups, 5 minutes, 1024 charged
+shots, and a 4096 event-ID span**. Intervening shots enter its input pool once;
+ongoing shots without a receipt remain separate. Supported groups get provisional
+typical-cost estimates; excess input stays **shared/unassigned** until observed
+evidence supports its allocation. It is already included in session expenditure,
+not another charge or a prediction of more loot. Estimates plus unassigned input
+conserve the original recorded hunting cost. The blue **booked average** still
+includes all raw input, including unassigned cost.
+
+Amber-ring chart points and `~` costs identify estimates; unknown costs/profits
+are gray, not free wins. Recent revisions append new endpoints only to fans with
+previously observed history, retaining their earlier provisional positions.
+Pricing, equipped-weapon, repair and crafting boundaries, or window limits, freeze
+the earlier estimates and any unresolved remainder. Future evidence does not
+rewrite those frozen decisions. The log contains neither creature IDs nor
+confirmed kill markers, so these are receipt-group estimates, never exact
+per-creature costs or predictions.
+
+Allocation state and per-group overrides persist in separate SQLite tables keyed
+to the original session/events; raw events, totals and loadouts are not rewritten.
+Saved estimates reload when the HUD reopens or the session resumes. Existing
+groups before the feature's first live activation retain their original interval
+costs; there is no historical backfill. Estimation runs on HUD refreshes, while
+fan samples still require live observation: closed/paused gaps cannot fabricate
+missing visual traces. Optional projection/storage failures leave recorded totals
+available and identify the unavailable allocation.
+
 
 The header and background can be dragged. Resize from **any edge or corner**,
 or use the bottom-right grip; mouse capture keeps the drag working outside the
@@ -358,6 +393,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Improve bounded recent hunting receipt-cost estimates for delayed/batched looting and intervening shots, with conserved unassigned input, explicit ambiguity, persistent frozen decisions, and consistent per-event fan revisions.
 
 - Add `SET Combat Blade (L)` to search and hunting setups with ammo-consuming melee costs; preserve its verified cost/TT data and uniqueness through both seed import paths.
 

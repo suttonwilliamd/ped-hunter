@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import json
+import math
 import sqlite3
 from typing import Iterator
 import uuid
 
 from .chart_trails import Sample, bounded_samples
+from .hunt_attribution import _validate_decision, _validate_state
 
 
 @dataclass(slots=True)
@@ -158,6 +160,36 @@ class Store:
                 BEGIN
                     DELETE FROM chart_trails WHERE event_id = OLD.id AND session_id = OLD.session_id;
                 END;
+                CREATE TABLE IF NOT EXISTS hunt_attribution_state (
+                    session_id TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS hunt_attribution_decisions (
+                    session_id TEXT NOT NULL,
+                    event_id INTEGER NOT NULL,
+                    decision TEXT NOT NULL,
+                    PRIMARY KEY (session_id, event_id),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS hunt_attribution_pool_lookup
+                ON hunt_attribution_decisions (
+                    session_id,
+                    CASE WHEN json_valid(decision) THEN json_extract(decision, '$.cost_pool_id') END
+                );
+                CREATE TRIGGER IF NOT EXISTS delete_session_hunt_attribution
+                AFTER DELETE ON sessions
+                BEGIN
+                    DELETE FROM hunt_attribution_state WHERE session_id = OLD.id;
+                    DELETE FROM hunt_attribution_decisions WHERE session_id = OLD.id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS delete_event_hunt_attribution
+                AFTER DELETE ON events
+                BEGIN
+                    DELETE FROM hunt_attribution_decisions WHERE event_id = OLD.id AND session_id = OLD.session_id;
+                    DELETE FROM hunt_attribution_state WHERE session_id = OLD.session_id;
+                END;
                 CREATE TABLE IF NOT EXISTS loadouts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE,
@@ -297,6 +329,215 @@ class Store:
                     rows,
                 )
                 conn.commit()
+
+    def load_hunt_attribution(self, session_id: str) -> tuple[dict | None, dict[int, dict]]:
+        """Load a coherent projection, ignoring corrupt or orphaned accounting.
+
+        A partially decoded pool is unsafe: its pending amount assumes all its
+        decisions exist. Reject the whole projection rather than lose input.
+        """
+        with self.connect() as conn:
+            row = conn.execute(
+                """SELECT h.state FROM hunt_attribution_state h
+                   JOIN sessions s ON s.id = h.session_id WHERE h.session_id = ?""",
+                (session_id,),
+            ).fetchone()
+            if row is None:
+                return None, {}
+            try:
+                state = json.loads(row['state'])
+                ids = _validate_state(state)
+                decisions = {}
+                for record in conn.execute(
+                    "SELECT event_id, decision FROM hunt_attribution_decisions WHERE session_id = ?",
+                    (session_id,),
+                ):
+                    event_id = int(record['event_id'])
+                    # A rejected/corrupt earlier state may have been replaced by
+                    # a new activation. Never backfill decisions across it.
+                    if event_id <= state['activation_event_id']:
+                        continue
+                    decision = json.loads(record['decision'])
+                    ids.add(event_id)
+                    ids.update(_validate_decision(decision))
+                    decisions[event_id] = decision
+                self._validate_hunt_ownership(conn, session_id, ids)
+                self._validate_hunt_accounting(state, decisions)
+            except (KeyError, TypeError, ValueError, OverflowError):
+                return None, {}
+        return state, decisions
+
+    @staticmethod
+    def _validate_hunt_ownership(conn: sqlite3.Connection, session_id: str, ids: set[int]) -> None:
+        if conn.execute("SELECT 1 FROM sessions WHERE id = ?", (session_id,)).fetchone() is None:
+            raise ValueError("Attribution session does not exist")
+        owned = set()
+        values = list(ids)
+        for start in range(0, len(values), 900):
+            chunk = values[start:start + 900]
+            placeholders = ",".join("?" for _ in chunk)
+            owned.update(int(row['id']) for row in conn.execute(
+                f"SELECT id FROM events WHERE session_id = ? AND id IN ({placeholders})",
+                (session_id, *chunk),
+            ))
+        if owned != ids:
+            raise ValueError("Attribution references a missing or foreign event")
+
+    @staticmethod
+    def _validate_hunt_accounting(state: dict, decisions: Mapping[int, dict]) -> None:
+        pools: dict[int, list[dict]] = {}
+        for decision in decisions.values():
+            pools.setdefault(decision['cost_pool_id'], []).append(decision)
+        frozen_pending = []
+        for pool_id, members in pools.items():
+            if pool_id not in decisions or decisions[pool_id]['cost_pool_id'] != pool_id:
+                raise ValueError("Attribution pool has no anchor decision")
+            total, pending = members[0]['cost_pool_total'], members[0]['cost_unassigned']
+            frozen = members[0]['cost_status'].startswith('frozen_')
+            if any(member['cost_pool_total'] != total or member['cost_unassigned'] != pending
+                   or member['cost_status'].startswith('frozen_') != frozen for member in members):
+                raise ValueError("Inconsistent attribution pool")
+            if not math.isclose(math.fsum(member['raw_cost'] for member in members), total, abs_tol=1e-9):
+                raise ValueError("Attribution pool omits original input")
+            if not math.isclose(math.fsum(member['cost'] or 0.0 for member in members) + pending, total, abs_tol=1e-9):
+                raise ValueError("Attribution pool does not conserve input")
+            if frozen:
+                frozen_pending.append(pending)
+            elif total:
+                active = state['active']
+                if active is None or active['id'] != pool_id or active['pending'] != pending:
+                    raise ValueError("Attribution pool has no active state")
+                if {member['event_id'] for member in active['members']} != {
+                    event_id for event_id, decision in decisions.items() if decision['cost_pool_id'] == pool_id
+                }:
+                    raise ValueError("Attribution pool membership mismatch")
+                if any(decisions[member['event_id']]['raw_cost'] != member['raw_cost']
+                       for member in active['members']):
+                    raise ValueError("Attribution state disagrees with original input")
+        active = state['active']
+        if active is not None and active['id'] not in pools:
+            raise ValueError("Attribution state has no decisions")
+        if not math.isclose(math.fsum(frozen_pending), state['frozen_pending'], abs_tol=1e-9):
+            raise ValueError("Attribution state loses frozen input")
+
+    def save_hunt_attribution(self, session_id: str, state: dict, decisions: Mapping[int, dict]) -> None:
+        """Atomically save bounded state and changed, session-owned overrides.
+
+        Invalid writes fail closed, including foreign IDs and changes to frozen
+        decisions. Original events, session totals and loadouts are never written.
+        """
+        try:
+            ids = _validate_state(state)
+            for event_id, decision in decisions.items():
+                if isinstance(event_id, bool) or not isinstance(event_id, int) or not 0 < event_id <= 2**63 - 1:
+                    raise ValueError("Invalid attribution event identifier")
+                if event_id <= state['activation_event_id']:
+                    raise ValueError("Attribution cannot precede activation")
+                ids.add(event_id)
+                ids.update(_validate_decision(decision))
+            encoded_state = json.dumps(state, separators=(",", ":"), allow_nan=False)
+            encoded_decisions = {
+                event_id: json.dumps(decision, separators=(",", ":"), allow_nan=False)
+                for event_id, decision in decisions.items()
+            }
+        except (KeyError, TypeError, OverflowError) as exc:
+            raise ValueError("Invalid attribution record") from exc
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            previous_row = conn.execute(
+                "SELECT state FROM hunt_attribution_state WHERE session_id = ?", (session_id,),
+            ).fetchone()
+            previous_state = None
+            reset = (not decisions and state['active'] is None and state['frozen_pending'] == 0
+                     and state['activation_event_id'] == state['watermark'])
+            if previous_row is not None:
+                try:
+                    previous_state = json.loads(previous_row['state'])
+                    _validate_state(previous_state)
+                except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                    if not reset:
+                        raise ValueError("Corrupt existing attribution state") from exc
+                    previous_state = None
+                if previous_state and previous_state['activation_event_id'] != state['activation_event_id']:
+                    if not reset or state['activation_event_id'] < previous_state['watermark']:
+                        raise ValueError("Attribution activation cannot move backwards")
+                    previous_state = None
+
+            pool_ids = {decision['cost_pool_id'] for decision in decisions.values()}
+            for snapshot in (previous_state, state):
+                if snapshot and snapshot['active']:
+                    pool_ids.add(snapshot['active']['id'])
+            changed_ids = list(decisions)
+            for start in range(0, len(changed_ids), 900):
+                chunk = changed_ids[start:start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                for row in conn.execute(
+                    f"SELECT decision FROM hunt_attribution_decisions WHERE session_id = ? AND event_id IN ({placeholders})",
+                    (session_id, *chunk),
+                ):
+                    try:
+                        old = json.loads(row['decision'])
+                        _validate_decision(old)
+                    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                        raise ValueError("Corrupt existing attribution decision") from exc
+                    pool_ids.add(old['cost_pool_id'])
+
+            # Read only affected pools through the expression index. Frozen
+            # history was validated at load and cannot be changed by later saves.
+            previous = {}
+            pool_expression = "CASE WHEN json_valid(decision) THEN json_extract(decision, '$.cost_pool_id') END"
+            pool_values = list(pool_ids)
+            for start in range(0, len(pool_values), 900):
+                chunk = pool_values[start:start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                for row in conn.execute(
+                    f"SELECT event_id, decision FROM hunt_attribution_decisions "
+                    f"WHERE session_id = ? AND {pool_expression} IN ({placeholders})",
+                    (session_id, *chunk),
+                ):
+                    event_id = int(row['event_id'])
+                    if event_id <= state['activation_event_id']:
+                        continue
+                    try:
+                        old = json.loads(row['decision'])
+                        ids.add(event_id)
+                        ids.update(_validate_decision(old))
+                    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                        raise ValueError("Corrupt existing attribution decision") from exc
+                    if event_id in decisions and old != decisions[event_id]:
+                        if old['cost_status'].startswith('frozen_'):
+                            raise ValueError("Frozen attribution decisions are immutable")
+                        if decisions[event_id]['attribution_revision'] <= old['attribution_revision']:
+                            raise ValueError("Attribution revisions must increase")
+                    previous[event_id] = old
+            self._validate_hunt_ownership(conn, session_id, ids)
+            combined = previous | decisions
+            old_frozen = math.fsum({
+                d['cost_pool_id']: d['cost_unassigned'] for d in previous.values()
+                if d['cost_status'].startswith('frozen_')
+            }.values())
+            new_frozen = math.fsum({
+                d['cost_pool_id']: d['cost_unassigned'] for d in combined.values()
+                if d['cost_status'].startswith('frozen_')
+            }.values())
+            subset = state | {'frozen_pending': new_frozen}
+            self._validate_hunt_accounting(subset, combined)
+            expected = math.fsum(((previous_state or {}).get('frozen_pending', 0.0), -old_frozen, new_frozen))
+            if not math.isclose(expected, state['frozen_pending'], rel_tol=1e-12, abs_tol=1e-9):
+                raise ValueError("Attribution state loses frozen input")
+            conn.execute(
+                """INSERT INTO hunt_attribution_state (session_id, state) VALUES (?, ?)
+                   ON CONFLICT(session_id) DO UPDATE SET state = excluded.state
+                   WHERE hunt_attribution_state.state != excluded.state""",
+                (session_id, encoded_state),
+            )
+            conn.executemany(
+                """INSERT INTO hunt_attribution_decisions (session_id, event_id, decision) VALUES (?, ?, ?)
+                   ON CONFLICT(session_id, event_id) DO UPDATE SET decision = excluded.decision
+                   WHERE hunt_attribution_decisions.decision != excluded.decision""",
+                [(session_id, event_id, encoded) for event_id, encoded in encoded_decisions.items()],
+            )
+            conn.commit()
 
     def start_session(self, activity: str = "hunt", loadout: LoadoutRecord | None = None) -> str:
         session_id = f"ph-{uuid.uuid4().hex[:12]}"

@@ -23,6 +23,7 @@ from .catalog import Catalog, WeaponRecord
 from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
 from .currency import currency_name, format_money
 from .feedback import ActivityStrip, Animator, Snapshot
+from .hunt_attribution import HuntAttribution
 from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
@@ -1810,6 +1811,8 @@ class StreamerWindow(tk.Toplevel):
         self._trail_recorder = TrailRecorder(app.store)
         self.kill_trail_histories = {}
         self._trail_error = False
+        self._hunt_attribution = HuntAttribution(app.store)
+        self._attribution_error = False
         self.title("PED Hunter Streamer UI · Live feedback")
         self.ui_scale = self.winfo_fpixels("1i") / 96
         self._content_scale = self.ui_scale
@@ -2172,9 +2175,16 @@ class StreamerWindow(tk.Toplevel):
         trend_key = (session.session_id, session.events) if session else (None, 0)
         try:
             if getattr(self, "_kill_trend_key", None) == trend_key:
-                kill_points = self.kill_trend_points
+                kill_points = self._raw_kill_trend_points
             else:
-                kill_points = _kill_trend_points(self.app.store, session.session_id if session else None)
+                previous_key = getattr(self, "_kill_trend_key", None)
+                if previous_key is None or previous_key[0] != trend_key[0] or trend_key[1] < previous_key[1]:
+                    from .activity_trend import ActivityTrendBuilder
+                    self._trend_builder = ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
+                    if previous_key is not None:
+                        self._hunt_attribution = HuntAttribution(self.app.store)
+                kill_points = _kill_trend_points(self.app.store, session.session_id if session else None, 16, self._trend_builder)
+                self._raw_kill_trend_points = kill_points
                 self._kill_trend_key = trend_key
         except Exception:
             # A malformed/very large historical session must not take down live
@@ -2184,11 +2194,22 @@ class StreamerWindow(tk.Toplevel):
             self._kill_trend_key = None
             kill_points = []
         kill_count = len(kill_points)
+        live_chart = bool(session and not session.ended_at and self.app.running and
+                          self.app.session_id == session.session_id and not self._trend_error)
+        try:
+            kill_points = self._hunt_attribution.update(
+                session.session_id if session else None, kill_points, live=live_chart,
+            )
+            self._attribution_error = False
+        except Exception:
+            # Estimation is a separate projection, never an ingestion or billing
+            # dependency. A failed write must not masquerade as a saved estimate.
+            self._attribution_error = True
         try:
             self.kill_trail_histories = self._trail_recorder.update(
                 session.session_id if session else None, kill_points,
-                bool(session and not session.ended_at and self.app.running and
-                     self.app.session_id == session.session_id and not self._trend_error),
+                live_chart and not self._attribution_error,
+                revised_event_ids=getattr(kill_points, "attribution_changed_ids", ()),
             )
             self._trail_error = False
         except Exception:
@@ -2207,7 +2228,7 @@ class StreamerWindow(tk.Toplevel):
         self.net_caption.configure(text="NET · COST UNKNOWN" if incomplete_cost else "BOOKED SESSION NET" if has_crafting else "NET PROFIT")
         self.loot_title.configure(text="Returns" if has_crafting else "Loot")
         self.cost_title.configure(text="Known cost" if incomplete_cost else "Booked cost" if has_crafting else "Cost")
-        self.count_title.configure(text="Groups*" if has_crafting else "Kills*")
+        self.count_title.configure(text="Groups*")
         self.chart_note.configure(text="* Prior groups · PED" if craft_active and not plan.observed and kill_points else
                                   "* Observed groups · PED" if has_crafting else "* Inferred clusters · PED")
         if self._trail_error:
@@ -2215,6 +2236,11 @@ class StreamerWindow(tk.Toplevel):
         elif any(len(samples) > 1 for samples in self.kill_trail_histories.values()):
             self.chart_note.configure(text="* Observed · PED · fans" if has_crafting else
                                       "* Inferred · PED · fans")
+        if self._attribution_error:
+            self.chart_note.configure(text="* Allocation unavailable · PED")
+        elif any(point.get("cost_status") for point in kill_points[-16:]):
+            self.chart_note.configure(text="* Estimated/shared · PED" +
+                                      (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
@@ -2296,11 +2322,27 @@ class StreamerWindow(tk.Toplevel):
             "Only live HUD refreshes are sampled, not animation frames or missing history; "
             "older groups without samples stay ordinary lines."
         )
+        self._footer_detail += (
+            "\nHunting receipts have no creature IDs or confirmed kills. Shared costs use a stable recent "
+            "same-setup input reference only when supported; ~ and amber-ring points are estimates, "
+            "and gray unresolved points are not free profit. "
+            "Unassigned input is already in session cost, not a prediction of more loot. "
+            "The blue booked average includes all recorded input, including unassigned cost. "
+            "Only new groups after activation can be reconsidered: at most 12 groups, 5 minutes, "
+            "1024 charged shots and 4096 source-event IDs; old/frozen allocations are retained. "
+            "Fans also retain previously observed estimates when recent allocations change."
+        )
+        attribution_note = getattr(kill_points, "attribution_note", "")
+        if attribution_note:
+            self._footer_detail += "\n" + attribution_note
+        if self._attribution_error:
+            self._footer_detail += "\nShared allocation is unavailable; recorded totals and raw interval costs are unchanged."
         if self._trail_error:
             self._footer_detail += "\nTrail storage is unavailable; totals and ordinary chart series remain visible."
         self.vars["durability"].set(durability_text)
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
         summary = ("Trend unavailable · totals still shown" if self._trend_error else
+                   "Allocation unavailable · booked totals unchanged\nChart shows raw receipt-interval input, not exact creature cost" if self._attribution_error else
                    f"Craft setup armed · 0/{plan.attempts} observed\nBatch {plan.booked_cost:.2f} PED booked; waiting for receipts" if craft_active and not plan.observed else
                    _streamer_trend_detail(kill_points) if kill_points else
                    "No observed craft groups yet · inputs booked" if has_crafting else "No kill points yet")
@@ -2440,7 +2482,10 @@ class StreamerWindow(tk.Toplevel):
                     cost = value_for(index, "cost")
                     fill = "#B8C5D6" if cost is None else "#86EFAC" if value >= cost else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
-                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill, outline="", tags=(key,))
+                    estimated = bool(point.get("cost_status"))
+                    tags = (key, "estimate", f"estimate:{point['event_id']}") if estimated else (key,)
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius,
+                                       fill=fill, outline="#FBBF24" if estimated else "", width=1, tags=tags)
                 else:
                     radius = 2 if index == len(display_points) - 1 else 1
                     canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="", tags=(key,))
@@ -3158,9 +3203,11 @@ def _parse_event_timestamp(value: object) -> float | None:
         return None
 
 
-def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) -> list[dict[str, object]]:
+def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16, builder=None) -> list[dict[str, object]]:
     if not session_id:
         return []
+    from .activity_trend import ActivityTrendBuilder
+    builder = builder if builder is not None else ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
     def iter_rows():
         # Keep the cursor and connection alive while streaming rows. Calling
         # fetchall() here made the overlay refresh vulnerable to MemoryError on
@@ -3170,28 +3217,40 @@ def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16) ->
                 """
                 SELECT id, timestamp, kind, payload
                 FROM events
-                WHERE session_id = ? AND kind IN ('combat', 'loot', 'craft', 'manufacturing_offset')
+                WHERE session_id = ? AND id > ? AND kind IN ('combat', 'loot', 'craft', 'manufacturing_offset', 'weapon', 'repair')
                 ORDER BY id
                 """,
-                (session_id,),
+                (session_id, builder.last_event_id),
             )
 
-    from .activity_trend import build_activity_points
-    return build_activity_points(iter_rows(), KILL_CLUSTER_WINDOW_SECONDS)
+    builder.extend(iter_rows())
+    return builder.snapshot()
 
 
 def _streamer_trend_detail(points: list[dict[str, object]]) -> str:
     latest = points[-1]
     label = latest.get("label", f"K{latest['kill']}")
+    pending = float(getattr(points, "attribution_pending", 0.0))
+    shared = latest.get("kind") == "hunt" and bool(latest.get("cost_status"))
+    if shared and (latest["cost"] is None or latest["profit"] is None):
+        return (f"{label} · Cost unresolved · Return {float(latest['loot']):.2f} PED\n"
+                f"Shared/unassigned {pending:.4f} PED · booked totals unchanged")
     if latest["cost"] is None or latest["profit"] is None:
         return (f"{label} · Cost unknown · Return {float(latest['loot']):.2f} PED\n"
                 "Add input setup; no per-group profit inferred")
     first = latest.get("first_point", len(points) == 1)
-    change = ("first group" if first else "= unchanged" if not latest["delta_profit"] else
+    change = ("first group" if first else "prev unresolved" if latest["delta_profit"] is None else
+              "= unchanged" if not latest["delta_profit"] else
               f"{latest['trend_symbol']} {float(latest['delta_profit']):+.2f} vs prev")
-    scope = "Batch avg" if latest.get("kind") == "craft" else "Cumulative avg cost"
-    return (f"{label} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
-            f"Cost {float(latest['cost']):.2f} · {scope} {float(latest['avg_cost']):.2f} PED")
+    if shared:
+        return (f"{label} · Est. profit {float(latest['profit']):+.2f} PED · {change}\n"
+                f"~Cost {float(latest['cost']):.4f} · Shared/unassigned {pending:.4f} PED")
+    scope = "Batch avg" if latest.get("kind") == "craft" else "Booked avg"
+    detail = (f"{label} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
+              f"Cost {float(latest['cost']):.2f} · {scope} {float(latest['avg_cost']):.2f} PED")
+    if pending:
+        detail += f" · Unassigned {pending:.4f}"
+    return detail
 
 
 def _kill_trend_summary(points: list[dict[str, object]]) -> str:
@@ -3199,7 +3258,7 @@ def _kill_trend_summary(points: list[dict[str, object]]) -> str:
         return ("No observed craft groups yet — configured inputs are booked." if getattr(points, "has_crafting", False) else
                 "No completed kills yet — loot a mob to plot cost and returns; the summary shows net profit and delta per kill.")
     latest = points[-1]
-    if latest["cost"] is None or latest["profit"] is None:
+    if latest["cost"] is None or latest["profit"] is None or latest.get("cost_status") or latest["delta_profit"] is None:
         return _streamer_trend_detail(points)
     profit = float(latest["profit"])
     cost = float(latest["cost"])

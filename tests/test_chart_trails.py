@@ -131,6 +131,29 @@ def test_repeated_updates_do_not_mutate_returned_histories_or_input(store):
     assert p == point(event_id, loot=2)
 
 
+def test_reassigned_earlier_groups_extend_only_observed_histories(store):
+    sid = store.start_session('hunt')
+    ids = [add_event(store, sid, second=i * 4, value=1) for i in range(4)]
+    original = [point(event_id, cost=9 if i == 0 else 0, avg_cost=9 / (i + 1), loot=1)
+                for i, event_id in enumerate(ids)]
+    recorder = TrailRecorder(store)
+    recorder.update(sid, original[:1], live=True)
+    recorder.update(sid, original[:2], live=True)
+    before = recorder.update(sid, original, live=True)  # Third group was not observed.
+    assert ids[2] not in before
+    revised = [dict(p, cost=2.25, profit=-1.25) for p in original]
+    assert recorder.update(sid, revised, live=False, revised_event_ids=set(ids)) == before
+    after = recorder.update(sid, revised, live=True, revised_event_ids=set(ids))
+    for event_id in (ids[0], ids[1], ids[3]):
+        index = ids.index(event_id)
+        assert before[event_id] == (sample(original[index]),)
+        assert after[event_id] == (sample(original[index]), sample(revised[index]))
+    assert ids[2] not in after
+    assert recorder.update(sid, revised, live=True, revised_event_ids=set(ids)) == after
+    assert TrailRecorder(store).update(sid, revised, live=False) == after
+
+
+
 def test_session_switch_and_new_recorder_reload_only_matching_event_histories(store):
     sid_a, sid_b = store.start_session('hunt'), store.start_session('hunt')
     a = add_event(store, sid_a, value=1)
