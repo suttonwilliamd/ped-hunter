@@ -68,9 +68,12 @@ def test_user_size_survives_live_refreshes_and_changing_text(hud):
 
 
 @pytest.mark.parametrize('scale', [1.0, 1.25, 1.5, 2.0])
-def test_dpi_scaling_is_applied_once_and_minimum_remains_reachable(hud, scale):
+def test_dpi_scaling_is_applied_once_and_minimum_remains_reachable(hud, scale, monkeypatch):
     app, old = hud
     old.destroy()
+    # Simulate a monitor DPI, not process-wide Tk point scaling: Windows
+    # per-monitor-aware windows obtain their actual DPI from GetDpiForWindow.
+    monkeypatch.setattr('ped_hunter.app.window_ui_scale', lambda _: scale)
     app.tk.call('tk', 'scaling', scale * 96 / 72)
     app._open_streamer_window()
     app.update()
@@ -138,3 +141,16 @@ def test_edges_and_corners_resize_without_moving_the_opposite_edge(hud, edge, dx
         assert window.winfo_y() == y
     assert window.winfo_width() == w + abs(dx)
     assert window.winfo_height() == h + abs(dy)
+
+
+def test_monitor_dpi_change_relayouts_without_global_tk_scaling(hud, monkeypatch):
+    from types import SimpleNamespace
+    app, window = hud
+    scaling = float(app.tk.call('tk', 'scaling'))
+    monkeypatch.setattr('ped_hunter.app.window_ui_scale', lambda _: 1.5)
+    window._on_overlay_configure(SimpleNamespace(widget=window))
+    app.update_idletasks()
+    assert window.ui_scale == 1.5
+    assert window.minsize() == (390, 360)
+    assert float(app.tk.call('tk', 'scaling')) == scaling
+    assert window._layout_geometry_key is not None

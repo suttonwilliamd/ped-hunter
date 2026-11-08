@@ -60,9 +60,9 @@ actual imports and assertions, not from which source filename happened to change
 |---|---|---|
 | `activity_trend`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
-| `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests also validate CLI import/version metadata, so they overlap diagnostics. |
+| `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
-| Native widgets/layout/DPI, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | Includes streamer rendering/resize/toggle/placement/stability/crafting and real GUI cases in ingestion/fan tests. PCM tone tests also cover CLI sound flags. Add catalog/loadouts for setup search/cost controls, or relevant model/storage groups when data contracts change. A large `app.py` edit is not by itself a full-suite gate. |
+| Native widgets/layout/DPI, `scrolling.py`, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | `test_default_layout` exercises real setup/Help widgets, persistent actions, focused-control reveal, smaller geometry, native font bounds and simulated application DPI; `test_setup_editor` is controller/data evidence, not rendered acceptance. Includes streamer rendering/resize/toggle/placement/stability/crafting and GUI ingestion/fan cases. Add catalog/loadouts and persistence for setup controls/activation. A large `app.py` edit alone is not a full-suite gate. |
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
 
@@ -71,6 +71,20 @@ starting points, not proof that every acceptance case is covered. Preserve named
 bug/feature sequences and required visual checks. A carefully justified direct
 file/node selection is valid focused evidence; do not use `-k` to discard failing
 or required cases. Update the mapping/guide when behavior moves between files.
+
+For setup or Help layout changes, run controller/data checks **and** authorized
+native layout checks. A headless controller/SQLite pass cannot prove that a
+button is visible, keyboard traversal works on Windows, or a preview child
+opens safely. Record actual client dimensions, actual monitor DPI versus any
+simulated application scale, before/after screenshots, lower-control use and
+untested scaling limitations. Simulating `tk scaling` is not changing Windows
+display scaling and is not native-monitor parity.
+
+If a live-hunt protection or GUI safety guard blocks rendering, retain the
+failure and frozen before-source data; report GUI acceptance as **blocked**,
+not passed or silently skipped. Do not weaken the guard, retry a launch without
+clearance, or treat a focused/model pass as permission to deploy/restart.
+
 
 ## GUI, operating-system and skip limits
 
@@ -88,13 +102,19 @@ execution is authorized, opt in to a fresh pytest process per selected case:
 ```
 
 `--isolated` preserves the selected cases and reports failed child processes;
-read **each pytest summary** for passes/skips. It is **not monitor/window
-isolation** and does not grant permission to interrupt a live hunt. While a live
-session is protected, do not activate/move/close/restart its app, HUD or game,
-change tracking/settings/data, or alter its live modules/install. Any test GUI
-must use isolated data/processes and only a safely established non-game monitor;
-if a fixture cannot guarantee that placement, defer native GUI execution. No
-current test GUI placement is assumed safe merely because the process is new.
+read **each pytest summary** for passes/skips. It is **not source/data/window
+isolation** and grants no permission to interrupt a live hunt. Repeated-interpreter
+`tcl_findLibrary`/`tk.tcl` initialization failures must be retained and reported,
+not converted into passes or silently skipped. Fresh-process case evidence must
+cover the complete selected inventory; do not discard the failing cases.
+
+While a live session is protected, do not activate/move/close/restart its app,
+HUD or game, change tracking/settings/data, or alter its live modules/install.
+Test windows need isolated sources/data/processes and bounded owned cleanup.
+Follow the user's current explicit monitor/foreground/input permissions: they
+may allow either monitor and test-window foreground/overlap, but do not authorize
+input to the game or unrelated process termination. A new process alone is not
+proof of isolation. Any required provider control approval remains separate.
 
 For no-GUI tooling work, exercise disposable test projects and collection/CLI
 behavior without launching the application. A display/import skip is an explicit

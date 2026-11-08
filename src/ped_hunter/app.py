@@ -16,6 +16,7 @@ from pathlib import Path
 import threading
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 import uuid
 
@@ -23,11 +24,13 @@ from .catalog import Catalog, WeaponRecord
 from .chart_scales import plan_chart_scales
 from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
 from .currency import currency_name, format_money
+from .dpi import enable_high_dpi, window_ui_scale
 from .feedback import ActivityStrip, Animator, Snapshot
 from .hunt_attribution import HuntAttribution
 from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
+from .scrolling import ScrollPane
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
@@ -55,10 +58,13 @@ class PedHunterApp(tk.Tk):
     """Main PED Hunter desktop UI."""
 
     def __init__(self, *, store: Store | None = None) -> None:
+        enable_high_dpi()  # Must precede Tk's first native window.
         super().__init__()
         self.title("PED Hunter")
-        self.geometry("1040x640")
-        self.minsize(980, 580)
+        self.display_scale = window_ui_scale(self)
+        self.geometry(f"{round(900 * self.display_scale)}x{round(600 * self.display_scale)}")
+        self.minsize(round(760 * self.display_scale), round(500 * self.display_scale))
+        self._ui_fonts: dict[tuple[str, int, str], tkfont.Font] = {}
 
         self.store = store if store is not None else Store()
         self.catalog = Catalog.load()
@@ -113,8 +119,8 @@ class PedHunterApp(tk.Tk):
             "avg_profit": tk.StringVar(value="+$0.00/run"),
         }
 
-        self.loadout_name = tk.StringVar(value="Starter rifle")
-        self.loadout_weapon = tk.StringVar(value="Frontier Rifle")
+        self.loadout_name = tk.StringVar(value="")
+        self.loadout_weapon = tk.StringVar(value="")
         self.loadout_amp = tk.StringVar(value="None")
         self.loadout_scope = tk.StringVar(value="None")
         self.loadout_sight_1 = tk.StringVar(value="None")
@@ -124,6 +130,8 @@ class PedHunterApp(tk.Tk):
         self.economy_enhancers = tk.StringVar(value="0")
         self.loadout_preview = tk.StringVar(value="Cost/shot: —")
         self.selected_loadout_id: int | None = None
+        self.loadout_draft_text = tk.StringVar(value="New setup · not saved")
+        self._loadout_clean_state: tuple[str, ...] = ()
         self.top_area_expanded = tk.BooleanVar(value=True)
         self.top_toggle_text = tk.StringVar(value="Hide top")
         self.currency_mode = tk.StringVar(value="USD")
@@ -145,6 +153,17 @@ class PedHunterApp(tk.Tk):
         self._restore_default_context()
         self._refresh_all()
 
+    def _ui_font(self, points: int = 10, *, family: str = "Segoe UI", weight: str = "normal") -> tkfont.Font:
+        """Readable point-equivalent fonts, sized once at this window's DPI."""
+        key = family, points, weight
+        pixels = -max(1, round(points * 96 / 72 * self.display_scale))
+        font = self._ui_fonts.get(key)
+        if font is None:
+            font = self._ui_fonts[key] = tkfont.Font(self, family=family, size=pixels, weight=weight)
+        elif int(font.cget("size")) != pixels:
+            font.configure(size=pixels)
+        return font
+
     def _configure_theme(self) -> None:
         bg = "#101419"
         panel = "#181e25"
@@ -160,7 +179,8 @@ class PedHunterApp(tk.Tk):
         self.configure(bg=bg)
         style = ttk.Style(self)
         try:
-            style.theme_use("clam")
+            if style.theme_use() != "clam":
+                style.theme_use("clam")
         except tk.TclError:
             pass
 
@@ -173,34 +193,39 @@ class PedHunterApp(tk.Tk):
         style.configure("HeroAccent.TFrame", background=accent, borderwidth=0, relief="flat")
         style.configure("HeroInset.TFrame", background="#0f1726", borderwidth=0, relief="flat")
         style.configure("AccentLine.TFrame", background=accent)
-        style.configure("TLabel", background=bg, foreground=text, font=("Segoe UI", 10))
-        style.configure("Muted.TLabel", background=bg, foreground=muted, font=("Segoe UI", 9))
-        style.configure("Kicker.TLabel", background=bg, foreground=accent, font=("Segoe UI Semibold", 9))
-        style.configure("Panel.TLabel", background=panel, foreground=text, font=("Segoe UI", 10))
-        style.configure("PanelTitle.TLabel", background=panel, foreground="#d8fffb", font=("Segoe UI Semibold", 11))
-        style.configure("PanelMuted.TLabel", background=panel, foreground=muted, font=("Segoe UI", 9))
-        style.configure("CardValue.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 19))
-        style.configure("CardTitle.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 11))
-        style.configure("CardLabel.TLabel", background=panel_2, foreground=muted, font=("Segoe UI", 9))
-        style.configure("HeroKicker.TLabel", background=panel_2, foreground=accent, font=("Segoe UI Semibold", 10))
-        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=("Segoe UI Semibold", 28))
-        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=("Segoe UI Semibold", 28))
-        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=("Segoe UI Semibold", 28))
-        style.configure("HeroReturnGood.TLabel", background=panel_2, foreground="#99f6e4", font=("Segoe UI Semibold", 14))
-        style.configure("HeroReturnBad.TLabel", background=panel_2, foreground="#fed7aa", font=("Segoe UI Semibold", 14))
-        style.configure("HeroReturnNeutral.TLabel", background=panel_2, foreground=muted, font=("Segoe UI Semibold", 14))
-        style.configure("HeroSmallValue.TLabel", background="#0f1726", foreground=text, font=("Segoe UI Semibold", 13))
-        style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=("Segoe UI", 9))
-        style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=("Segoe UI", 10))
-        style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=("Segoe UI Semibold", 9))
-        style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=("Segoe UI", 8))
-        style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=("Segoe UI Semibold", 9), padding=(12, 5))
-        style.configure("Title.TLabel", background=bg, foreground=accent, font=("Segoe UI Semibold", 16))
-        style.configure("Subtitle.TLabel", background=bg, foreground=muted, font=("Segoe UI", 10))
-        style.configure("Status.TLabel", background=panel, foreground=muted, font=("Segoe UI", 9))
-        style.configure("Accent.TButton", background=accent, foreground="#031412", font=("Segoe UI Semibold", 9), padding=(10, 4), borderwidth=0, focusthickness=0)
-        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=("Segoe UI", 9), padding=(8, 4), borderwidth=0, focusthickness=0)
-        style.configure("TButton", background=panel_3, foreground=text, padding=(8, 4), borderwidth=0, focusthickness=0)
+        style.configure(".", font=self._ui_font())
+        # Entry fonts are widget options, not only ttk style settings. Named
+        # fonts also keep editable fields and combobox popdowns in sync on DPI changes.
+        for pattern in ("*TEntry.font", "*TCombobox.font", "*TSpinbox.font", "*TCombobox*Listbox.font"):
+            self.option_add(pattern, self._ui_font())
+        style.configure("TLabel", background=bg, foreground=text, font=self._ui_font())
+        style.configure("Muted.TLabel", background=bg, foreground=muted, font=self._ui_font(9))
+        style.configure("Kicker.TLabel", background=bg, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"))
+        style.configure("Panel.TLabel", background=panel, foreground=text, font=self._ui_font())
+        style.configure("PanelTitle.TLabel", background=panel, foreground="#d8fffb", font=self._ui_font(11, family="Segoe UI Semibold"))
+        style.configure("PanelMuted.TLabel", background=panel, foreground=muted, font=self._ui_font(9))
+        style.configure("CardValue.TLabel", background=panel_2, foreground=text, font=self._ui_font(19, family="Segoe UI Semibold"))
+        style.configure("CardTitle.TLabel", background=panel_2, foreground=text, font=self._ui_font(11, family="Segoe UI Semibold"))
+        style.configure("CardLabel.TLabel", background=panel_2, foreground=muted, font=self._ui_font(9))
+        style.configure("HeroKicker.TLabel", background=panel_2, foreground=accent, font=self._ui_font(10, family="Segoe UI Semibold"))
+        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=self._ui_font(24, family="Segoe UI Semibold"))
+        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=self._ui_font(24, family="Segoe UI Semibold"))
+        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=self._ui_font(24, family="Segoe UI Semibold"))
+        style.configure("HeroReturnGood.TLabel", background=panel_2, foreground="#99f6e4", font=self._ui_font(14, family="Segoe UI Semibold"))
+        style.configure("HeroReturnBad.TLabel", background=panel_2, foreground="#fed7aa", font=self._ui_font(14, family="Segoe UI Semibold"))
+        style.configure("HeroReturnNeutral.TLabel", background=panel_2, foreground=muted, font=self._ui_font(14, family="Segoe UI Semibold"))
+        style.configure("HeroSmallValue.TLabel", background="#0f1726", foreground=text, font=self._ui_font(13, family="Segoe UI Semibold"))
+        style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=self._ui_font(9))
+        style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=self._ui_font())
+        style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=self._ui_font(9, family="Segoe UI Semibold"))
+        style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=self._ui_font(8))
+        style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"), padding=(12, 5))
+        style.configure("Title.TLabel", background=bg, foreground=accent, font=self._ui_font(16, family="Segoe UI Semibold"))
+        style.configure("Subtitle.TLabel", background=bg, foreground=muted, font=self._ui_font())
+        style.configure("Status.TLabel", background=panel, foreground=muted, font=self._ui_font(9))
+        style.configure("Accent.TButton", background=accent, foreground="#031412", font=self._ui_font(9, family="Segoe UI Semibold"), padding=(10, 4), borderwidth=0, focusthickness=0)
+        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(8, 4), borderwidth=0, focusthickness=0)
+        style.configure("TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(8, 4), borderwidth=0, focusthickness=0)
         style.map(
             "Accent.TButton",
             background=[("disabled", "#2a3444"), ("pressed", "#14b8a6"), ("active", "#5eead4")],
@@ -212,28 +237,34 @@ class PedHunterApp(tk.Tk):
             foreground=[("disabled", "#697586"), ("active", text)],
         )
         style.map("TButton", background=[("pressed", "#1f293d"), ("active", "#223049")], foreground=[("active", text)])
-        style.configure("TCheckbutton", background=bg, foreground=muted, font=("Segoe UI", 9), indicatorbackground=panel_2, padding=(3, 2))
+        style.configure("TCheckbutton", background=bg, foreground=muted, font=self._ui_font(9), indicatorbackground=panel_2, padding=(3, 2))
         style.map("TCheckbutton", background=[("active", bg)], foreground=[("selected", text), ("active", text)], indicatorbackground=[("selected", accent), ("active", panel_3)])
         style.map("TCombobox", fieldbackground=[("readonly", "#0a0f1a")], selectbackground=[("readonly", panel_3)], selectforeground=[("readonly", text)])
-        style.configure("TEntry", fieldbackground="#0a0f1a", foreground=text, insertcolor=text, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 5), borderwidth=1)
-        style.configure("TCombobox", fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
-        style.configure("TSpinbox", fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(7, 4), borderwidth=1)
+        style.configure("TEntry", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, insertcolor=text, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
+        style.configure("TCombobox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
+        style.configure("TSpinbox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(7, 4), borderwidth=1)
         style.configure("Vertical.TScrollbar", background=panel_3, troughcolor=panel, borderwidth=0, arrowcolor=muted)
         style.configure("TNotebook", background=bg, borderwidth=0, tabmargins=(0, 0, 0, 0), lightcolor=bg, darkcolor=bg, bordercolor=bg)
-        style.configure("TNotebook.Tab", background=bg, foreground=muted, padding=(11, 4), font=("Segoe UI Semibold", 9), borderwidth=0, relief="flat", lightcolor=bg, darkcolor=bg, bordercolor=bg)
+        style.configure("TNotebook.Tab", background=bg, foreground=muted, padding=(9, 4), font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, relief="flat", lightcolor=bg, darkcolor=bg, bordercolor=bg)
         style.layout("TNotebook.Tab", [("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [("Notebook.label", {"side": "top", "sticky": ""})]})])
         style.map("TNotebook.Tab", background=[("selected", panel_2), ("active", "#101827")], foreground=[("selected", accent), ("active", text)])
+        tree_font = self._ui_font(9)
+        # Rows and glyphs use the same monitor scale, independently of Tk's
+        # process-wide point scaling; never clip the rendered line.
+        tree_line_height = tree_font.metrics("linespace")
+        tree_row_height = max(round(23 * self.display_scale),
+                              tree_line_height + round(8 * self.display_scale))
         style.configure(
             "Treeview",
             background="#0a0f1a",
             fieldbackground="#0a0f1a",
             foreground=text,
             bordercolor=panel,
-            rowheight=23,
-            font=("Segoe UI", 9),
+            rowheight=tree_row_height,
+            font=tree_font,
             borderwidth=0,
         )
-        style.configure("Treeview.Heading", background=panel_3, foreground="#c7fffa", font=("Segoe UI Semibold", 9), borderwidth=0, padding=(6, 5))
+        style.configure("Treeview.Heading", background=panel_3, foreground="#c7fffa", font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, padding=(6, 5))
         style.map("Treeview", background=[("selected", "#155e59")], foreground=[("selected", "#ffffff")])
 
         self.colors = {
@@ -361,6 +392,7 @@ class PedHunterApp(tk.Tk):
         ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
         self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money, compact=True)
         self.activity_strip.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        left.bind("<Configure>", self._on_hero_resize)
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         try:
@@ -380,6 +412,25 @@ class PedHunterApp(tk.Tk):
         ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel").pack(anchor="w")
         ttk.Label(frame, textvariable=value, style="HeroSmallValue.TLabel").pack(anchor="w", pady=(2, 0))
 
+    def _on_hero_resize(self, event: tk.Event) -> None:
+        width = event.width
+        if width < round(200 * self.display_scale):
+            return  # Ignore the initial unallocated frame.
+        wrap = max(1, width - round(4 * self.display_scale))
+        for label in (self.hero_session_label, self.hero_loadout_label, self.hero_repair_label):
+            label.configure(wraplength=wrap)
+        # The controls' natural width can leave less than half the window for
+        # this column. Stack the two summary values instead of clipping them.
+        compact = width < round(380 * self.display_scale)
+        if compact != getattr(self, "_hero_compact", None):
+            self._hero_compact = compact
+            self.hero_net_label.grid_configure(columnspan=2 if compact else 1)
+            self.hero_return_label.grid_configure(
+                row=3 if compact else 2, column=0 if compact else 1,
+                columnspan=2 if compact else 1, sticky="w" if compact else "sw",
+                padx=0 if compact else (12, 0), pady=(0, 2 if compact else 4))
+            self.hero_repair_label.grid_configure(row=4 if compact else 3)
+
     def _toggle_top_area(self) -> None:
         expanded = not self.top_area_expanded.get()
         self.top_area_expanded.set(expanded)
@@ -394,17 +445,19 @@ class PedHunterApp(tk.Tk):
     def _on_resize(self, event: tk.Event) -> None:
         if event.widget is not self:
             return
+        scale = window_ui_scale(self)
+        if abs(scale - self.display_scale) > 0.01:
+            self.display_scale = scale
+            self.minsize(round(760 * scale), round(500 * scale))
+            self._configure_theme()
         width = event.width
-        wrap = max(280, min(540, (width - 70) // 2))
-        if hasattr(self, "hero_session_label"):
-            self.hero_session_label.configure(wraplength=wrap)
-            self.hero_loadout_label.configure(wraplength=wrap)
-            self.hero_repair_label.configure(wraplength=wrap)
         if hasattr(self, "status_label"):
-            if width < 1000:
-                self.status_label.grid(row=1, column=0, columnspan=4, sticky="w", pady=(5, 0))
+            self.status_label.configure(wraplength=max(1, width - round(40 * scale)))
+            if width < 900 * scale:
+                self.status_label.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(3, 0))
             else:
-                self.status_label.grid(row=0, column=3, sticky="e")
+                self.status_label.grid(row=0, column=3, columnspan=1, sticky="e", pady=0)
+
 
     def _build_dashboard_tab(self) -> None:
         tab = self.dashboard_tab
@@ -482,6 +535,8 @@ class PedHunterApp(tk.Tk):
             columns=("time", "kind", "summary"),
             headings=("Time", "Kind", "Summary"),
         )
+        # Let the scrollable stream give space back to the chart in small windows.
+        self.events_tree.configure(height=2)
 
     def _build_skills_tab(self) -> None:
         tab = self.skills_tab
@@ -515,16 +570,27 @@ class PedHunterApp(tk.Tk):
         tab.rowconfigure(0, weight=1)
 
         list_panel = self._panel(tab, "Saved setups", 0, 0)
+        # The comparison table may scroll horizontally; it must not force the
+        # editor narrower than its fields just to satisfy every column's width.
+        list_panel.configure(width=round(250 * self.display_scale))
+        list_panel.grid_propagate(False)
         self.loadouts_tree = self._tree(
             list_panel,
             columns=("active", "name", "weapon", "amp", "enh", "cost"),
             headings=("Active", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
         )
+        self.loadouts_tree.column("active", width=round(38 * self.display_scale), minwidth=30, stretch=False)
+        xscroll = ttk.Scrollbar(list_panel, orient="horizontal", command=self.loadouts_tree.xview)
+        self.loadouts_tree.configure(xscrollcommand=xscroll.set)
+        xscroll.grid(row=1, column=0, sticky="ew")
         self.loadouts_tree.bind("<<TreeviewSelect>>", lambda _event: self._load_selected_loadout())
+        self.loadouts_tree.bind("<ButtonRelease-1>", self._loadout_row_clicked)
+        self.loadouts_tree.bind("<Return>", lambda _event: self._load_selected_loadout(explicit=True))
 
         editor = self._panel(tab, "Hunting setup builder", 0, 1)
-        form = ttk.Frame(editor, style="Panel.TFrame")
-        form.grid(row=0, column=0, sticky="nsew")
+        self.loadout_scroll = ScrollPane(editor, background=self.colors["panel"])
+        self.loadout_scroll.grid(row=0, column=0, sticky="nsew")
+        form = self.loadout_scroll.content
         form.columnconfigure(1, weight=1)
 
         weapon_names = sorted(self.catalog.weapons)
@@ -546,36 +612,23 @@ class PedHunterApp(tk.Tk):
             ("Scope", scope_combo),
             ("Sight 1", sight_1_combo),
             ("Sight 2", sight_2_combo),
-            ("Damage enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.damage_enhancers, width=8)),
-            ("Accuracy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.accuracy_enhancers, width=8)),
-            ("Economy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.economy_enhancers, width=8)),
+            ("Damage enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.damage_enhancers, width=8, command=self._refresh_loadout_preview)),
+            ("Accuracy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.accuracy_enhancers, width=8, command=self._refresh_loadout_preview)),
+            ("Economy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.economy_enhancers, width=8, command=self._refresh_loadout_preview)),
         ]
+        self.loadout_fields = dict(rows)
         for r, (label, widget) in enumerate(rows):
-            ttk.Label(form, text=label, style="PanelMuted.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10), pady=5)
-            widget.grid(row=r, column=1, sticky="ew", pady=5)
-            if hasattr(widget, "bind"):
-                widget.bind("<KeyRelease>", lambda _event: self._refresh_loadout_preview())
-                widget.bind("<<ComboboxSelected>>", lambda _event: self._refresh_loadout_preview())
-
-        ttk.Label(form, textvariable=self.loadout_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold")).grid(row=len(rows), column=0, columnspan=2, sticky="w", pady=(12, 8))
-        buttons = ttk.Frame(form, style="Panel.TFrame")
-        buttons.grid(row=len(rows) + 1, column=0, columnspan=2, sticky="ew")
-        ttk.Button(buttons, text="Save & activate", command=lambda: self._save_loadout(make_active=True), style="Accent.TButton").pack(side="left", padx=(0, 8))
-        ttk.Button(buttons, text="Save", command=lambda: self._save_loadout(make_active=False)).pack(side="left", padx=(0, 8))
-        ttk.Button(buttons, text="Delete", command=self._delete_selected_loadout).pack(side="left")
+            ttk.Label(form, text=label, style="PanelMuted.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 8), pady=3)
+            widget.grid(row=r, column=1, sticky="ew", pady=3)
+            widget.bind("<KeyRelease>", lambda _event: self._refresh_loadout_preview())
+            widget.bind("<FocusOut>", lambda _event: self._refresh_loadout_preview())
+            widget.bind("<<ComboboxSelected>>", lambda _event: self._refresh_loadout_preview())
 
         help_text = tk.Text(
-            editor,
-            height=8,
-            wrap="word",
-            bg=self.colors["panel_2"],
-            fg=self.colors["text"],
-            relief="flat",
-            font=("Segoe UI", 9),
-            padx=12,
-            pady=10,
+            form, width=1, height=1, wrap="word", bg=self.colors["panel_2"],
+            fg=self.colors["text"], relief="flat", font=self._ui_font(9), padx=10, pady=8,
         )
-        help_text.grid(row=1, column=0, sticky="ew", pady=(16, 0))
+        help_text.grid(row=len(rows), column=0, columnspan=2, sticky="ew", pady=(8, 0))
         help_text.insert(
             "1.0",
             "Hunting setups are the source of truth for interpreting hunt logs: weapon + amp + scope/sights + enhancers define the cost model. "
@@ -584,7 +637,31 @@ class PedHunterApp(tk.Tk):
             "Damage enhancers increase weapon ammo/decay by 10% each; economy enhancers reduce weapon ammo/decay by 1% each; attachments add their own burn/decay.",
         )
         help_text.configure(state="disabled")
-        self._refresh_loadout_preview()
+        self.loadout_scroll.fit_text(help_text)
+        self.loadout_scroll.attach()
+
+        # Actions and cost feedback belong outside the scroll viewport.
+        footer = ttk.Frame(editor, style="Panel.TFrame")
+        footer.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        footer.columnconfigure(0, weight=1)
+        draft = ttk.Label(footer, textvariable=self.loadout_draft_text, style="PanelMuted.TLabel")
+        draft.grid(row=0, column=0, sticky="ew")
+        preview = ttk.Label(footer, textvariable=self.loadout_preview, style="Panel.TLabel")
+        preview.grid(row=1, column=0, sticky="ew", pady=(3, 5))
+        footer.bind("<Configure>", lambda event: (
+            draft.configure(wraplength=max(1, event.width)),
+            preview.configure(wraplength=max(1, event.width)),
+        ))
+        buttons = ttk.Frame(footer, style="Panel.TFrame")
+        buttons.grid(row=2, column=0, sticky="ew")
+        self.save_activate_button = ttk.Button(buttons, text="Save and activate", command=lambda: self._save_loadout(make_active=True), style="Accent.TButton")
+        self.save_activate_button.pack(side="left", padx=(0, 6))
+        self.save_loadout_button = ttk.Button(buttons, text="Save", command=lambda: self._save_loadout(make_active=False))
+        self.save_loadout_button.pack(side="left", padx=(0, 6))
+        self.delete_loadout_button = ttk.Button(buttons, text="Delete", command=self._delete_selected_loadout, state="disabled")
+        self.delete_loadout_button.pack(side="left")
+        self._new_loadout_draft()
+
 
     def _build_manufacturing_tab(self) -> None:
         tab = self.manufacturing_tab
@@ -687,24 +764,24 @@ class PedHunterApp(tk.Tk):
     def _build_setup_tab(self) -> None:
         tab = self.setup_tab
         tab.columnconfigure(0, weight=1)
-        panel = ttk.Frame(tab, style="Panel.TFrame", padding=18)
-        panel.grid(row=0, column=0, sticky="nsew")
+        tab.rowconfigure(0, weight=1)
+        self.help_scroll = ScrollPane(tab, background=self.colors["panel"])
+        self.help_scroll.grid(row=0, column=0, sticky="nsew")
+        panel = self.help_scroll.content
+        panel.columnconfigure(0, weight=1)
         text = tk.Text(
-            panel,
-            height=20,
-            wrap="word",
-            bg=self.colors["panel_2"],
-            fg=self.colors["text"],
-            relief="flat",
-            font=("Segoe UI", 10),
-            padx=16,
-            pady=14,
+            panel, width=1, height=1, wrap="word", bg=self.colors["panel_2"],
+            fg=self.colors["text"], relief="flat", font=self._ui_font(), padx=12, pady=10,
         )
-        text.pack(fill="both", expand=True)
-        ttk.Checkbutton(panel, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all).pack(anchor="w", pady=(10, 0))
-        ttk.Button(panel, text="Refresh saved data", command=self._refresh_all).pack(anchor="w", pady=(6, 0))
-        ttk.Checkbutton(panel, text="Quiet loot and skill sounds (optional · Windows)", variable=self.feedback_sounds).pack(anchor="w", pady=(10, 0))
-        ttk.Button(panel, text="Preview live feedback (demo data)", command=self._preview_feedback, style="Accent.TButton").pack(anchor="w", pady=(12, 0))
+        text.grid(row=0, column=0, sticky="ew", padx=8, pady=8)
+        self.reduced_motion_button = ttk.Checkbutton(panel, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all)
+        self.reduced_motion_button.grid(row=1, column=0, sticky="w", padx=10, pady=(4, 0))
+        self.refresh_data_button = ttk.Button(panel, text="Refresh saved data", command=self._refresh_all)
+        self.refresh_data_button.grid(row=2, column=0, sticky="w", padx=10, pady=(6, 0))
+        self.feedback_sounds_button = ttk.Checkbutton(panel, text="Quiet loot and skill sounds (optional · Windows)", variable=self.feedback_sounds)
+        self.feedback_sounds_button.grid(row=3, column=0, sticky="w", padx=10, pady=(8, 0))
+        self.preview_feedback_button = ttk.Button(panel, text="Preview live feedback (demo data)", command=self._preview_feedback, style="Accent.TButton")
+        self.preview_feedback_button.grid(row=4, column=0, sticky="w", padx=10, pady=(8, 10))
         text.insert(
             "1.0",
             "Getting started\n\n"
@@ -720,6 +797,9 @@ class PedHunterApp(tk.Tk):
             "and streamer panels without crowding the main cockpit.",
         )
         text.configure(state="disabled")
+        self.help_scroll.fit_text(text)
+        self.help_scroll.attach()
+
 
     def _preview_feedback(self) -> None:
         from .preview import open_preview
@@ -763,6 +843,7 @@ class PedHunterApp(tk.Tk):
         return tree
 
     def _refresh_loadout_preview(self) -> None:
+        self._update_loadout_draft()
         try:
             loadout = self._loadout_from_form()
         except ValueError as exc:
@@ -776,7 +857,8 @@ class PedHunterApp(tk.Tk):
         name = self.loadout_name.get().strip()
         if not name:
             raise ValueError("name is required")
-        weapon = self.catalog.find_weapon(self.loadout_weapon.get().strip())
+        weapon_name = self.loadout_weapon.get().strip()
+        weapon = self.catalog.find_weapon(weapon_name) if weapon_name else None
         if not weapon:
             raise ValueError("choose a known weapon")
         if not _attachment_in_categories(self.catalog, self.loadout_amp.get(), AMP_CATEGORIES):
@@ -816,50 +898,108 @@ class PedHunterApp(tk.Tk):
             cost_per_shot=decay + (ammo / 10_000.0),
         )
 
-    def _save_loadout(self, *, make_active: bool) -> None:
+    def _loadout_form_state(self) -> tuple[str, ...]:
+        return tuple(variable.get() for variable in (
+            self.loadout_name, self.loadout_weapon, self.loadout_amp, self.loadout_scope,
+            self.loadout_sight_1, self.loadout_sight_2, self.damage_enhancers,
+            self.accuracy_enhancers, self.economy_enhancers,
+        ))
+
+    def _update_loadout_draft(self) -> None:
+        title = "New setup · not saved" if self.selected_loadout_id is None else "Editing saved setup"
+        if self._loadout_form_state() != self._loadout_clean_state:
+            title += " · Unsaved changes"
+        self.loadout_draft_text.set(title)
+        self.delete_loadout_button.configure(state="disabled" if self.selected_loadout_id is None else "normal")
+
+    def _new_loadout_draft(self) -> None:
+        self._populate_loadout_form(LoadoutRecord(id=None, name="", weapon=""))
+
+    def _select_loadout_row(self) -> None:
+        row = "new" if self.selected_loadout_id is None else str(self.selected_loadout_id)
+        if self.loadouts_tree.exists(row):
+            self.loadouts_tree.selection_set(row)
+            self.loadouts_tree.focus(row)
+
+    def _confirm_loadout_change(self) -> bool:
+        if self._loadout_form_state() == self._loadout_clean_state:
+            return True
+        answer = messagebox.askyesnocancel(
+            "Unsaved setup changes",
+            "Save this setup before changing selection?\n\n"
+            "Yes saves without activating. No discards these edits. Cancel keeps editing.",
+            parent=self,
+        )
+        return self._save_loadout(make_active=False) if answer else answer is not None
+
+    def _loadout_row_clicked(self, event: tk.Event) -> None:
+        row = self.loadouts_tree.identify_row(event.y)
+        if row and self.loadouts_tree.selection() == (row,):
+            self._load_selected_loadout(explicit=True)
+
+    def _save_loadout(self, *, make_active: bool) -> bool:
         try:
             loadout = self._loadout_from_form()
+            saved = self.store.list_loadouts()
+            if any(item.name == loadout.name and item.id != loadout.id for item in saved):
+                raise ValueError("A setup already has that name. Choose a different name, or select that saved setup to edit it.")
         except ValueError as exc:
-            messagebox.showerror("PED Hunter", str(exc))
-            return
-        loadout_id = self.store.save_loadout(loadout, make_active=make_active)
-        self.selected_loadout_id = loadout_id
-        if make_active and self.running and self.session_id:
+            messagebox.showerror("PED Hunter", str(exc), parent=self)
+            return False
+        previous = next((item for item in saved if item.id == loadout.id), None)
+        loadout.active = make_active or bool(previous and previous.active)
+        loadout.id = self.store.save_loadout(loadout, make_active=make_active)
+        self._populate_loadout_form(loadout)
+        if loadout.active and self.running and self.session_id:
             synced_loadout = with_repair_estimates(self.catalog, loadout)
             self.store.update_session_loadout(self.session_id, synced_loadout)
         self.status_text.set(f"Saved loadout: {loadout.name}")
-        self._refresh_loadouts()
         self._refresh_all()
+        return True
+
 
     def _delete_selected_loadout(self) -> None:
         if self.selected_loadout_id is None:
             return
         self.store.delete_loadout(self.selected_loadout_id)
-        self.selected_loadout_id = None
+        self._new_loadout_draft()
         self.status_text.set("Deleted loadout")
-        self._refresh_loadouts()
         self._refresh_all()
 
-    def _load_selected_loadout(self) -> None:
+
+    def _load_selected_loadout(self, *, explicit: bool = False) -> None:
         selection = self.loadouts_tree.selection()
         if not selection:
             return
-        values = self.loadouts_tree.item(selection[0], "values")
-        if not values:
-            return
-        loadout_id = int(self.loadouts_tree.set(selection[0], "id")) if "id" in self.loadouts_tree["columns"] else None
-        for loadout in self.store.list_loadouts():
-            if loadout.name == values[1]:
-                self._populate_loadout_form(loadout)
-                if loadout.id is not None:
-                    self.store.set_active_loadout(loadout.id)
-                    if self.running and self.session_id:
-                        synced_loadout = with_repair_estimates(self.catalog, loadout)
-                        self.store.update_session_loadout(self.session_id, synced_loadout)
-                    self._refresh_loadouts()
+        row = selection[0]
+        current = "new" if self.selected_loadout_id is None else str(self.selected_loadout_id)
+        # Queued list refreshes must not discard or activate a draft. An
+        # explicit click/Return can activate a clean, saved-but-inactive row.
+        if row == current:
+            if not explicit:
                 return
-        if loadout_id is not None:
-            self.selected_loadout_id = loadout_id
+            if row != "new":
+                if self._loadout_form_state() != self._loadout_clean_state:
+                    return
+                active = self.store.get_active_loadout()
+                if active and active.id == self.selected_loadout_id:
+                    return
+        if not self._confirm_loadout_change():
+            self._select_loadout_row()
+            return
+        if row == "new":
+            self._new_loadout_draft()
+        else:
+            loadout = self.store.get_loadout(int(row))
+            if loadout is None:
+                return
+            self._populate_loadout_form(loadout)
+            self.store.set_active_loadout(loadout.id)
+            if self.running and self.session_id:
+                synced_loadout = with_repair_estimates(self.catalog, loadout)
+                self.store.update_session_loadout(self.session_id, synced_loadout)
+        self._refresh_loadouts()
+
 
     def _populate_loadout_form(self, loadout: LoadoutRecord) -> None:
         self.selected_loadout_id = loadout.id
@@ -872,10 +1012,12 @@ class PedHunterApp(tk.Tk):
         self.damage_enhancers.set(str(loadout.damage_enhancers))
         self.accuracy_enhancers.set(str(loadout.accuracy_enhancers))
         self.economy_enhancers.set(str(loadout.economy_enhancers))
+        self._loadout_clean_state = self._loadout_form_state()
         self._refresh_loadout_preview()
 
     def _refresh_loadouts(self) -> None:
         self.loadouts_tree.delete(*self.loadouts_tree.get_children())
+        self.loadouts_tree.insert("", "end", iid="new", tags=("arrival",), values=("", "New setup", "", "", "", ""))
         active = self.store.get_active_loadout()
         if active:
             attachments = " • ".join(
@@ -896,6 +1038,7 @@ class PedHunterApp(tk.Tk):
             self.loadouts_tree.insert(
                 "",
                 "end",
+                iid=str(loadout.id),
                 tags=("even" if index % 2 == 0 else "odd",),
                 values=(
                     "✓" if loadout.active else "",
@@ -906,6 +1049,7 @@ class PedHunterApp(tk.Tk):
                     f"{loadout.cost_per_shot:.5f}",
                 ),
             )
+        self._select_loadout_row()
 
     def _browse_log(self) -> None:
         path = filedialog.askopenfilename(
@@ -1656,39 +1800,55 @@ class PedHunterApp(tk.Tk):
         canvas.delete("all")
         width = max(canvas.winfo_width(), 1)
         height = max(canvas.winfo_height(), 1)
-        pad_left = 56
-        pad_right = 18
-        pad_top = 22
-        pad_bottom = 38
-        plot_w = max(width - pad_left - pad_right, 1)
-        plot_h = max(height - pad_top - pad_bottom, 1)
         colors = self.colors
+        gap = max(3, round(4 * self.display_scale))
+        axis_font = self._ui_font(8)
+        bold_font = self._ui_font(8, weight="bold")
+        axis_height = axis_font.metrics("linespace")
         canvas.create_rectangle(0, 0, width, height, fill=colors["panel_2"], outline="")
         points = getattr(self, "loot_chart_points", [])
         if not points:
             canvas.create_text(
-                width / 2,
-                height / 2,
+                width / 2, height / 2,
                 text="No loot events yet — start a run and loot events will plot here.",
-                fill=colors["muted"],
-                font=("Segoe UI", 10),
-                width=max(width - 40, 100),
+                fill=colors["muted"], font=self._ui_font(),
+                width=max(width - 2 * gap, 1),
             )
             return
 
+        count = len(points)
+        total = sum(value for _, value, _ in points)
+        caption = canvas.create_text(
+            width - gap, height - gap,
+            text=f"{count} loot events • {format_money(total, self.currency_mode.get())} total • latest: {format_money(points[-1][1], self.currency_mode.get())} {points[-1][2]}",
+            anchor="se", justify="right", width=max(width - 2 * gap, 1),
+            fill=colors["muted"], font=axis_font,
+        )
+        caption_box = canvas.bbox(caption)
+        caption_height = caption_box[3] - caption_box[1]
         peak = max(value for _, value, _ in points)
         self._loot_chart_max = max(getattr(self, "_loot_chart_max", 0.0), peak)
         max_value = self._loot_chart_max or 1.0
         tick_values = [0, max_value / 2, max_value]
+        tick_labels = [format_money(tick, self.currency_mode.get()) for tick in tick_values]
+        pad_left = max(axis_font.measure(label) for label in tick_labels) + 2 * gap
+        pad_right = max(round(18 * self.display_scale), gap)
+        radius = 4 if count < 60 else 3
+        pad_top = bold_font.metrics("linespace") + 2 * gap + axis_height / 2 + radius
+        pad_bottom = axis_height + caption_height + 3 * gap
+        plot_w = max(width - pad_left - pad_right, 1)
+        plot_h = max(height - pad_top - pad_bottom, 1)
+        if plot_h < 2 * (axis_height + gap):
+            tick_values = [0, max_value]
         for tick in tick_values:
             y = pad_top + plot_h - (tick / max_value * plot_h)
             canvas.create_line(pad_left, y, width - pad_right, y, fill="#1f2a3d")
-            canvas.create_text(pad_left - 8, y, text=format_money(tick, self.currency_mode.get()), anchor="e", fill=colors["muted"], font=("Segoe UI", 8))
-        canvas.create_text(10, pad_top - 4, text=currency_name(self.currency_mode.get()), anchor="w", fill=colors["muted"], font=("Segoe UI", 8, "bold"))
+            canvas.create_text(pad_left - gap, y, text=format_money(tick, self.currency_mode.get()),
+                               anchor="e", fill=colors["muted"], font=axis_font)
+        canvas.create_text(gap, gap, text=currency_name(self.currency_mode.get()),
+                           anchor="nw", fill=colors["muted"], font=bold_font)
 
-        count = len(points)
         step = plot_w / max(count - 1, 1)
-        radius = 4 if count < 60 else 3
         line_points: list[float] = []
         for index, (_timestamp, value, label) in enumerate(points):
             x = pad_left + (step * index if count > 1 else plot_w / 2)
@@ -1700,22 +1860,17 @@ class PedHunterApp(tk.Tk):
             y = pad_top + plot_h - (drawn_value / max_value * plot_h)
             line_points.extend([x, y])
             canvas.create_line(x, pad_top + plot_h, x, y, fill="#075985", width=2)
-            canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=colors["accent"], outline="#e0f2fe")
+            canvas.create_oval(x - radius, y - radius, x + radius, y + radius,
+                               fill=colors["accent"], outline="#e0f2fe")
             if count <= 28:
-                canvas.create_text(x, pad_top + plot_h + 8, text=str(index + 1), anchor="n", fill=colors["muted"], font=("Segoe UI", 8))
+                canvas.create_text(x, pad_top + plot_h + gap, text=str(index + 1),
+                                   anchor="n", fill=colors["muted"], font=axis_font)
             if value == max_value:
-                canvas.create_text(x, max(y - 10, 8), text=format_money(value, self.currency_mode.get()), anchor="s", fill=colors["text"], font=("Segoe UI", 8, "bold"))
+                anchor = "sw" if index == 0 else "se" if index == count - 1 else "s"
+                canvas.create_text(x, y - gap, text=format_money(value, self.currency_mode.get()),
+                                   anchor=anchor, fill=colors["text"], font=bold_font)
         if len(line_points) >= 4:
             canvas.create_line(*line_points, fill="#7dd3fc", width=2, smooth=False)
-        total = sum(value for _, value, _ in points)
-        canvas.create_text(
-            width - pad_right,
-            height - 12,
-            text=f"{count} loot events • {format_money(total, self.currency_mode.get())} total • latest: {format_money(points[-1][1], self.currency_mode.get())} {points[-1][2]}",
-            anchor="e",
-            fill=colors["muted"],
-            font=("Segoe UI", 9),
-        )
 
     def _search_catalog(self) -> None:
         self.catalog_tree.delete(*self.catalog_tree.get_children())
@@ -1815,7 +1970,7 @@ class StreamerWindow(tk.Toplevel):
         self._hunt_attribution = HuntAttribution(app.store)
         self._attribution_error = False
         self.title("PED Hunter Streamer UI · Live feedback")
-        self.ui_scale = self.winfo_fpixels("1i") / 96
+        self.ui_scale = window_ui_scale(app)
         self._content_scale = self.ui_scale
         self._layout_busy = False
         self._layout_geometry_key = None
@@ -2023,6 +2178,14 @@ class StreamerWindow(tk.Toplevel):
 
     def _on_overlay_configure(self, event) -> None:
         if event.widget in (self, self.outer) and not self._layout_busy:
+            if not self._initial_position_pending:
+                scale = window_ui_scale(self)
+                if abs(scale - self.ui_scale) > 0.01:
+                    # A monitor change needs fresh pixel fonts even when the
+                    # window's dimensions have not changed. Never change Tk's
+                    # global scaling (which also affects the dashboard).
+                    self.ui_scale = scale
+                    self._layout_geometry_key = None
             # Moving the window, or changing text in it, is not a resize.
             size = (self.winfo_width(), self.winfo_height())
             if not self._layout_geometry_key or self._layout_geometry_key[:2] != size:

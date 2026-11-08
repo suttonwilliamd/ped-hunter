@@ -31,9 +31,39 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 - catalog search with weapon cost/shot details and aliases
 - setup guidance for first-time users
 
-The main window uses one space-efficient layout by default (1040×640), with tighter controls and a side-by-side profit/return summary; there is no separate Compact mode. Lifetime totals live in **Statistics**, leaving **Dashboard** focused on run history. Saved runs do not populate the live summary until you explicitly start or resume a run.
+The main window starts at 900×600 logical pixels, with a 760×500 minimum; Windows monitor DPI scales those dimensions. Resizing does not reset the window to its default. Main-window text uses the same readable point-equivalent sizes rendered in native-DPI pixels rather than inheriting another monitor's process-wide Tk point scaling. The profit headline is slightly quieter so it does not dominate the editor. There is no separate Compact mode. Lifetime totals live in **Statistics**, leaving **Dashboard** focused on run history. Saved runs do not populate the live summary until you explicitly start or resume a run.
 
 The goal is to keep the useful parts of LootNanny's workflow while avoiding clutter and making room for richer modern catalog sources.
+
+### Setups and Help in smaller windows
+
+**New setup** is always the first saved-list entry. Select it for an unnamed draft
+with no weapon selected, optional attachments set to None and zero enhancers.
+Saving a new draft creates a separate saved setup; an existing name is rejected,
+not silently overwritten. Select an existing setup to edit it; existing-row
+selection retains the application's activation behavior.
+
+**Save** preserves the active-setup choice; saving an already-active setup also
+keeps its current run's setup snapshot consistent. **Save and activate** changes
+the active choice to the saved setup and updates that snapshot. Neither action
+reprices recorded events. Starting a new draft leaves the active setup and
+current run unchanged. Changing selection with unsaved edits offers Save
+(without activation), Discard or Cancel. Delete is disabled for an unsaved draft.
+
+The setup fields and explanatory text scroll, while draft state, current cost
+feedback and all three actions stay outside that scroll viewport. The saved
+comparison table has horizontal scrolling instead of forcing the form wider.
+The Help page scrolls as a whole, including Reduced motion, Refresh saved data,
+Quiet sounds and the separate synthetic-data preview. Mouse wheel and Page Up /
+Page Down operate within each scroll pane; tabbing to a field/control reveals
+it. Read-only explanatory text remains selectable. No system display-scaling
+change or new user-geometry persistence is required.
+The summary wraps to its actual column width and stacks its two headline values
+when narrow. The main event stream yields space to its chart rather than
+flattening it at the smaller minimum; all events remain available by scrolling.
+Chart text uses native-DPI font measurements for axis padding and a separate
+caption lane so values, event numbers and descriptions do not cover each other.
+
 
 ## Quick start
 
@@ -419,6 +449,10 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Keep a permanent New setup entry, reject accidental same-name replacement, preserve plain-save activation and make unsaved Save/Discard/Cancel transitions explicit.
+- Put setup actions outside a scrollable form; scroll all Help controls, reduce default/minimum logical geometry and keep main fonts aligned with native monitor DPI without changing system scaling.
+- Keep smaller-window summaries readable and reserve chart space; measure native-DPI chart labels, edge annotations and captions without changing underlying events, values, chart range or session totals.
 
 - Add opt-in focused pytest groups, real-collection inventory/dry runs, unmapped-test protection, complete discovery and explicit isolated-process execution; document dependency selection, honest evidence/CI reuse and durable cadence without changing runtime or CI.
 
