@@ -20,6 +20,7 @@ from tkinter import filedialog, messagebox, ttk
 import uuid
 
 from .catalog import Catalog, WeaponRecord
+from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
 from .currency import currency_name, format_money
 from .feedback import ActivityStrip, Animator, Snapshot
 from .sounds import CuePlayer
@@ -1806,6 +1807,9 @@ class StreamerWindow(tk.Toplevel):
         self.animator = Animator(self)
         self._feedback_context = None
         self._chart_phase = 1.0
+        self._trail_recorder = TrailRecorder(app.store)
+        self.kill_trail_histories = {}
+        self._trail_error = False
         self.title("PED Hunter Streamer UI · Live feedback")
         self.ui_scale = self.winfo_fpixels("1i") / 96
         self._content_scale = self.ui_scale
@@ -1938,7 +1942,7 @@ class StreamerWindow(tk.Toplevel):
         self.chart_note.pack(side="left")
         legend = tk.Frame(chart_header, bg=bg)
         legend.pack(side="right")
-        for text, tint in (("— Cost", "#FDBA74"), ("- - Avg", "#7DD3FC"), ("● Profit", "#86EFAC")):
+        for text, tint in (("— Cost", "#FDBA74"), ("- - Avg", "#7DD3FC"), ("● Returns", "#86EFAC")):
             label(legend, text=text, fg=tint).pack(side="left", padx=(4, 0))
         self.kill_chart = tk.Canvas(trend, width=1, height=round(54 * self.ui_scale), bg=surface, highlightthickness=0)
         self.kill_chart.pack(fill="both", expand=True, pady=(4, 0))
@@ -1979,6 +1983,10 @@ class StreamerWindow(tk.Toplevel):
         self.loadout_label.bind("<FocusIn>", self._show_loadout)
         self.loadout_label.bind("<Leave>", self._hide_loadout)
         self.loadout_label.bind("<FocusOut>", self._hide_loadout)
+        self.chart_note.bind("<Enter>", self._show_loadout)
+        self.chart_note.bind("<Leave>", self._hide_loadout)
+        self.kill_chart.bind("<Enter>", self._show_loadout)
+        self.kill_chart.bind("<Leave>", self._hide_loadout)
         for widget in (self.brand_label, self.loadout_label, self.resize_handle):
             widget.bind("<FocusIn>", lambda event: event.widget.configure(highlightthickness=1, highlightbackground="#5EEAD4"), add="+")
             widget.bind("<FocusOut>", lambda event: event.widget.configure(highlightthickness=0), add="+")
@@ -2176,6 +2184,17 @@ class StreamerWindow(tk.Toplevel):
             self._kill_trend_key = None
             kill_points = []
         kill_count = len(kill_points)
+        try:
+            self.kill_trail_histories = self._trail_recorder.update(
+                session.session_id if session else None, kill_points,
+                bool(session and not session.ended_at and self.app.running and
+                     self.app.session_id == session.session_id and not self._trend_error),
+            )
+            self._trail_error = False
+        except Exception:
+            # Optional visual history must never hide the accounting chart.
+            self.kill_trail_histories = {}
+            self._trail_error = True
         plan = self.manufacturing_plan = getattr(kill_points, "manufacturing", None)
         has_crafting = (getattr(kill_points, "has_crafting", False) or
                         int(float(metrics.get("manufacturing_attempt", 0))) > 0)
@@ -2191,6 +2210,11 @@ class StreamerWindow(tk.Toplevel):
         self.count_title.configure(text="Groups*" if has_crafting else "Kills*")
         self.chart_note.configure(text="* Prior groups · PED" if craft_active and not plan.observed and kill_points else
                                   "* Observed groups · PED" if has_crafting else "* Inferred clusters · PED")
+        if self._trail_error:
+            self.chart_note.configure(text="* Trails unavailable · PED")
+        elif any(len(samples) > 1 for samples in self.kill_trail_histories.values()):
+            self.chart_note.configure(text="* Observed · PED · fans" if has_crafting else
+                                      "* Inferred · PED · fans")
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
@@ -2264,6 +2288,16 @@ class StreamerWindow(tk.Toplevel):
                 if incomplete_cost:
                     durability_text = "Cost coverage incomplete · add a new crafting setup"
                 self.durability_known = False
+        self._footer_detail += (
+            "\nFans retain observed developing positions of each inferred group, in PED; "
+            "orange = cost, blue = average, green/pink return traces = profit/loss at that observation "
+            "(gray = unknown cost). They describe recorded TT estimates, not future loot. "
+            f"Up to {TRAIL_MAX_SAMPLES} samples per group preserve first/latest positions and extrema. "
+            "Only live HUD refreshes are sampled, not animation frames or missing history; "
+            "older groups without samples stay ordinary lines."
+        )
+        if self._trail_error:
+            self._footer_detail += "\nTrail storage is unavailable; totals and ordinary chart series remain visible."
         self.vars["durability"].set(durability_text)
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points))
         summary = ("Trend unavailable · totals still shown" if self._trend_error else
@@ -2324,7 +2358,13 @@ class StreamerWindow(tk.Toplevel):
             return
 
         axis_font = self._font(8)
-        known_values = [float(p[k]) for p in display_points for k in ("cost", "avg_cost", "profit") if p[k] is not None]
+        known_values = [float(p[k]) for p in display_points for k in ("cost", "avg_cost", "loot") if p[k] is not None]
+        known_values.extend(
+            float(value)
+            for point in display_points
+            for sample in getattr(self, "kill_trail_histories", {}).get(point.get("event_id"), ())
+            for value in sample if value is not None
+        )
         pad_left = max(round(30 * self._content_scale), max((axis_font.measure(f"{v:+.2f}") for v in known_values), default=0) + 8)
         pad_right = round(10 * self._content_scale)
         pad_top = axis_font.metrics("linespace") // 2 + 3
@@ -2369,11 +2409,12 @@ class StreamerWindow(tk.Toplevel):
 
         zero_y = y_for(0.0)
         canvas.create_line(pad_left, zero_y, width - pad_right, zero_y, fill="#B8C5D6", dash=(3, 2))
+        self._draw_kill_trail_fans(display_points, x_for, y_for, value_for)
 
         series = [
             ("cost", "#FDBA74", None, 2),
             ("avg_cost", "#7DD3FC", (4, 2), 2),
-            ("profit", "#86EFAC", None, 2),
+            ("loot", "#86EFAC", None, 2),
         ]
         for key, color, dash, line_width in series:
             coords: list[float] = []
@@ -2391,17 +2432,18 @@ class StreamerWindow(tk.Toplevel):
                 x = x_for(index)
                 value = value_for(index, key)
                 if value is None:
-                    if key == "profit":
-                        canvas.create_text(x, y_for(0.0), text="?", fill="#B8C5D6", font=axis_font)
                     continue
                 y = y_for(value)
-                if key == "profit":
-                    fill = "#86EFAC" if value >= 0 else "#FDA4AF"
+                if key == "loot":
+                    # Compare gross returns with input cost; net profit remains
+                    # in the summary. Unknown input cost is not a free win.
+                    cost = value_for(index, "cost")
+                    fill = "#B8C5D6" if cost is None else "#86EFAC" if value >= cost else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
-                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill, outline="")
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill, outline="", tags=(key,))
                 else:
                     radius = 2 if index == len(display_points) - 1 else 1
-                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="")
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="", tags=(key,))
 
         for index, anchor in ((0, "w"), (len(display_points) - 1, "e")):
             canvas.create_text(x_for(index), height - 2, text=display_points[index].get("label", f"K{display_points[index]['kill']}"),
@@ -2409,6 +2451,72 @@ class StreamerWindow(tk.Toplevel):
                                fill="#B8C5D6", font=axis_font)
             if len(display_points) == 1:
                 break
+
+    def _draw_kill_trail_fans(self, points, x_for, y_for, value_for) -> None:
+        """Reproject bounded PED samples with the same axes as the current lines."""
+        canvas = self.kill_chart
+        histories = getattr(self, "kill_trail_histories", {})
+        for index, point in enumerate(points):
+            event_id = point.get("event_id")
+            samples = histories.get(event_id, ())
+            if len(samples) < 2:
+                continue
+            previous = points[index - 1] if index else None
+            same_scope = bool(previous and previous.get("kind") == point.get("kind") and
+                              previous.get("plan_event_id") == point.get("plan_event_id"))
+            x = x_for(index)
+            for column, key, shade, ghost in (
+                (0, "cost", "#3C342E", "#8C7355"),
+                (1, "avg_cost", "#203244", "#466478"),
+                (2, "loot", "#233B32", "#4A956C"),
+            ):
+                observed = [(i, float(s[column])) for i, s in enumerate(samples) if s[column] is not None]
+                if not observed:
+                    continue
+                low = min(observed, key=lambda item: item[1])
+                high = max(observed, key=lambda item: item[1])
+                if math.isclose(low[1], high[1], abs_tol=1e-12):
+                    continue
+                tags = ("trail", f"trail:{event_id}", f"trail:{key}")
+                anchor = value_for(index - 1, key) if same_scope else None
+
+                def projected(value):
+                    # Animation changes geometry only, never the saved samples.
+                    if anchor is not None and index == len(points) - 1:
+                        value = anchor + (value - anchor) * self._chart_phase
+                    return y_for(value)
+
+                if key == "loot":
+                    outcomes = {None if s[0] is None else s[2] >= s[0] for s in samples}
+                    shade = ("#233B32" if outcomes == {True} else "#402D38" if outcomes == {False}
+                             else "#293642")
+                if anchor is not None:
+                    start = (x_for(index - 1), y_for(anchor))
+                    canvas.create_polygon(*start, x, projected(low[1]), x, projected(high[1]),
+                                          fill=shade, outline="", tags=tags)
+                else:
+                    # The first visible group has no visible incoming segment.
+                    # Show its observed endpoint range, not an invented anchor.
+                    start = None
+                    canvas.create_line(x, projected(low[1]), x, projected(high[1]),
+                                       fill=ghost, width=3, tags=tags)
+                # First/latest and extrema suffice to read the envelope without
+                # turning each group into a dense stack of 24 lines.
+                chosen = sorted({observed[0][0], observed[-1][0], low[0], high[0]})
+                for sample_index in chosen:
+                    sample = samples[sample_index]
+                    color, outcome = ghost, "neutral"
+                    if key == "loot":
+                        outcome = "unknown" if sample[0] is None else "profit" if sample[2] >= sample[0] else "loss"
+                        color = {"unknown": "#69788C", "profit": "#4A956C", "loss": "#A36579"}[outcome]
+                    y = projected(float(sample[column]))
+                    if start is not None:
+                        canvas.create_line(*start, x, y, fill=color, width=1,
+                                           tags=(*tags, f"trail:{outcome}"))
+                    else:
+                        canvas.create_line(x - 2, y, x + 2, y, fill=color, width=1,
+                                           tags=(*tags, f"trail:{outcome}"))
+
 
 
     def _build_resize_edges(self) -> None:
@@ -3089,7 +3197,7 @@ def _streamer_trend_detail(points: list[dict[str, object]]) -> str:
 def _kill_trend_summary(points: list[dict[str, object]]) -> str:
     if not points:
         return ("No observed craft groups yet — configured inputs are booked." if getattr(points, "has_crafting", False) else
-                "No completed kills yet — loot a mob to plot cost, average, profit, and delta per kill.")
+                "No completed kills yet — loot a mob to plot cost and returns; the summary shows net profit and delta per kill.")
     latest = points[-1]
     if latest["cost"] is None or latest["profit"] is None:
         return _streamer_trend_detail(points)

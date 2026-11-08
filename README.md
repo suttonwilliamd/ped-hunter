@@ -123,6 +123,33 @@ returns show `—`, not a misleading return percentage. The chart is always labe
 clusters, not independently confirmed kills. Query failures are distinguished
 from an empty chart. Unknown durability is a neutral empty track, not an alarm.
 
+The streamer retains a **development fan for each observed group**, not a single
+trail across the whole hunt. As that group's costs and receipt change, faint
+cost/average/return positions accumulate behind the ordinary series. Completed
+groups keep their fans; new groups start their own. Return traces are green for
+profit, pink for loss, and gray when input cost is unknown. Hover the chart or
+focus the footer for the interpretation. Groups and TT costs are inferred or
+estimated from recorded inputs; the fans describe observations, **not predictions**.
+
+Fans are sampled only when the open HUD refreshes during tracking, never from
+animation frames or by replaying old events. Pre-feature groups remain ordinary
+lines. A single observation is not a fan; missing intermediate positions while
+the HUD is closed, paused, or between refreshes cannot be reconstructed. Each
+group stores at most **24** raw-PED observations, preserving first/latest positions
+and per-series/profit extrema; at most four faint traces per series keep it
+readable. Only the latest 16 groups are drawn/cached. The first visible group's
+endpoint range is shown without inventing an off-chart anchor.
+
+Samples persist in the same session SQLite database, separately from accounting
+events, and reload with their original group IDs. They remain stored while their
+underlying event/session remains stored, including after leaving the visible
+window. Resize, monitor-scale changes, and automatic chart range changes reproject
+the raw data together with the current lines. The range includes visible trail
+extrema: an exceptionally large return can compress smaller values on the
+existing linear scale, but signed profit text and profit/loss markers remain.
+Session totals, recent arrivals, and the ordinary cost/average/return series are
+unchanged.
+
 The header and background can be dragged. Resize from **any edge or corner**,
 or use the bottom-right grip; mouse capture keeps the drag working outside the
 small handle. Live refreshes preserve the chosen rectangle, and enlargement

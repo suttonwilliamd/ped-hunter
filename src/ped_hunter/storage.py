@@ -1,6 +1,7 @@
 """SQLite storage for PED Hunter."""
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,6 +10,8 @@ import json
 import sqlite3
 from typing import Iterator
 import uuid
+
+from .chart_trails import Sample, bounded_samples
 
 
 @dataclass(slots=True)
@@ -137,6 +140,24 @@ class Store:
                     payload TEXT NOT NULL,
                     FOREIGN KEY(session_id) REFERENCES sessions(id)
                 );
+                CREATE TABLE IF NOT EXISTS chart_trails (
+                    session_id TEXT NOT NULL,
+                    event_id INTEGER NOT NULL,
+                    samples TEXT NOT NULL,
+                    PRIMARY KEY (session_id, event_id),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+                );
+                CREATE TRIGGER IF NOT EXISTS delete_session_chart_trails
+                AFTER DELETE ON sessions
+                BEGIN
+                    DELETE FROM chart_trails WHERE session_id = OLD.id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS delete_event_chart_trails
+                AFTER DELETE ON events
+                BEGIN
+                    DELETE FROM chart_trails WHERE event_id = OLD.id AND session_id = OLD.session_id;
+                END;
                 CREATE TABLE IF NOT EXISTS loadouts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE,
@@ -197,6 +218,85 @@ class Store:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
             return True
         return False
+
+    def load_chart_trails(self, session_id: str, event_ids: Sequence[int]) -> dict[int, tuple[Sample, ...]]:
+        """Load only requested, still-owned event histories; ignore corrupt rows."""
+        ids = list(dict.fromkeys(
+            event_id for event_id in event_ids
+            if isinstance(event_id, int) and not isinstance(event_id, bool) and 0 < event_id <= 2**63 - 1
+        ))
+        trails: dict[int, tuple[Sample, ...]] = {}
+        if not ids:
+            return trails
+        with self.connect() as conn:
+            for start in range(0, len(ids), 900):
+                chunk = ids[start:start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                rows = conn.execute(
+                    f"""
+                    SELECT t.event_id, t.samples FROM chart_trails t
+                    JOIN events e ON e.id = t.event_id AND e.session_id = t.session_id
+                    JOIN sessions s ON s.id = t.session_id
+                    WHERE t.session_id = ? AND t.event_id IN ({placeholders})
+                    """,
+                    (session_id, *chunk),
+                ).fetchall()
+                for row in rows:
+                    try:
+                        values = json.loads(row["samples"])
+                        if not isinstance(values, list):
+                            continue
+                        history = bounded_samples(values)
+                    except (ValueError, TypeError, OverflowError):
+                        continue
+                    if history:
+                        trails[int(row["event_id"])] = history
+        return trails
+
+    def save_chart_trails(self, session_id: str, trails: Mapping[int, Sequence[Sample]]) -> None:
+        """Upsert bounded observations without changing sessions or events.
+
+        Stale/foreign IDs are ignored. Invalid endpoint values for a retained
+        event raise ValueError and leave the entire write uncommitted.
+        """
+        ids = [
+            event_id for event_id in trails
+            if isinstance(event_id, int) and not isinstance(event_id, bool) and 0 < event_id <= 2**63 - 1
+        ]
+        if not ids:
+            return
+        with self.connect() as conn:
+            # Ownership must remain valid until the upsert, even if another
+            # connection deletes a session while the HUD is refreshing.
+            conn.execute("BEGIN IMMEDIATE")
+            owned: set[int] = set()
+            for start in range(0, len(ids), 900):
+                chunk = ids[start:start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                owned.update(int(row["id"]) for row in conn.execute(
+                    f"""
+                    SELECT e.id FROM events e JOIN sessions s ON s.id = e.session_id
+                    WHERE e.session_id = ? AND e.id IN ({placeholders})
+                    """,
+                    (session_id, *chunk),
+                ))
+            rows = []
+            for event_id in ids:
+                if event_id not in owned:
+                    continue
+                history = bounded_samples(trails[event_id])
+                if history:
+                    rows.append((session_id, event_id, json.dumps(history, separators=(",", ":"), allow_nan=False)))
+            if rows:
+                conn.executemany(
+                    """
+                    INSERT INTO chart_trails (session_id, event_id, samples) VALUES (?, ?, ?)
+                    ON CONFLICT(session_id, event_id) DO UPDATE SET samples = excluded.samples
+                    WHERE chart_trails.samples != excluded.samples
+                    """,
+                    rows,
+                )
+                conn.commit()
 
     def start_session(self, activity: str = "hunt", loadout: LoadoutRecord | None = None) -> str:
         session_id = f"ph-{uuid.uuid4().hex[:12]}"
