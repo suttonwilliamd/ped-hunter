@@ -20,6 +20,7 @@ from tkinter import filedialog, messagebox, ttk
 import uuid
 
 from .catalog import Catalog, WeaponRecord
+from .chart_scales import plan_chart_scales
 from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
 from .currency import currency_name, format_money
 from .feedback import ActivityStrip, Animator, Snapshot
@@ -2323,6 +2324,13 @@ class StreamerWindow(tk.Toplevel):
             "older groups without samples stay ordinary lines."
         )
         self._footer_detail += (
+            "\nAmber vertical sections use their own labeled PED range at that event's x-position. "
+            "Ordinary events share the left-hand scale. No lines or fan triangles connect different scales; "
+            "fans at those boundaries retain their observed endpoint ranges as whiskers. "
+            "Relative compression, including retained fan extrema, activates sections without hiding an event "
+            "or changing the visible time window, underlying values, or session totals."
+        )
+        self._footer_detail += (
             "\nHunting receipts have no creature IDs or confirmed kills. Shared costs use a stable recent "
             "same-setup input reference only when supported; ~ and amber-ring points are estimates, "
             "and gray unresolved points are not free profit. "
@@ -2399,106 +2407,133 @@ class StreamerWindow(tk.Toplevel):
             )
             return
 
+        scales = plan_chart_scales(display_points, getattr(self, "kill_trail_histories", {}))
+        self._chart_scales = scales
         axis_font = self._font(8)
-        known_values = [float(p[k]) for p in display_points for k in ("cost", "avg_cost", "loot") if p[k] is not None]
-        known_values.extend(
-            float(value)
-            for point in display_points
-            for sample in getattr(self, "kill_trail_histories", {}).get(point.get("event_id"), ())
-            for value in sample if value is not None
-        )
-        pad_left = max(round(30 * self._content_scale), max((axis_font.measure(f"{v:+.2f}") for v in known_values), default=0) + 8)
+        local_font = self._font(5) if scales.local_indices else None
+        ordinary = scales.ordinary
+        tick_values = [ordinary.low, (ordinary.low + ordinary.high) / 2, ordinary.high]
+        pad_left = max(round(30 * self._content_scale),
+                       max(axis_font.measure(f"{value:+.2f}") for value in tick_values) + 8)
         pad_right = round(10 * self._content_scale)
         pad_top = axis_font.metrics("linespace") // 2 + 3
+        if scales.local_indices:
+            pad_top = max(pad_top, local_font.metrics("linespace") + 4)
         pad_bottom = axis_font.metrics("linespace") + 5
         plot_w = max(width - pad_left - pad_right, 1)
         plot_h = max(height - pad_top - pad_bottom, 1)
-        values = [0.0, *known_values]
-        min_value = min(values)
-        max_value = max(values)
-        if math.isclose(min_value, max_value):
-            max_value = min_value + 1.0
+        cell_w = plot_w / len(display_points)
 
-        def x_for(index: int) -> float:
-            if len(display_points) == 1:
-                return pad_left + plot_w / 2
+        def base_x(index):
+            return pad_left + cell_w * (index + 0.5)
+
+        def x_for(index):
             drawn_index = index
-            if index == len(display_points) - 1:
+            if index == len(display_points) - 1 and index and scales.connected(index - 1, index):
                 drawn_index -= 1 - self._chart_phase
-            return pad_left + (plot_w * drawn_index / (len(display_points) - 1))
+            return base_x(drawn_index)
 
-        def value_for(index: int, key: str) -> float | None:
+        def value_for(index, key):
             current = display_points[index]
             if current[key] is None:
                 return None
             value = float(current[key])
-            if index == len(display_points) - 1 and index > 0:
+            if index == len(display_points) - 1 and index and scales.connected(index - 1, index):
                 previous = display_points[index - 1]
                 if (previous[key] is not None and previous.get("kind") == current.get("kind") and
                         previous.get("plan_event_id") == current.get("plan_event_id")):
                     return float(previous[key]) + (value - float(previous[key])) * self._chart_phase
             return value
 
-        def y_for(value: float) -> float:
-            ratio = (value - min_value) / (max_value - min_value)
-            return pad_top + plot_h - (ratio * plot_h)
+        def y_for(index, value):
+            axis = ordinary if index is None else scales.events[index]
+            return pad_top + plot_h * (1 - axis.fraction(value))
 
-        tick_values = [min_value, (min_value + max_value) / 2, max_value]
+        sections = []
+        for index in sorted(scales.local_indices):
+            x = base_x(index)
+            half = cell_w * 0.44
+            sections.append((index, x - half, x + half))
+
+        # A shared grid or connecting segment must not imply equal heights mean
+        # equal PED inside an independently scaled event column.
+        ordinary_spans = []
+        start = pad_left
+        for _, left, right in sections:
+            if left > start:
+                ordinary_spans.append((start, left))
+            start = right
+        if start < width - pad_right:
+            ordinary_spans.append((start, width - pad_right))
         for tick in tick_values:
-            y = y_for(tick)
-            canvas.create_line(pad_left, y, width - pad_right, y, fill="#334155")
-            canvas.create_text(pad_left - 5, y, text=f"{tick:+.2f}", anchor="e", fill="#B8C5D6", font=axis_font)
+            y = y_for(None, tick)
+            for left, right in ordinary_spans:
+                canvas.create_line(left, y, right, y, fill="#334155", tags=("ordinary-grid",))
+            canvas.create_text(pad_left - 5, y, text=f"{tick:+.2f}", anchor="e",
+                               fill="#B8C5D6", font=axis_font)
+        for left, right in ordinary_spans:
+            zero_y = y_for(None, 0)
+            canvas.create_line(left, zero_y, right, zero_y, fill="#B8C5D6",
+                               dash=(3, 2), tags=("ordinary-zero",))
 
-        zero_y = y_for(0.0)
-        canvas.create_line(pad_left, zero_y, width - pad_right, zero_y, fill="#B8C5D6", dash=(3, 2))
-        self._draw_kill_trail_fans(display_points, x_for, y_for, value_for)
+        for index, left, right in sections:
+            point = display_points[index]
+            axis = scales.events[index]
+            tags = ("outlier-section", f"outlier:{point['event_id']}")
+            canvas.create_rectangle(left, 1, right, pad_top + plot_h, fill="#1B293C",
+                                    outline="#D9A75A", width=1, tags=tags)
+            canvas.create_text(base_x(index), pad_top - 3, text="local", anchor="s",
+                               fill="#FCD58A", font=local_font, tags=tags)
+            label = f"{axis.low:.6g}–{axis.high:.6g} PED"
+            canvas.create_text(left + local_font.metrics("linespace") / 2 + 1,
+                               pad_top + plot_h / 2, text=label, angle=90,
+                               fill="#FCD58A", font=local_font, tags=tags)
+            for value in (axis.low, axis.high):
+                y = y_for(index, value)
+                canvas.create_line(left, y, right, y, fill="#D9A75A", tags=tags)
 
-        series = [
-            ("cost", "#FDBA74", None, 2),
-            ("avg_cost", "#7DD3FC", (4, 2), 2),
-            ("loot", "#86EFAC", None, 2),
-        ]
-        for key, color, dash, line_width in series:
-            coords: list[float] = []
+        self._draw_kill_trail_fans(display_points, x_for, y_for, value_for, scales)
+        for key, color, dash in (("cost", "#FDBA74", ()), ("avg_cost", "#7DD3FC", (4, 2)),
+                                 ("loot", "#86EFAC", ())):
+            coords = []
             for index, point in enumerate(display_points):
                 value = value_for(index, key)
-                if value is None:
+                if value is None or (index and not scales.connected(index - 1, index)):
                     if len(coords) >= 4:
-                        canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
+                        canvas.create_line(*coords, fill=color, width=2, dash=dash,
+                                           tags=("series", f"series:{key}"))
                     coords = []
-                else:
-                    coords.extend((x_for(index), y_for(value)))
+                if value is not None:
+                    coords.extend((x_for(index), y_for(index, value)))
             if len(coords) >= 4:
-                canvas.create_line(*coords, fill=color, width=line_width, dash=dash or (), smooth=False)
+                canvas.create_line(*coords, fill=color, width=2, dash=dash,
+                                   tags=("series", f"series:{key}"))
             for index, point in enumerate(display_points):
-                x = x_for(index)
                 value = value_for(index, key)
                 if value is None:
                     continue
-                y = y_for(value)
+                x, y = x_for(index), y_for(index, value)
                 if key == "loot":
-                    # Compare gross returns with input cost; net profit remains
-                    # in the summary. Unknown input cost is not a free win.
                     cost = value_for(index, "cost")
                     fill = "#B8C5D6" if cost is None else "#86EFAC" if value >= cost else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
                     estimated = bool(point.get("cost_status"))
                     tags = (key, "estimate", f"estimate:{point['event_id']}") if estimated else (key,)
-                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius,
-                                       fill=fill, outline="#FBBF24" if estimated else "", width=1, tags=tags)
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill,
+                                       outline="#FBBF24" if estimated else "", width=1, tags=tags)
                 else:
                     radius = 2 if index == len(display_points) - 1 else 1
-                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=color, outline="", tags=(key,))
-
-        for index, anchor in ((0, "w"), (len(display_points) - 1, "e")):
-            canvas.create_text(x_for(index), height - 2, text=display_points[index].get("label", f"K{display_points[index]['kill']}"),
-                               anchor="s" if len(display_points) == 1 else "sw" if anchor == "w" else "se",
-                               fill="#B8C5D6", font=axis_font)
+                    canvas.create_oval(x - radius, y - radius, x + radius, y + radius,
+                                       fill=color, outline="", tags=(key,))
+        for index in (0, len(display_points) - 1):
+            canvas.create_text(base_x(index), height - 2,
+                               text=display_points[index].get("label", f"K{display_points[index]['kill']}"),
+                               anchor="s", fill="#B8C5D6", font=axis_font)
             if len(display_points) == 1:
                 break
 
-    def _draw_kill_trail_fans(self, points, x_for, y_for, value_for) -> None:
-        """Reproject bounded PED samples with the same axes as the current lines."""
+    def _draw_kill_trail_fans(self, points, x_for, y_for, value_for, scales) -> None:
+        """Reproject samples on their event's axis; never bridge scale boundaries."""
         canvas = self.kill_chart
         histories = getattr(self, "kill_trail_histories", {})
         for index, point in enumerate(points):
@@ -2507,7 +2542,8 @@ class StreamerWindow(tk.Toplevel):
             if len(samples) < 2:
                 continue
             previous = points[index - 1] if index else None
-            same_scope = bool(previous and previous.get("kind") == point.get("kind") and
+            same_scope = bool(previous and scales.connected(index - 1, index) and
+                              previous.get("kind") == point.get("kind") and
                               previous.get("plan_event_id") == point.get("plan_event_id"))
             x = x_for(index)
             for column, key, shade, ghost in (
@@ -2529,14 +2565,14 @@ class StreamerWindow(tk.Toplevel):
                     # Animation changes geometry only, never the saved samples.
                     if anchor is not None and index == len(points) - 1:
                         value = anchor + (value - anchor) * self._chart_phase
-                    return y_for(value)
+                    return y_for(index, value)
 
                 if key == "loot":
                     outcomes = {None if s[0] is None else s[2] >= s[0] for s in samples}
                     shade = ("#233B32" if outcomes == {True} else "#402D38" if outcomes == {False}
                              else "#293642")
                 if anchor is not None:
-                    start = (x_for(index - 1), y_for(anchor))
+                    start = (x_for(index - 1), y_for(index - 1, anchor))
                     canvas.create_polygon(*start, x, projected(low[1]), x, projected(high[1]),
                                           fill=shade, outline="", tags=tags)
                 else:

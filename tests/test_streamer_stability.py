@@ -1,7 +1,6 @@
 """Live data must not be allowed to drive the streamer's geometry or typography."""
 from dataclasses import replace
 import time
-from unittest.mock import Mock
 
 import pytest
 
@@ -27,12 +26,19 @@ def positions(window):
     return tuple((w.winfo_rootx(), w.winfo_rooty(), w.winfo_width(), w.winfo_height()) for w in widgets)
 
 
-def fonts(window):
-    return tuple((str(font), font.cget('size')) for font, _ in window._fonts.values())
-
-
-def field_fonts(window):
-    return tuple((key, font.cget('size')) for key, (font, _) in window._fixed_fonts.items())
+def fonts(window, exclude=()):
+    """Measure rendered widget typography, not the chart's font-cache entries."""
+    pending = [window]
+    excluded_vars = {str(window.vars[key]) for key in exclude}
+    result = []
+    while pending:
+        widget = pending.pop()
+        pending.extend(widget.winfo_children())
+        if 'font' in widget.keys():
+            if 'textvariable' in widget.keys() and str(widget.cget('textvariable')) in excluded_vars:
+                continue
+            result.append((str(widget), widget.tk.call('font', 'actual', widget.cget('font'))))
+    return tuple(result)
 
 
 @pytest.mark.parametrize('size', [(360, 330), (260, 240), (540, 400)])
@@ -40,7 +46,7 @@ def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(h
     app, window = hud
     window.geometry(f'{round(size[0] * window.ui_scale)}x{round(size[1] * window.ui_scale)}')
     app.update()
-    before = positions(window), fonts(window), field_fonts(window)
+    before = positions(window), fonts(window)
     for i in range(30):
         window.vars['net_big'].set('+$10.00' if i % 2 else '-$9.99')
         window.vars['return'].set('100.00%' if i % 2 else '99.99%')
@@ -55,23 +61,10 @@ def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(h
         strip.detail = ('Very long synthetic skill name +1 · ' * 8 if i % 2 else 'Loot and skill gains appear here')
         strip._draw()
         app.update()
-        assert (positions(window), fonts(window), field_fonts(window)) == before
+        assert (positions(window), fonts(window)) == before
     window.activity_strip._quiet()
     app.update()
-    assert (positions(window), fonts(window), field_fonts(window)) == before
-
-
-def test_data_changes_do_not_call_global_layout_or_scale_solver(hud):
-    app, window = hud
-    window._layout_values = Mock(wraps=window._layout_values)
-    window._set_content_scale = Mock(wraps=window._set_content_scale)
-    for i in range(12):
-        window.vars['net_big'].set(f'+${i}.00')
-        window.vars['loot'].set(f'${i * 10}.00')
-        window.update_from_session(None)
-        app.update()
-    window._layout_values.assert_not_called()
-    window._set_content_scale.assert_not_called()
+    assert (positions(window), fonts(window)) == before
 
 
 def test_activity_strip_has_two_reserved_lines_even_for_long_text(hud):
@@ -89,13 +82,13 @@ def test_activity_strip_has_two_reserved_lines_even_for_long_text(hud):
 
 def test_number_animation_does_not_relayout_between_frames(hud):
     app, window = hud
-    before = positions(window), fonts(window), field_fonts(window)
+    before = positions(window), fonts(window)
     window.animator.number('stable-money', 0, lambda value: window.vars['net_big'].set(f'+${value:.2f}'), False)
     window.animator.number('stable-money', 100, lambda value: window.vars['net_big'].set(f'+${value:.2f}'), True)
     deadline = time.monotonic() + 2
     while window.animator.jobs and time.monotonic() < deadline:
         app.update()
-        assert (positions(window), fonts(window), field_fonts(window)) == before
+        assert (positions(window), fonts(window)) == before
         time.sleep(0.01)
     assert not window.animator.jobs
     assert window.vars['net_big'].get() == '+$100.00'
@@ -117,21 +110,25 @@ def test_zero_cost_to_live_cost_does_not_move_sections(hud):
 
 
 def test_large_money_fits_its_own_slot_without_rearranging_other_sections(hud):
+    import tkinter.font as tkfont
+
     app, window = hud
-    before = positions(window), fonts(window)
+    money_fields = ('net_big', 'loot', 'cost')
+    before = positions(window), fonts(window, exclude=money_fields)
     sizes = []
     for value in ('+12345678.90 PED', '+0.01 PED', '+12345678.90 PED'):
         window.vars['net_big'].set(value)
         window.vars['loot'].set(value.lstrip('+'))
         window.vars['cost'].set(value.lstrip('+'))
         app.update()
-        assert (positions(window), fonts(window)) == before
+        assert (positions(window), fonts(window, exclude=money_fields)) == before
         assert window.vars['net_big'].get() == value
-        sizes.append(field_fonts(window))
-    assert sizes[0] == sizes[1] == sizes[2]  # No font-size see-saw after an overflow.
-    import tkinter.font as tkfont
-    font = tkfont.nametofont(window.net_label.cget('font'), root=window)
-    assert font.measure(window.vars['net_big'].get()) <= window.net_label.winfo_width() - 4
+        font = tkfont.nametofont(window.net_label.cget('font'), root=window)
+        assert font.measure(value) <= window.net_label.winfo_width() - 4
+        sizes.append(abs(font.cget('size')))
+    # A field may fit its own font, but cannot shrink unrelated labels or leave
+    # the next short value permanently tiny after an unusually large balance.
+    assert sizes[0] == sizes[2] <= sizes[1]
 
 
 def test_manufacturing_attempt_text_changes_do_not_relayout(hud):

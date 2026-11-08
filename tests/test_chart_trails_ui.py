@@ -1,5 +1,6 @@
 """Exercise observed development and reprojection on the real Tk HUD canvas."""
 import math
+from copy import deepcopy
 
 import pytest
 
@@ -54,9 +55,9 @@ def projection_spy(monkeypatch, overlay):
     captured = {}
     original = overlay._draw_kill_trail_fans
 
-    def draw(points, x_for, y_for, value_for):
-        captured.update(points=list(points), x_for=x_for, y_for=y_for, value_for=value_for)
-        return original(points, x_for, y_for, value_for)
+    def draw(points, x_for, y_for, value_for, scales):
+        captured.update(points=list(points), x_for=x_for, y_for=y_for, value_for=value_for, scales=scales)
+        return original(points, x_for, y_for, value_for, scales)
 
     monkeypatch.setattr(overlay, '_draw_kill_trail_fans', draw)
     return captured
@@ -102,7 +103,7 @@ def assert_projected_envelopes(overlay, projection):
             assert coords
             x = projection['x_for'](index)
             for value in (min(known), max(known)):
-                assert contains_vertex(coords, x, projection['y_for'](value))
+                assert contains_vertex(coords, x, projection['y_for'](index, value))
             # Every endpoint belongs to this group's incoming segment, not a
             # neighboring event's slot or pixel coordinates from an earlier size.
             lower_x = projection['x_for'](max(0, index - 1)) - 2
@@ -221,12 +222,95 @@ def test_native_geometry_reprojects_for_resize_and_large_adaptive_loot(hud, monk
     assert_projected_envelopes(overlay, projection)
     index = len(projection['points']) - 1
     final = ordinary_markers(canvas)[-1]
-    assert center(canvas, final) == pytest.approx((projection['x_for'](index), projection['y_for'](10_000_010)))
+    assert center(canvas, final) == pytest.approx((projection['x_for'](index), projection['y_for'](index, 10_000_010)))
     assert canvas.itemcget(final, 'fill') == '#86EFAC'
-    # The huge return must expand the data range, rather than leave stale pixels
-    # or clip historical observations and the ordinary final return marker.
-    assert 0 <= center(canvas, final)[1] < projection['y_for'](10)
+    # The event-local range expands for the huge return; old observations and
+    # the final marker use that same axis without flattening ordinary events.
+    assert index in projection['scales'].local_indices
+    assert 0 <= center(canvas, final)[1] < projection['y_for'](index, 10)
     assert overlay.kill_trail_histories[active][-1] == (5, 3, 10_000_010)
+
+
+@pytest.mark.parametrize('outliers', [
+    {3: 1.11}, {3: 600}, {}, {2: 1.11, 8: 600, 13: 2.25},
+    {7: 1.11, 8: 600, 9: 2.25},
+])
+def test_vertical_local_sections_preserve_useful_ordinary_variation_and_event_order(hud, monkeypatch, outliers):
+    _, overlay, _ = hud
+    projection = projection_spy(monkeypatch, overlay)
+    returns = [0.01, 0.025, 0.04, 0.07, 0.015, 0.06, 0.035, 0.08,
+               0.02, 0.055, 0.03, 0.065, 0.012, 0.075, 0.045, 0.025]
+    data = [dict(chart_point(i + 1, i + 1, 0.05, outliers.get(i, value)), avg_cost=0.19)
+            for i, value in enumerate(returns)]
+    histories = {p['event_id']: ((0.01, 0.19, 0), (0.05, 0.19, p['loot'])) for p in data}
+    before = deepcopy((data, histories))
+    overlay.kill_trend_points, overlay.kill_trail_histories = data, histories
+    overlay.geometry('720x660')
+    overlay.update()
+    overlay._chart_frame(1)
+    canvas = overlay.kill_chart
+    assert projection['scales'].local_indices == set(outliers)
+    assert projection['scales'].ordinary.high == pytest.approx(0.19)
+    markers = ordinary_markers(canvas)
+    assert len(markers) == 16
+    centers = [center(canvas, marker) for marker in markers]
+    assert all(a[0] < b[0] for a, b in zip(centers, centers[1:]))
+    normal_y = [position[1] for i, position in enumerate(centers) if i not in outliers]
+    plot_height = abs(projection['y_for'](None, 0) - projection['y_for'](None, 0.19))
+    assert max(normal_y) - min(normal_y) > plot_height * 0.30
+    sections = {}
+    for index in outliers:
+        event_id = data[index]['event_id']
+        items = canvas.find_withtag(f'outlier:{event_id}')
+        rect = next(item for item in items if canvas.type(item) == 'rectangle')
+        left, top, right, bottom = canvas.coords(rect)
+        assert left < centers[index][0] < right
+        assert bottom - top > 2 * (right - left)  # Vertical event column, not a horizontal band.
+        sections[index] = left, right
+        labels = [canvas.itemcget(item, 'text') for item in items if canvas.type(item) == 'text']
+        assert any(str(outliers[index]) in label and 'PED' in label for label in labels)
+        assert centers[index][1] == pytest.approx(projection['y_for'](index, outliers[index]))
+    for item in canvas.find_withtag('series'):
+        xs = canvas.coords(item)[::2]
+        assert all(not any(left <= x <= right for left, right in sections.values()) for x in xs)
+        assert all(not (min(xs) < left and max(xs) > right) for left, right in sections.values())
+    assert_projected_envelopes(overlay, projection)
+    for index in outliers:
+        for affected in (index, index + 1):
+            if affected < len(data):
+                assert not any(canvas.type(item) == 'polygon'
+                               for item in canvas.find_withtag(f"trail:{data[affected]['event_id']}"))
+    assert (data, histories) == before
+    assert len(canvas.find_all()) < 450
+
+
+def test_local_loss_and_fan_only_extremes_keep_honest_whiskers_after_resize(hud, monkeypatch):
+    _, overlay, _ = hud
+    projection = projection_spy(monkeypatch, overlay)
+    data = [dict(chart_point(i + 1, i + 1, 0.05, 0.02), avg_cost=0.19) for i in range(16)]
+    data[7].update(cost=1.11, profit=-1.09)
+    histories = {8: ((0.01, 0.19, 0), (1.11, 0.19, 0.02)),
+                 16: ((0.01, 0.19, 0), (600, 0.19, 0.02), (0.05, 0.19, 0.02))}
+    overlay.kill_trend_points, overlay.kill_trail_histories = data, histories
+    saved = deepcopy(histories)
+    for geometry in ('720x660', '960x800', '520x480'):
+        overlay.geometry(geometry)
+        overlay.update()
+        for phase in (0, 0.5, 1):
+            overlay._chart_frame(phase)
+            assert projection['scales'].local_indices == {7, 15}
+            assert projection['scales'].events[15].high == 600
+            assert_projected_envelopes(overlay, projection)
+            canvas = overlay.kill_chart
+            markers = ordinary_markers(canvas)
+            assert canvas.itemcget(markers[7], 'fill') == '#FDA4AF'
+            assert center(canvas, markers[-1]) == pytest.approx(
+                (projection['x_for'](15), projection['y_for'](15, 0.02)))
+            for event_id in (8, 16):
+                assert not any(canvas.type(item) == 'polygon'
+                               for item in canvas.find_withtag(f'trail:{event_id}'))
+    assert histories == saved
+
 
 
 def test_shared_cost_revisions_follow_existing_fans_through_reload_resize_and_range(hud, monkeypatch):
@@ -290,7 +374,7 @@ def test_shared_cost_revisions_follow_existing_fans_through_reload_resize_and_ra
     assert_projected_envelopes(overlay, projection)
     final = ordinary_markers(overlay.kill_chart)[-1]
     assert center(overlay.kill_chart, final) == pytest.approx(
-        (projection['x_for'](len(projection['points']) - 1), projection['y_for'](10_000_000)))
+        (projection['x_for'](len(projection['points']) - 1), projection['y_for'](len(projection['points']) - 1, 10_000_000)))
 
 
 def test_unsupported_shared_cost_has_unknown_not_free_profit_markers(hud, monkeypatch):
@@ -354,13 +438,13 @@ def test_event_mapping_visible_window_and_unknown_cost_do_not_invent_anchors(hud
     assert canvas.itemcget(markers[-2], 'fill') == '#86EFAC'  # Known zero is not unknown.
     assert canvas.itemcget(markers[-1], 'fill') == '#B8C5D6'
     assert canvas.itemcget(markers[0], 'fill') == '#FDA4AF'
-    assert center(canvas, markers[-1]) == pytest.approx((projection['x_for'](15), projection['y_for'](3)))
+    assert center(canvas, markers[-1]) == pytest.approx((projection['x_for'](15), projection['y_for'](15, 3)))
 
 
 def test_dense_history_is_bounded_visually_and_keeps_final_series(hud, monkeypatch):
     _, overlay, _ = hud
     projection = projection_spy(monkeypatch, overlay)
-    overlay.kill_trend_points = [chart_point(1, 1, 2, 3), chart_point(2, 2, 5, 12)]
+    overlay.kill_trend_points = [chart_point(1, 1, 2, 8), chart_point(2, 2, 5, 12)]
     overlay.kill_trail_histories = {2: tuple((2 + 3 * i / 23, 3 + 2 * i / 23, 12 * i / 23) for i in range(24))}
     overlay._chart_frame(1)
     canvas = overlay.kill_chart
@@ -370,7 +454,7 @@ def test_dense_history_is_bounded_visually_and_keeps_final_series(hud, monkeypat
         assert sum(canvas.type(i) == 'polygon' for i in items) == 1
         assert 1 <= sum(canvas.type(i) == 'line' for i in items) <= 4
     assert len(ordinary_markers(canvas)) == 2
-    assert center(canvas, ordinary_markers(canvas)[-1]) == pytest.approx((projection['x_for'](1), projection['y_for'](12)))
+    assert center(canvas, ordinary_markers(canvas)[-1]) == pytest.approx((projection['x_for'](1), projection['y_for'](1, 12)))
 
 
 def test_trail_storage_failure_does_not_hide_base_series_or_totals(hud, monkeypatch):

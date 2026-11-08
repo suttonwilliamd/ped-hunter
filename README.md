@@ -260,11 +260,28 @@ Samples persist in the same session SQLite database, separately from accounting
 events, and reload with their original group IDs. They remain stored while their
 underlying event/session remains stored, including after leaving the visible
 window. Resize, monitor-scale changes, and automatic chart range changes reproject
-the raw data together with the current lines. The range includes visible trail
-extrema: an exceptionally large return can compress smaller values on the
-existing linear scale, but signed profit text and profit/loss markers remain.
+the raw data together with the current lines, including retained extrema.
 Session totals, recent arrivals, and the cost/average/return series remain
 available; revised per-group costs are explicitly marked as estimates.
+
+A clearly separated event envelope at least **3×** the lower visible cohort gets
+a narrow **vertical local-scale section at its chronological event position**.
+The amber boundary and rotated `low–high PED` label distinguish that event's
+linear scale from the ordinary left axis. The full spike remains visible,
+including modest returns such as 1.11 PED among 0.05 PED costs, not just jackpots.
+Multiple or adjacent exceptional events each receive their own section. Selection
+requires three ordinary peers where available (fewer during startup); without a
+separated cohort the chart keeps one shared linear scale rather than inventing
+an ordinary population.
+
+Lines, grid lines, fan polygons and animation never bridge a local-scale boundary.
+An event at a boundary shows its retained sample range and up to four endpoint
+whiskers per series instead of inventing an incoming segment on a different axis.
+Ordinary fans remain shaded shapes. Equal screen heights across separate sections
+do **not** mean equal PED. No values, event order, time range, accounting totals or
+stored traces are changed; resize and later scale changes recalculate every
+coordinate from raw PED. These are views of observed/inferred events, not forecasts.
+
 
 Recent hunting input can be shared across several receipts when creatures are
 killed before looting. An unusually expensive interval followed by little or no
@@ -393,6 +410,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Keep ordinary streamer-chart variation readable while exceptional events remain visible, using separately labeled vertical event-local PED scales and honest line/fan breaks; preserve all raw values, chronological positions and totals.
 
 - Improve bounded recent hunting receipt-cost estimates for delayed/batched looting and intervening shots, with conserved unassigned input, explicit ambiguity, persistent frozen decisions, and consistent per-event fan revisions.
 
