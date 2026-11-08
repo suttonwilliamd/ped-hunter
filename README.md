@@ -364,6 +364,15 @@ retain the same fixed-layout and resize behavior.
 
 Design direction: BobRoss.bot's [streamer HUD specification](docs/streamer-redesign.md).
 
+## Tests and focused selection
+
+Use the existing `.venv` and `tools/pytest_groups.py` for explicit component
+groups, collection-only list/dry runs, deduplicated unions and a complete-suite
+mode. Unmapped tests are surfaced, never silently excluded; ordinary pytest
+discovery and existing CI remain unchanged. See [testing guidance](docs/testing.md)
+for source/dependency selection, GUI safety, exact-revision CI reuse and the
+external coordinator's durable focused/full cadence.
+
 ## Building the Windows executable
 
 Release executables are built with PyInstaller:
@@ -410,6 +419,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Add opt-in focused pytest groups, real-collection inventory/dry runs, unmapped-test protection, complete discovery and explicit isolated-process execution; document dependency selection, honest evidence/CI reuse and durable cadence without changing runtime or CI.
 
 - Keep ordinary streamer-chart variation readable while exceptional events remain visible, using separately labeled vertical event-local PED scales and honest line/fan breaks; preserve all raw values, chronological positions and totals.
 
