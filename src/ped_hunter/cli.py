@@ -75,9 +75,22 @@ MINING_FINDERS = [
 ]
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ped-hunter", description="PED Hunter - local-first Entropia profit tracking")
+class _DoctorParser(argparse.ArgumentParser):
+    def error(self, message):
+        # argparse normally echoes invalid arguments, potentially private paths.
+        self.print_usage(sys.stderr)
+        self.exit(2, "ped-hunter doctor: invalid arguments; use doctor --help\n")
+
+
+def build_parser(*, redact_errors: bool = False) -> argparse.ArgumentParser:
+    parser_class = _DoctorParser if redact_errors else argparse.ArgumentParser
+    parser = parser_class(prog="ped-hunter", description="PED Hunter - local-first Entropia profit tracking")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    # Use a redacting parser only for diagnostics; existing command errors stay unchanged.
+    doctor = sub.add_parser("doctor", help="Read-only setup diagnostics (no GUI or game-data scan)")
+    doctor.add_argument("--json", action="store_true", help="Emit schema-versioned JSON")
+    doctor.add_argument("--chat-log", metavar="PATH", help="Check only this explicit file; never read contents")
 
     seed = sub.add_parser("seed-data", help="Download and normalize LootNanny seed data")
     seed.add_argument("--force", action="store_true", help="Overwrite existing catalog files")
@@ -107,9 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     if not argv:
         argv = ["gui"]
 
-    parser = build_parser()
+    parser = build_parser(redact_errors=argv[0] == "doctor")
     args = parser.parse_args(argv)
 
+    if args.cmd == "doctor":
+        from .doctor import run
+        return run(args.chat_log, args.json)
     if args.cmd == "seed-data":
         return _seed_data(args.force)
     if args.cmd == "monitor":
