@@ -27,6 +27,7 @@ from .currency import currency_name, format_money
 from .dpi import enable_high_dpi, window_ui_scale
 from .feedback import ActivityStrip, Animator, Snapshot
 from .hunt_attribution import HuntAttribution
+from .healing import estimate_healing_cost
 from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
@@ -102,6 +103,9 @@ class PedHunterApp(tk.Tk):
         self.hero_events = tk.StringVar(value="Events 0")
         self.hero_state = tk.StringVar(value="Idle")
         self.hero_session = tk.StringVar(value="No active session — start a run to begin collecting data")
+        self.healing_tool = tk.StringVar(value=self.store.get_selected_healing_tool() or "None")
+        self.healing_detail = tk.StringVar()
+        self.healing_totals = tk.StringVar()
         self.skill_total_text = tk.StringVar(value="0.0000 XP")
         self.skill_proc_text = tk.StringVar(value="0 skill gains")
         self.skill_summary_text = tk.StringVar(value="No skill gains recorded for this session yet.")
@@ -377,12 +381,32 @@ class PedHunterApp(tk.Tk):
         right = self.hero_right
         right.grid(row=0, column=2, sticky="nsew")
         right.columnconfigure((0, 1, 2), weight=1, uniform="hero_stats")
+        # Reuse the two-column summary: a third narrow column makes metadata
+        # wrap and starves the chart/editor below at supported small sizes.
+        self.hero_healing = ttk.Frame(right, style="Hero.TFrame")
+        healing = self.hero_healing
+        healing.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 4))
+        healing.columnconfigure(1, weight=1)
+        ttk.Label(healing, text="HEALING TOOL", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=2, sticky="e")
+        self.healing_selector = ttk.Combobox(
+            healing, textvariable=self.healing_tool, state="readonly", width=1,
+            values=["None", *sorted(self.catalog.healing_tools, key=str.casefold)])
+        self.healing_selector.grid(row=0, column=1, sticky="ew", padx=(0, 6))
+        self.healing_selector.bind("<<ComboboxSelected>>", lambda _event: self._healing_tool_changed())
+        _install_combobox_typeahead(self.healing_selector, on_change=self._healing_tool_changed)
+        self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="HeroSetup.TLabel", wraplength=170)
+        self.healing_detail_label.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 0))
+        self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="HeroSetup.TLabel", wraplength=170)
+        self.healing_totals_label.grid(row=2, column=0, columnspan=3, sticky="ew")
+        healing.bind("<Configure>", self._on_healing_resize)
+
         self._add_hero_stat(right, 0, self.hero_loot, "LOOT")
         self._add_hero_stat(right, 1, self.hero_cost, "COST")
         self._add_hero_stat(right, 2, self.hero_events, "EVENTS")
 
         actions = ttk.Frame(right, style="Hero.TFrame")
-        actions.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        actions.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(5, 0))
         self.start_button = ttk.Button(actions, text="New run", command=self.start, style="Accent.TButton")
         self.start_button.pack(side="left", padx=(0, 6))
         self.resume_button = ttk.Button(actions, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
@@ -391,7 +415,7 @@ class PedHunterApp(tk.Tk):
         self.stop_button.pack(side="left", padx=(0, 8))
         ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
         self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money, compact=True)
-        self.activity_strip.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        self.activity_strip.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         left.bind("<Configure>", self._on_hero_resize)
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
@@ -407,7 +431,7 @@ class PedHunterApp(tk.Tk):
 
     def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> None:
         frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(7, 4))
-        frame.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
+        frame.grid(row=1, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
         # Quiet supporting metrics; reserve accent color for the main action.
         ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel").pack(anchor="w")
         ttk.Label(frame, textvariable=value, style="HeroSmallValue.TLabel").pack(anchor="w", pady=(2, 0))
@@ -430,6 +454,53 @@ class PedHunterApp(tk.Tk):
                 columnspan=2 if compact else 1, sticky="w" if compact else "sw",
                 padx=0 if compact else (12, 0), pady=(0, 2 if compact else 4))
             self.hero_repair_label.grid_configure(row=4 if compact else 3)
+
+    def _on_healing_resize(self, event: tk.Event) -> None:
+        if event.width > 1:
+            for label in (self.healing_detail_label, self.healing_totals_label):
+                label.configure(wraplength=max(1, event.width - 4))
+
+    def _healing_tool_changed(self) -> None:
+        name = self.healing_tool.get()
+        self.store.set_selected_healing_tool(None if name == "None" else name)
+        session = self.store.get_session(self.session_id) if self.session_id else None
+        self._refresh_healing_summary(session)
+        self.status_text.set("Healing selection saved for future messages; previous costs unchanged")
+
+    def _refresh_healing_summary(self, session: SessionSummary | None) -> None:
+        name = self.healing_tool.get()
+        tool = self.catalog.healing_tools.get(name)
+        if name == "None":
+            detail = "None — new healing messages are unpriced"
+        elif tool is None:
+            detail = "Unpriced — selected tool missing from catalog"
+        elif tool.tracking_limit:
+            detail = "Unpriced — tool activations cannot be identified"
+        elif tool.cost_per_use is None:
+            detail = "Unpriced — decay or consumption unknown"
+        else:
+            detail = f"{tool.cost_per_use:.5f} PED/use · selected-tool TT estimate"
+        self.healing_detail.set(detail)
+        self.healing_totals.set(
+            f"Run-only heals {self._money(session.healing_cost, decimals=5) if session else self._money(0, decimals=5)} · "
+            f"{session.estimated_healing_uses if session else 0} uses est. · {session.unpriced_heal_events if session else 0} unpriced")
+
+    def _show_healing_info(self) -> None:
+        name = self.healing_tool.get()
+        tool = self.catalog.healing_tools.get(name)
+        limitation = f"\n{tool.tracking_limit}" if tool and tool.tracking_limit else ""
+        messagebox.showinfo(
+            "Healing cost estimates",
+            f"Selected: {name}{limitation}\n\n"
+            "Saved across runs, restarts and weapon setups. None clears. Future messages only; history is not repriced.\n\n"
+            "Positive self/other heals assume this unmodified instant tool. TT decay + known consumption enter "
+            "run/HUD totals, not creature/fan costs.\n\n"
+            "Periodic/area or unknown costs stay unpriced. Unmarked HoT/lifesteal is indistinguishable: clear "
+            "selection while mixed. Exact same-run timestamp/message repeats are not charged twice; "
+            "identical same-second uses remain ambiguous.\n\n"
+            "Missing timestamps or silent uses cannot be reconstructed. No markup, enhancer or implant detection.",
+            parent=self,
+        )
 
     def _toggle_top_area(self) -> None:
         expanded = not self.top_area_expanded.get()
@@ -1359,6 +1430,8 @@ class PedHunterApp(tk.Tk):
             session = self.store.get_session(session_id)
             if session:
                 active_loadout = self._restore_session_loadout(session)
+        healing_name = self.store.get_selected_healing_tool()
+        healing_tool = self.catalog.healing_tools.get(healing_name) if healing_name else None
         for raw in lines:
             if _is_duplicate_log_line(last_ingested_log_line, raw):
                 continue
@@ -1366,6 +1439,7 @@ class PedHunterApp(tk.Tk):
             event = parse_line(raw)
             if not event:
                 continue
+            estimate_healing_cost(event, healing_name, healing_tool)
             if event.kind == "craft" and event.payload.get("result") in {"success", "fail"}:
                 allocation = self.store.allocate_manufacturing_attempt(session_id, str(event.payload.get("item") or ""))
                 if allocation:
@@ -1556,6 +1630,7 @@ class PedHunterApp(tk.Tk):
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         state = "Live" if self.running else "Idle"
         self.hero_state.set(state)
+        self._refresh_healing_summary(session)
         context = (session.session_id if session else None, self.currency_mode.get(), self.running)
         animate = context == self._feedback_context and self.running and not self.reduced_motion.get()
         self._feedback_context = context
@@ -2498,10 +2573,15 @@ class StreamerWindow(tk.Toplevel):
             "same-setup input reference only when supported; ~ and amber-ring points are estimates, "
             "and gray unresolved points are not free profit. "
             "Unassigned input is already in session cost, not a prediction of more loot. "
-            "The blue booked average includes all recorded input, including unassigned cost. "
+            "The blue booked average includes recorded weapon/recipe input, including unassigned cost. "
             "Only new groups after activation can be reconsidered: at most 12 groups, 5 minutes, "
             "1024 charged shots and 4096 source-event IDs; old/frozen allocations are retained. "
             "Fans also retain previously observed estimates when recent allocations change."
+        )
+        self._footer_detail += (
+            "\nHealing is a separate selected-tool TT estimate included in run cost/profit/return totals, "
+            "not apportioned to inferred loot groups, fans or their blue weapon/recipe average: "
+            "healing messages do not identify which creature benefited."
         )
         attribution_note = getattr(kill_points, "attribution_note", "")
         if attribution_note:
@@ -3031,7 +3111,13 @@ def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
         if "damage_taken" in payload:
             return f"Damage taken: {payload['damage_taken']}"
         if "healed" in payload:
-            return f"Healed: {payload['healed']}"
+            target = payload.get("healing_target", "self")
+            text = f"Healed {target}: {payload['healed']}"
+            if payload.get("healing_cost_status") == "duplicate":
+                return text + " · duplicate message, not charged"
+            if "healing_cost" in payload:
+                return text + f" · {format_money(float(payload['healing_cost']), mode, decimals=5)} (selected tool estimate)"
+            return text + (" · healing unpriced" if "healing_cost_status" in payload else "")
         return (", ".join(k for k, v in payload.items() if v and k not in {"shot_cost", "loadout"}) or "Combat event") + cost
     if kind == "weapon":
         return f"Equipped {payload.get('weapon', '?')}"

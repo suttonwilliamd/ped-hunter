@@ -12,6 +12,7 @@ import json
 from contextlib import contextmanager
 
 from .catalog import Catalog
+from .healing import estimate_healing_cost, fetch_healing_catalog
 from .log_tail import LogTail
 from .parser import parse_line
 from .storage import Store
@@ -241,6 +242,7 @@ def _seed_data(force: bool) -> int:
     }
 
     normalized = _normalize(payloads)
+    normalized["healing_tools.json"] = fetch_healing_catalog()
     for filename, payload in normalized.items():
         dst = out / filename
         if dst.exists() and not force:
@@ -258,11 +260,14 @@ def _monitor(chat_log: Path, db_path: Path | None, activity: str, once: bool) ->
     tail = LogTail(chat_log)
 
     def process_new_lines(lines: list[str]) -> None:
+        healing_name = store.get_selected_healing_tool()
+        healing_tool = catalog.healing_tools.get(healing_name) if healing_name else None
         for raw in lines:
             event = parse_line(raw)
             if not event:
                 continue
-            store.add_event(session_id, event.to_row())
+            estimate_healing_cost(event, healing_name, healing_tool)
+            event.payload = store.add_event(session_id, event.to_row())
             _print_event(event, catalog)
 
     while True:

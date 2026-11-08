@@ -156,13 +156,19 @@ def test_help_lower_controls_are_keyboard_reachable_and_local_settings_work(app,
     app.update()
     controls = (app.reduced_motion_button, app.refresh_data_button,
                 app.feedback_sounds_button, app.preview_feedback_button)
+    # Drive the real Tab binding (which lazily loads Tk's focus procedures),
+    # not an early low-level Tcl query that may precede that autoload.
+    controls[0].focus_force()
+    app.update()
     reachable = set()
-    current = controls[0]
     for _ in range(sum(1 for _ in descendants(app)) + 1):
-        current = current.tk_focusNext()
+        current = app.focus_get()
+        assert current is not None
         if current in reachable:
             break
         reachable.add(current)
+        current.event_generate("<Tab>", when="tail")
+        app.update()
     assert set(controls) <= reachable
     for widget in controls:
         app.help_scroll.canvas.yview_moveto(0)

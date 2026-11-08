@@ -28,25 +28,26 @@ class Group:
 GROUPS = {
     "chart-accounting": Group("Booked input, inferred groups, estimates, fans and chart consumers", (
         "test_activity_trend.py", "test_incremental_trend.py", "test_hunt_attribution*.py",
-        "test_chart_*.py", "test_loadouts.py", "test_storage_repair_cache.py",
+        "test_chart_*.py", "test_loadouts.py", "test_healing*.py", "test_storage_repair_cache.py",
         "test_streamer_crafting.py", "test_streamer_redesign.py", "test_streamer_refresh.py",
         "test_live_refresh_budget.py")),
     "ingestion": Group("Parser, file watching, resume boundaries and charged-event consumers", (
         "test_parser.py", "test_log_ingestion.py", "test_log_watcher.py",
         "test_default_log_path.py", "test_loadouts.py", "test_incremental_trend.py",
-        "test_live_refresh_budget.py", "test_session_lifecycle.py")),
+        "test_live_refresh_budget.py", "test_session_lifecycle.py", "test_healing.py")),
     "catalog-loadouts": Group("Catalog imports, ammo/decay, repair budgets, currency and setup snapshots", (
         "test_catalog.py", "test_loadouts.py", "test_setup_editor.py", "test_currency.py",
-        "test_storage_repair_cache.py", "test_resume_default.py")),
+        "test_storage_repair_cache.py", "test_resume_default.py", "test_healing.py")),
     "persistence-lifecycle": Group("Stored events/estimates/fans, session resume and instance ownership", (
         "test_session_lifecycle.py", "test_resume_default.py", "test_storage_repair_cache.py",
         "test_hunt_attribution_storage.py", "test_chart_trails*.py", "test_log_ingestion.py",
-        "test_loadouts.py", "test_setup_editor.py", "test_single_instance.py", "test_dashboard_startup.py")),
+        "test_loadouts.py", "test_setup_editor.py", "test_single_instance.py", "test_dashboard_startup.py",
+        "test_healing.py", "test_healing_ui.py")),
     "desktop-ui": Group("Native layout, DPI, feedback, streamer behavior and live UI refresh", (
         "test_dashboard_startup.py", "test_default_layout.py", "test_setup_editor.py", "test_dpi.py",
         "test_feedback.py", "test_feedback_sounds.py", "test_streamer_*.py",
         "test_chart_trails_ui.py", "test_log_ingestion.py", "test_live_refresh_budget.py",
-        "test_default_log_path.py")),
+        "test_default_log_path.py", "test_healing_ui.py")),
     "packaging-diagnostics": Group("CLI/doctor, frozen helper/spec, version and test-tooling contracts", (
         "test_doctor.py", "test_frozen_doctor_smoke.py", "test_packaging_spec.py",
         "test_single_instance.py", "test_catalog.py", "test_feedback_sounds.py",
