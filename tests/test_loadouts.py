@@ -860,3 +860,53 @@ def test_streamer_metrics_from_session_summary():
     assert metrics["return_pct"] == 75.0
     assert metrics["net"] == -25.0
     assert metrics["loadout"] == "ZX Test Loadout"
+
+
+def test_set_blade_setup_roundtrip_and_actual_ingestion_charge_ammo_and_decay(tmp_path):
+    app = object.__new__(PedHunterApp)
+    app.catalog = Catalog.load()
+    app.store = Store(tmp_path / "set-blade.sqlite3")
+    app.selected_loadout_id = None
+    for field, value in {
+        "loadout_name": "SET blade",
+        "loadout_weapon": "set combat blade",
+        "loadout_amp": "None",
+        "loadout_scope": "None",
+        "loadout_sight_1": "None",
+        "loadout_sight_2": "None",
+        "damage_enhancers": "0",
+        "accuracy_enhancers": "0",
+        "economy_enhancers": "0",
+    }.items():
+        setattr(app, field, SimpleNamespace(get=lambda value=value: value))
+    loadout = app._loadout_from_form()
+    loadout.id = app.store.save_loadout(loadout, make_active=True)
+    saved = app.store.get_loadout(loadout.id)
+    assert saved.weapon == "SET Combat Blade (L)"
+    assert saved.ammo_burn == 65
+    assert saved.decay == pytest.approx(0.00001)
+    assert saved.cost_per_shot == pytest.approx(0.00651)
+    sid = app.store.start_session("hunt", with_repair_estimates(app.catalog, saved))
+    app._process_lines([
+        "2026-11-07 12:00:00 [System] [] You inflicted 6.0 points of damage",
+        "2026-11-07 12:00:01 [System] [] The creature Dodged your attack.",
+        "2026-11-07 12:00:02 [System] [] You took 10.0 points of damage",
+        "2026-11-07 12:00:03 [System] [] You Evaded the attack",
+    ], sid, None)
+    summary = Store(app.store.db_path).get_session(sid)
+    assert summary.hunting_cost == pytest.approx(2 * 0.00651)
+    assert summary.repair_decay == pytest.approx(2 * 0.00001)
+    assert summary.repair_shots == 2
+    assert summary.combat_damage == 6.0
+    assert summary.loadout_snapshot["weapon"] == "SET Combat Blade (L)"
+    assert summary.loadout_snapshot["repair_budget"] == pytest.approx(0.1)
+    with app.store.connect() as conn:
+        events = [json.loads(row["payload"]) for row in conn.execute(
+            "SELECT payload FROM events WHERE session_id = ? AND kind = 'combat' ORDER BY id", (sid,)
+        )]
+    charged = [p for p in events if "shot_cost" in p]
+    assert len(charged) == 2
+    for payload in charged:
+        assert payload["ammo_cost"] == pytest.approx(0.0065)
+        assert payload["repair_decay"] == pytest.approx(0.00001)
+        assert payload["shot_cost"] == pytest.approx(0.00651)

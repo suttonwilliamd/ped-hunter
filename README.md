@@ -337,6 +337,20 @@ The legacy LootNanny seed set does not currently include the newer Frontier star
 
 For `Frontier Hunting Rifle, Adjusted`, the catalog uses 180 ammo per shot, 0.020 PEC decay (stored as 0.0002 PED), and TT limits of 0–2 PED. Total cost is 1.820 PEC (0.0182 PED) per shot. The base rifle and its `Frontier Rifle` alias remain unchanged. Verified against [Entropia Nexus](https://entropianexus.com/items/weapons/Frontier~Hunting~Rifle%2C~Adjusted) and [EntropiaWiki weapon id 3065](http://www.entropiawiki.com/Info.aspx?chart=Weapon&id=3065).
 
+`SET Combat Blade (L)` is a supplemental **Melee** entry in the bundled catalog,
+the CLI seed importer, and `tools/sync_legacy_data.py`. Both importers keep one
+canonical entry even if the legacy feed later includes the same name.
+[Nexus weapon data](https://api.entropianexus.com/weapons/SET%20Combat%20Blade%20(L))
+confirms this sword consumes **65 Weapon Cells** per use, despite being melee.
+[Weapon Cells](https://api.entropianexus.com/materials/2501) are 0.0001 PED each.
+The weapon's **0.001 PEC** decay is stored as **0.00001 PED**, not 0.001 PED.
+Without attachments/enhancers the existing formula gives
+`65 / 10000 + 0.001 / 100 = 0.00651 PED` (**0.651 PEC**) per use; TT limits are
+0–0.1 PED. Damage, missed/dodged attacks, and incoming damage retain the existing
+hunt-accounting rules. The cost-only catalog does not model damage ranges,
+professions/SIB, reload, efficiency, DPS or DPP; Nexus's derived figures are not
+used as base pricing data or substituted for the app's formulas.
+
 For convenience, PED Hunter also accepts the shorthand:
 
 - `Frontier Rifle` → `Frontier Hunting Rifle`
@@ -344,6 +358,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Add `SET Combat Blade (L)` to search and hunting setups with ammo-consuming melee costs; preserve its verified cost/TT data and uniqueness through both seed import paths.
 
 - Add read-only `doctor` setup checks, redacted text/JSON diagnostics, and optional explicit log-file readability checks without reading chat contents.
 - Correct Windows source setup instructions for Python >=3.11 and add safe diagnostic-sharing guidance.

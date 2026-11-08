@@ -58,6 +58,17 @@ FRONTIER_COMBAT_KNIFE_ADJUSTED = {
     "max_tt": 2.0,
     "min_tt": 2e-05,
 }
+# Nexus decay is 0.001 PEC/use; catalog decay is PED, ammo is raw units.
+SET_COMBAT_BLADE = {
+    "name": "SET Combat Blade (L)",
+    "category": "Melee",
+    "ammo": 65,
+    "decay": 0.00001,
+    "aliases": [],
+    "source_name": "Entropia Nexus supplemental seed",
+    "max_tt": 0.1,
+    "min_tt": 0.0,
+}
 ZX_SINKADUS_TT = {"max_tt": 0.5, "min_tt": 0.001}
 
 MINING_FINDERS = [
@@ -320,6 +331,9 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
 
     weapon_items = []
     for name, item in weapons.items():
+        # Keep one verified entry if the legacy feed later acquires this blade.
+        if name.strip().casefold() == SET_COMBAT_BLADE["name"].casefold():
+            continue
         weapon_items.append(
             {
                 "name": name,
@@ -336,6 +350,7 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
             FRONTIER_COMBAT_KNIFE_ADJUSTED.copy(),
             FRONTIER_HUNTING_RIFLE.copy(),
             FRONTIER_HUNTING_RIFLE_ADJUSTED.copy(),
+            SET_COMBAT_BLADE.copy(),
         ]
     )
     weapon_items.extend(item.copy() for item in MINING_FINDERS)

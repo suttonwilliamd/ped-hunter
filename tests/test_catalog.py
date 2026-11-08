@@ -182,3 +182,61 @@ def test_cli_no_args_launches_gui_by_default(monkeypatch):
 
     assert cli.main([]) == 0
     assert launched
+
+
+def test_set_combat_blade_is_unique_searchable_and_uses_ped_costs():
+    import json
+    from pathlib import Path
+
+    catalog = Catalog.load()
+    blade = catalog.find_weapon("set combat blade")
+    assert blade is not None
+    assert blade.name == "SET Combat Blade (L)"
+    assert blade.category == "Melee"
+    assert blade.ammo == 65
+    assert blade.decay == pytest.approx(0.00001)  # 0.001 PEC, not 0.001 PED.
+    assert blade.cost_per_shot == pytest.approx(0.00651)
+    assert (blade.min_tt, blade.max_tt) == (0.0, 0.1)
+    path = Path(__file__).resolve().parents[1] / "data/catalog/weapons.json"
+    records = json.loads(path.read_text(encoding="utf-8"))["items"]
+    assert len([r for r in records if r["name"].strip().casefold() == blade.name.casefold()]) == 1
+
+
+@pytest.mark.parametrize("importer", ["cli", "legacy_sync"])
+@pytest.mark.parametrize("legacy_name", [None, "SET Combat Blade (L)", " set combat blade (l) "])
+def test_regenerating_catalog_keeps_one_correct_set_blade(tmp_path, monkeypatch, importer, legacy_name):
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    payloads = {name: {"data": {}} for name in (
+        "weapons.json", "attachments.json", "scopes.json", "sights.json",
+        "resources.json", "crafting.json",
+    )}
+    payloads["weapons.json"]["data"]["Other melee"] = {"type": "Melee", "ammo": 100, "decay": 0.02}
+    if legacy_name is not None:
+        # A newly added or mispriced legacy entry must not duplicate/override
+        # the verified ammo-consuming supplemental blade.
+        payloads["weapons.json"]["data"][legacy_name] = {"type": "Melee", "ammo": 0, "decay": 0.001}
+    if importer == "cli":
+        monkeypatch.setattr(cli, "__file__", str(tmp_path / "src/ped_hunter/cli.py"))
+        monkeypatch.setattr(cli, "_download_json", lambda name: payloads[name])
+        assert cli._seed_data(force=True) == 0
+    else:
+        path = Path(__file__).resolve().parents[1] / "tools/sync_legacy_data.py"
+        spec = importlib.util.spec_from_file_location("set_blade_sync", path)
+        sync = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sync)
+        monkeypatch.setattr(sync, "__file__", str(tmp_path / "tools/sync_legacy_data.py"))
+        monkeypatch.setattr(sync, "download", lambda name: payloads[name])
+        assert sync.main() == 0
+    root = tmp_path / "data/catalog"
+    records = json.loads((root / "weapons.json").read_text(encoding="utf-8"))["items"]
+    matches = [r for r in records if r["name"].strip().casefold() == "set combat blade (l)"]
+    assert len(matches) == 1
+    catalog = Catalog.load(root)
+    blade = catalog.find_weapon("SET Combat Blade")
+    assert blade.name == "SET Combat Blade (L)"
+    assert (blade.ammo, blade.decay, blade.min_tt, blade.max_tt) == (65, 0.00001, 0.0, 0.1)
+    assert blade.cost_per_shot == pytest.approx(0.00651)
+    assert catalog.find_weapon("Other melee").cost_per_shot == pytest.approx(0.03)

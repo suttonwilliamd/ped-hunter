@@ -20999,6 +20999,16 @@
     },
     {
       "aliases": [],
+      "ammo": 65,
+      "category": "Melee",
+      "decay": 1e-05,
+      "max_tt": 0.1,
+      "min_tt": 0.0,
+      "name": "SET Combat Blade (L)",
+      "source_name": "Entropia Nexus supplemental seed"
+    },
+    {
+      "aliases": [],
       "ammo": 7,
       "category": "Pistol",
       "decay": 0.001,

@@ -62,6 +62,17 @@ SET_P2_SCOUT_SIDEARM = {
     "max_tt": 0.2,
     "min_tt": 0.0,
 }
+# Nexus decay is 0.001 PEC/use; catalog decay is PED, ammo is raw units.
+SET_COMBAT_BLADE = {
+    "name": "SET Combat Blade (L)",
+    "category": "Melee",
+    "ammo": 65,
+    "decay": 0.00001,
+    "aliases": [],
+    "source_name": "Entropia Nexus supplemental seed",
+    "max_tt": 0.1,
+    "min_tt": 0.0,
+}
 
 # Entropia Nexus lists these as Tools → Finders. PED Hunter reuses its
 # per-use cost model: probe burn plus finder decay.
@@ -94,6 +105,9 @@ def main() -> int:
 
     weapons = []
     for name, item in payloads["weapons.json"]["data"].items():
+        # Keep one verified entry if the legacy feed later acquires this blade.
+        if name.strip().casefold() == SET_COMBAT_BLADE["name"].casefold():
+            continue
         weapons.append({
             "name": name,
             "category": item["type"],
@@ -112,6 +126,7 @@ def main() -> int:
         FRONTIER_HUNTING_RIFLE_ADJUSTED.copy(),
         SET_P1_CIVILIAN_SIDEARM_ADJUSTED.copy(),
         SET_P2_SCOUT_SIDEARM.copy(),
+        SET_COMBAT_BLADE.copy(),
     ])
     weapons.extend(item.copy() for item in MINING_FINDERS)
 
