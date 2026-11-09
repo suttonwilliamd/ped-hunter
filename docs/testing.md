@@ -90,6 +90,14 @@ ingestion, persistence/lifecycle and desktop UI. Large-session wall-clock and
 heartbeat measurements require isolated real-data reproduction as well; a
 small controlled regression is not a performance claim for a user's database.
 
+`test_setup_slots` crosses the saved-order migration, exact ID permutations and
+restart persistence, pinned New setup/drag cancellation, real native slot
+states and font bounds, unsaved choices, and normal-file uses on both sides of
+a HUD activation. It overlaps catalog/loadouts, persistence, ingestion,
+chart/accounting and desktop UI. Reordering must conserve every original field
+and all historical rows; activation may change only subsequent cost context.
+Native captures must distinguish actual Windows DPI from simulated HUD scale.
+
 
 For setup or Help layout changes, run controller/data checks **and** authorized
 native layout checks. A headless controller/SQLite pass cannot prove that a

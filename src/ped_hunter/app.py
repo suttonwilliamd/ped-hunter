@@ -47,6 +47,7 @@ STREAMER_MIN_WIDTH = 260
 STREAMER_MIN_HEIGHT = 240
 STREAMER_EDGE_MARGIN = 16
 KILL_CLUSTER_WINDOW_SECONDS = 0.75
+HUD_SETUP_COLORS = ("#5EEAD4", "#93C5FD", "#FCD34D", "#D8B4FE")
 
 
 @dataclass(slots=True)
@@ -586,7 +587,7 @@ class PedHunterApp(tk.Tk):
         tab.columnconfigure(1, weight=1)
         tab.rowconfigure(0, weight=1)
 
-        list_panel = self._panel(tab, "Saved setups", 0, 0)
+        list_panel = self._panel(tab, "Saved setups · drag to reorder · ✓ active", 0, 0)
         # The comparison table may scroll horizontally; it must not force the
         # editor narrower than its fields just to satisfy every column's width.
         list_panel.configure(width=round(250 * self.display_scale))
@@ -594,12 +595,18 @@ class PedHunterApp(tk.Tk):
         self.loadouts_tree = self._tree(
             list_panel,
             columns=("active", "name", "weapon", "amp", "enh", "cost"),
-            headings=("Active", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
+            headings=("HUD", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
         )
         self.loadouts_tree.column("active", width=round(38 * self.display_scale), minwidth=30, stretch=False)
         xscroll = ttk.Scrollbar(list_panel, orient="horizontal", command=self.loadouts_tree.xview)
         self.loadouts_tree.configure(xscrollcommand=xscroll.set)
         xscroll.grid(row=1, column=0, sticky="ew")
+        self._loadout_drag = None
+        for index, color in enumerate(HUD_SETUP_COLORS):
+            self.loadouts_tree.tag_configure(f"hud_slot_{index}", foreground=color)
+        self.loadouts_tree.bind("<ButtonPress-1>", self._loadout_drag_start)
+        self.loadouts_tree.bind("<B1-Motion>", self._loadout_drag_motion)
+        self.loadouts_tree.bind("<Escape>", self._cancel_loadout_drag)
         self.loadouts_tree.bind("<<TreeviewSelect>>", lambda _event: self._load_selected_loadout())
         self.loadouts_tree.bind("<ButtonRelease-1>", self._loadout_row_clicked)
         self.loadouts_tree.bind("<Return>", lambda _event: self._load_selected_loadout(explicit=True))
@@ -951,10 +958,65 @@ class PedHunterApp(tk.Tk):
         )
         return self._save_loadout(make_active=False) if answer else answer is not None
 
-    def _loadout_row_clicked(self, event: tk.Event) -> None:
+    def _loadout_drag_start(self, event: tk.Event) -> str | None:
         row = self.loadouts_tree.identify_row(event.y)
-        if row and self.loadouts_tree.selection() == (row,):
-            self._load_selected_loadout(explicit=True)
+        self._loadout_drag = None
+        if not row:
+            return None
+        # Defer the class selection binding until release. A drag must neither
+        # activate equipment nor discard the form/draft underneath it.
+        self.loadouts_tree.focus_set()
+        self._loadout_drag = {"row": row, "y": event.y, "dragged": False}
+        return "break"
+
+    def _loadout_drag_motion(self, event: tk.Event) -> str | None:
+        state = self._loadout_drag
+        if not state:
+            return None
+        if state.get("cancelled"):
+            return "break"
+        if state["row"] == "new":
+            if abs(event.y - state["y"]) >= 5:
+                state["cancelled"] = True
+            return "break"
+        if not state["dragged"] and abs(event.y - state["y"]) < 5:
+            return "break"
+        state["dragged"] = True
+        tree = self.loadouts_tree
+        if event.y < 20:
+            tree.yview_scroll(-1, "units")
+        elif event.y > tree.winfo_height() - 20:
+            tree.yview_scroll(1, "units")
+        target = tree.identify_row(event.y)
+        index = max(1, tree.index(target)) if target else len(tree.get_children()) - 1
+        tree.move(state["row"], "", index)
+        return "break"
+
+    def _cancel_loadout_drag(self, _event=None) -> str | None:
+        if not self._loadout_drag:
+            return None
+        # Keep suppression until release; Escape must not become a row click.
+        self._loadout_drag["cancelled"] = True
+        self._refresh_loadouts()
+        return "break"
+
+    def _loadout_row_clicked(self, event: tk.Event) -> str | None:
+        state = self.__dict__.get("_loadout_drag")
+        self._loadout_drag = None
+        if state is None:
+            return None
+        if state.get("cancelled"):
+            return "break"
+        if state["dragged"]:
+            try:
+                self.store.reorder_loadouts([int(row) for row in self.loadouts_tree.get_children() if row != "new"])
+            except ValueError as exc:
+                self.status_text.set(str(exc))
+            self._refresh_loadouts()
+            return "break"
+        self.loadouts_tree.selection_set(state["row"])
+        self._load_selected_loadout(explicit=True)
+        return "break"
 
     def _save_loadout(self, *, make_active: bool) -> bool:
         try:
@@ -987,6 +1049,8 @@ class PedHunterApp(tk.Tk):
 
 
     def _load_selected_loadout(self, *, explicit: bool = False) -> None:
+        if self.__dict__.get("_loadout_drag") is not None and not explicit:
+            return
         selection = self.loadouts_tree.selection()
         if not selection:
             return
@@ -1009,15 +1073,34 @@ class PedHunterApp(tk.Tk):
         if row == "new":
             self._new_loadout_draft()
         else:
-            loadout = self.store.get_loadout(int(row))
-            if loadout is None:
-                return
-            self._populate_loadout_form(loadout)
-            self.store.set_active_loadout(loadout.id)
-            if self.running and self.session_id:
-                synced_loadout = with_repair_estimates(self.catalog, loadout)
-                self.store.update_session_loadout(self.session_id, synced_loadout)
+            self._activate_saved_loadout(int(row), confirm=False)
+            return
         self._refresh_loadouts()
+
+    def _activate_saved_loadout(self, loadout_id: int, *, confirm: bool = True) -> bool:
+        """Shared list/HUD switch: only subsequent events use the new equipment."""
+        if self.__dict__.get("_resume_pending") is not None:
+            self.status_text.set("Restoring session; choose a setup when restoration finishes.")
+            return False
+        if confirm and not self._confirm_loadout_change():
+            return False
+        # Saving from the discard prompt may update this very target.
+        loadout = self.store.get_loadout(loadout_id)
+        if loadout is None:
+            return False
+        self._populate_loadout_form(loadout)
+        if not loadout.active:
+            self.store.set_active_loadout(loadout.id)
+        if self.running and self.session_id:
+            self.store.update_session_loadout(self.session_id, with_repair_estimates(self.catalog, loadout))
+        self.status_text.set(f"Active setup: {loadout.name}")
+        self._refresh_loadouts()
+        streamer = self.__dict__.get("streamer_window")
+        if self.running and self.session_id:
+            self._refresh_live_views()
+        elif streamer and streamer.winfo_exists():
+            streamer.update_from_session(None)
+        return True
 
 
     def _populate_loadout_form(self, loadout: LoadoutRecord) -> None:
@@ -1053,14 +1136,15 @@ class PedHunterApp(tk.Tk):
             self.active_loadout_title.set("No active setup")
             self.active_loadout_details.set("Activate a hunting setup before starting. This replaces the old hunt/craft/mine dropdown.")
             self.active_loadout_text.set("No active setup — configure one before tracking for accurate costs")
-        for index, loadout in enumerate(self.store.list_loadouts()):
+        loadouts = self.store.list_loadouts()
+        for index, loadout in enumerate(loadouts):
             self.loadouts_tree.insert(
                 "",
                 "end",
                 iid=str(loadout.id),
-                tags=("even" if index % 2 == 0 else "odd",),
+                tags=(f"hud_slot_{index}" if index < 4 else "even" if index % 2 == 0 else "odd",),
                 values=(
-                    "✓" if loadout.active else "",
+                    ("✓ " if loadout.active else "") + (str(index + 1) if index < 4 else ""),
                     loadout.name,
                     loadout.weapon,
                     loadout.amp or "—",
@@ -1069,6 +1153,9 @@ class PedHunterApp(tk.Tk):
                 ),
             )
         self._select_loadout_row()
+        streamer = self.__dict__.get("streamer_window")
+        if streamer and streamer.winfo_exists():
+            streamer.refresh_setup_slots(loadouts)
 
     def _browse_log(self) -> None:
         path = filedialog.askopenfilename(
@@ -1281,6 +1368,8 @@ class PedHunterApp(tk.Tk):
     def _restore_default_context(self) -> None:
         if has_resume_handoff(self.store.db_path):
             return  # Preserve the captured active cost setup until validated Resume.
+        if self.store.get_active_loadout() is not None:
+            return  # Preserve an explicit next-hunt choice; Resume restores its own snapshot.
         preferred = self._preferred_session()
         if not preferred:
             return
@@ -2205,15 +2294,39 @@ class StreamerWindow(tk.Toplevel):
         self.hero.pack(fill="x", pady=(4, 4))
         self.hero.grid_propagate(False)
         self.hero.columnconfigure(0, weight=3, uniform="hero")
-        self.hero.columnconfigure(1, weight=2, uniform="hero")
+        self.hero.columnconfigure(2, weight=2, uniform="hero")
+        self.setup_slot_frame = tk.Frame(self.hero, bg=bg)
+        self.setup_slot_frame.grid(row=0, column=1, rowspan=2, sticky="nsew")
+        self.setup_slot_frame.grid_propagate(False)
+        self.setup_buttons = []
+        self._setup_slot_ids = [None] * 4
+        self._setup_slot_labels = [""] * 4
+        self._setup_slot_text_width = round(52 * self._content_scale)
+        for index, color in enumerate(HUD_SETUP_COLORS):
+            self.setup_slot_frame.columnconfigure(index % 2, weight=1, uniform="setup")
+            self.setup_slot_frame.rowconfigure(index // 2, weight=1, uniform="setup")
+            button = tk.Button(
+                self.setup_slot_frame, width=1, anchor="w", font=self._font(9, True),
+                bg=surface, fg=color, activebackground="#334155", activeforeground=color,
+                disabledforeground="#69788C", bd=0, highlightthickness=1,
+                highlightbackground="#334155", highlightcolor=color, padx=2, pady=0,
+                takefocus=True, cursor="hand2", command=lambda index=index: self._activate_setup_slot(index))
+            button.grid(row=index // 2, column=index % 2, sticky="nsew", padx=1, pady=1)
+            button.bind("<Return>", lambda _event, button=button: (button.invoke(), "break")[1])
+            for event in ("<Enter>", "<FocusIn>"):
+                button.bind(event, lambda _event, index=index: self._show_setup_slot(index))
+            for event in ("<Leave>", "<FocusOut>"):
+                button.bind(event, self._hide_loadout)
+            self.setup_buttons.append(button)
+        self.refresh_setup_slots(self.app.store.list_loadouts())
         self.net_caption = label(self.hero, text="NET PROFIT", bold=True, width=1, anchor="w")
         self.net_label = fixed_text(self.hero, "net_big", size=24, bold=True, fg=primary)
         self.return_caption = label(self.hero, text="RETURN", bold=True, width=1, anchor="e")
         self.return_label = fixed_text(self.hero, "return", size=16, bold=True, fg=primary, anchor="e")
         self.net_caption.grid(row=0, column=0, sticky="nsew")
         self.net_label.grid(row=1, column=0, sticky="nsew")
-        self.return_caption.grid(row=0, column=1, sticky="nsew")
-        self.return_label.grid(row=1, column=1, sticky="nsew")
+        self.return_caption.grid(row=0, column=2, sticky="nsew")
+        self.return_label.grid(row=1, column=2, sticky="nsew")
 
         self.stats = tk.Frame(self.outer, bg=surface, padx=6, pady=3)
         self.stats.pack(fill="x")
@@ -2313,6 +2426,50 @@ class StreamerWindow(tk.Toplevel):
         self.bind("<Configure>", self._on_overlay_configure, add="+")
         self.outer.bind("<Configure>", self._on_overlay_configure, add="+")
 
+    def refresh_setup_slots(self, loadouts: list[LoadoutRecord]) -> None:
+        """The first four persisted saved entries, not the active-first order."""
+        self._setup_active_name = next((loadout.name for loadout in loadouts if loadout.active), None)
+        for index, button in enumerate(self.setup_buttons):
+            loadout = loadouts[index] if index < len(loadouts) else None
+            self._setup_slot_ids[index] = loadout.id if loadout else None
+            self._setup_slot_labels[index] = (
+                f"{index + 1} {'✓ ' if loadout.active else ''}{loadout.name}" if loadout else f"{index + 1} Empty")
+            button.configure(state="normal" if loadout else "disabled",
+                             bg="#253C42" if loadout and loadout.active else "#131E2E",
+                             highlightbackground=HUD_SETUP_COLORS[index] if loadout and loadout.active else "#334155",
+                             cursor="hand2" if loadout else "")
+        self._fit_setup_labels()
+
+    def _fit_setup_labels(self) -> None:
+        font = self._font(9, True)
+        for button, full in zip(self.setup_buttons, self._setup_slot_labels):
+            text = full
+            while len(text) > 3 and font.measure(text) > self._setup_slot_text_width:
+                text = text[:-2].rstrip("…") + "…"
+            button.configure(text=text)
+
+    def _activate_setup_slot(self, index: int) -> None:
+        loadout_id = self._setup_slot_ids[index]
+        if loadout_id is not None:
+            active = self.app.store.get_active_loadout()
+            if active is None or active.id != loadout_id:
+                self.app._activate_saved_loadout(loadout_id)
+
+    def _show_setup_slot(self, index: int) -> None:
+        if self._setup_slot_ids[index] is not None:
+            self._show_loadout(text=self._setup_slot_labels[index])
+
+    def _fit_hero_captions(self) -> None:
+        budgets = (self._fixed_widths.get("net_big", 0), self._fixed_widths.get("return", 0))
+        if min(budgets) <= 0 or self.__dict__.get("_caption_fit_key") == budgets:
+            return
+        self._caption_fit_key = budgets
+        # Share stable DPI fonts. A fixed two-line lane accommodates all modes;
+        # first cost/return arrivals must not grow or shrink the typography.
+        self.net_caption.configure(wraplength=budgets[0], justify="left")
+        self.return_caption.configure(wraplength=budgets[1], justify="right")
+
+
     def _font(self, size=9, bold=False):
         import tkinter.font as tkfont
         key = (size, bold)
@@ -2389,6 +2546,7 @@ class StreamerWindow(tk.Toplevel):
         for key in self._fixed_labels:
             self._fit_fixed_text(key)
         self._update_loadout_text()
+        self._fit_hero_captions()
         self._draw_kill_trend_chart()
 
     def _layout_metrics(self, width) -> int:
@@ -2398,8 +2556,14 @@ class StreamerWindow(tk.Toplevel):
         net_height = self._font(24, True).metrics("linespace") + 2
         metric_height = self._font(12, True).metrics("linespace") + 2
         self.header.configure(height=max(caption_height, self._font(12).metrics("linespace") + 4))
-        self.hero.configure(height=caption_height + net_height)
-        self.hero.rowconfigure(0, minsize=caption_height, weight=0)
+        slot_width = min(round(138 * scale), width * 2 // 5)
+        self.hero.columnconfigure(1, minsize=slot_width + 2 * round(3 * scale), weight=0)
+        self.setup_slot_frame.grid_configure(padx=round(3 * scale))
+        self._setup_slot_text_width = max(12, slot_width // 2 - round(6 * scale))
+        self._fit_setup_labels()
+        hero_caption_height = 2 * self._font(9, True).metrics("linespace") + 6
+        self.hero.configure(height=hero_caption_height + net_height)
+        self.hero.rowconfigure(0, minsize=hero_caption_height, weight=0)
         self.hero.rowconfigure(1, minsize=net_height, weight=1)
         self.stats.configure(height=caption_height + metric_height + 2 * round(3 * scale))
         for cell in self.stat_cells:
@@ -2418,7 +2582,8 @@ class StreamerWindow(tk.Toplevel):
         for font, pixels in self._fixed_fonts.values():
             font.configure(size=-max(6, round(pixels * scale)))
         self._fixed_widths = {key: width - 4 for key in self._fixed_labels}
-        self._fixed_widths.update(net_big=width * 3 // 5 - 4, **{"return": width * 2 // 5 - 4},
+        metric_width = max(10, width - slot_width - 2 * round(3 * scale))
+        self._fixed_widths.update(net_big=metric_width * 3 // 5 - 4, **{"return": metric_width * 2 // 5 - 4},
                                  damage=round(72 * scale) - 4)
         for key in ("loot", "cost", "kills"):
             self._fixed_widths[key] = (width - 2 * round(6 * scale)) // 3 - round(4 * scale) - 4
@@ -2444,12 +2609,12 @@ class StreamerWindow(tk.Toplevel):
         if self.loadout_label.cget("text") != visible:
             self.loadout_label.configure(text=visible)
 
-    def _show_loadout(self, _event=None) -> None:
+    def _show_loadout(self, _event=None, *, text: str | None = None) -> None:
         self._hide_loadout()
         tip = self._loadout_tip = tk.Toplevel(self)
         tip.overrideredirect(True)
         tip.attributes("-topmost", True)
-        tk.Label(tip, text=getattr(self, "_footer_detail", self.vars["loadout"].get()), font=self._font(), wraplength=self.content_width,
+        tk.Label(tip, text=text if text is not None else getattr(self, "_footer_detail", self.vars["loadout"].get()), font=self._font(), wraplength=self.content_width,
                  bg="#131E2E", fg="#F1F5F9", padx=8, pady=5).pack()
         tip.update_idletasks()
         tip.geometry(f"+{self.winfo_x()}+{max(0, self.winfo_y() - tip.winfo_reqheight())}")
@@ -2576,6 +2741,7 @@ class StreamerWindow(tk.Toplevel):
             self.animator.cancel("return")
             self.vars["return"].set("—")
             self.return_caption.configure(text="RETURN · UNKNOWN" if incomplete_cost else "RETURN · NO COST YET" if session else "RETURN")
+        self._fit_hero_captions()
         self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
         if has_crafting:
             if plan:
@@ -2596,7 +2762,8 @@ class StreamerWindow(tk.Toplevel):
                 self.input_slot.pack_forget()
                 self._schedule_fit_to_contents()
         self.vars["damage"].set(f"Dmg {float(metrics['damage']):.1f}")
-        self.vars["loadout"].set(str(metrics["loadout"]))
+        displayed_loadout = str(metrics["loadout"]) if session else (self._setup_active_name or str(metrics["loadout"]))
+        self.vars["loadout"].set(displayed_loadout)
         durability = repair_durability_status(session)
         self.durability_pct = durability["percent"]
         self.durability_known = durability["label"] != "Durability"
@@ -2606,7 +2773,7 @@ class StreamerWindow(tk.Toplevel):
         durability_text = str(durability["streamer_text"])
         if self.durability_known and self.durability_pct <= 0:
             durability_text += " · EMPTY"
-        self._footer_detail = str(metrics["loadout"])
+        self._footer_detail = displayed_loadout
         if plan:
             self._footer_detail = (f"{plan.blueprint}\n{plan.attempts} planned at {plan.per_attempt if plan.per_attempt is not None else 'unknown'} PED/attempt; "
                                    f"{plan.booked_cost:.2f} PED booked once in session cost (TT only, no markup).\n"
@@ -2941,7 +3108,8 @@ class StreamerWindow(tk.Toplevel):
             self.resize_edges[edge] = target
 
     def _start_drag(self, event) -> None:
-        if getattr(event, "widget", None) in (self.close_button, self.resize_handle, *self.resize_edges.values()):
+        if getattr(event, "widget", None) in (self.close_button, self.resize_handle,
+                                            *self.resize_edges.values(), *getattr(self, "setup_buttons", ())):
             return
         self._drag_origin = (event.x_root - self.winfo_x(), event.y_root - self.winfo_y()) if hasattr(event, "widget") else (event.x, event.y)
 

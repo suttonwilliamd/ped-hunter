@@ -64,6 +64,32 @@ flattening it at the smaller minimum; all events remain available by scrolling.
 Chart text uses native-DPI font measurements for axis padding and a separate
 caption lane so values, event numbers and descriptions do not cover each other.
 
+#### HUD setup shortcuts — 0.3.45
+
+The streamer header has four compact saved-setup buttons in a **2×2 grid**.
+The first four saved entries below **New setup** fill slots 1–4, with matching
+list/button colors. A check mark and highlighted button identify the active
+setup; an active setup outside the first four remains active without occupying
+a shortcut. Missing slots are explicitly Empty and disabled.
+
+Drag saved rows to change their order; New setup is pinned and cannot be dragged
+into the saved order. Escape cancels an unfinished drag. Order survives restarts,
+activation and renaming; new saved setups append. The first upgrade seeds order
+from the previously displayed list without changing equipment fields or active
+choice. Reordering does not activate a row or discard an unsaved draft.
+An existing active choice also survives startup without a timestamp rewrite.
+Explicit Resume still restores that recorded session's equipment snapshot;
+opening the app alone does not replace a setup chosen for the next hunt.
+
+Click a shortcut, or focus it with Tab and use Space/Enter, to activate that
+saved setup for **subsequent** tracked uses. Long names elide to fit; hover or
+keyboard focus shows the full name. Switching honors the existing unsaved-edit
+Save/Discard/Cancel choice; clicking the already-active shortcut leaves a draft
+untouched. Equipment switching is unavailable while session restoration is still
+being prepared. No shortcut rewrites previous event prices, booked totals or
+observed fan data. Costs still assume the selected setup; the buttons do not
+detect which weapon the game actually uses.
+
 ## Responsive session Resume — 0.3.43
 
 Resume prepares recorded summaries, skills and the historical streamer trend

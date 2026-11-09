@@ -228,6 +228,13 @@ class Store:
             sessions_repair_added = self._ensure_column(conn, "sessions", "repair_shots", "INTEGER NOT NULL DEFAULT 0") or sessions_repair_added
             sessions_repair_added = self._ensure_column(conn, "sessions", "repair_decay", "REAL NOT NULL DEFAULT 0.0") or sessions_repair_added
             self._ensure_column(conn, "loadouts", "repair_shots", "INTEGER NOT NULL DEFAULT 0")
+            conn.execute("BEGIN IMMEDIATE")
+            if self._ensure_column(conn, "loadouts", "sort_order", "INTEGER"):
+                # Seed once from the existing visible order, without changing
+                # equipment fields, timestamps, active choice or session data.
+                rows = conn.execute("SELECT id FROM loadouts ORDER BY active DESC, updated_at DESC, name, id").fetchall()
+                conn.executemany("UPDATE loadouts SET sort_order = ? WHERE id = ?",
+                                 ((index, row["id"]) for index, row in enumerate(rows)))
             conn.commit()
         if sessions_repair_added:
             self._backfill_session_repair_summary()
@@ -780,8 +787,9 @@ class Store:
                     INSERT INTO loadouts (
                         name, weapon, amp, scope, sight_1, sight_2,
                         damage_enhancers, accuracy_enhancers, economy_enhancers,
-                        ammo_burn, decay, cost_per_shot, active, repair_shots, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ammo_burn, decay, cost_per_shot, active, repair_shots, created_at, updated_at, sort_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                              (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM loadouts))
                     ON CONFLICT(name) DO UPDATE SET
                         weapon=excluded.weapon,
                         amp=excluded.amp,
@@ -840,8 +848,20 @@ class Store:
 
     def list_loadouts(self) -> list[LoadoutRecord]:
         with self.connect() as conn:
-            rows = conn.execute("SELECT * FROM loadouts ORDER BY active DESC, updated_at DESC, name").fetchall()
+            rows = conn.execute("SELECT * FROM loadouts ORDER BY sort_order, id").fetchall()
         return [_loadout_from_row(row) for row in rows]
+
+    def reorder_loadouts(self, loadout_ids: list[int]) -> None:
+        """Persist an exact saved-ID permutation; never activate or save equipment."""
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            actual = {int(row["id"]) for row in conn.execute("SELECT id FROM loadouts")}
+            if (any(type(item) is not int for item in loadout_ids)
+                    or len(loadout_ids) != len(actual) or set(loadout_ids) != actual):
+                raise ValueError("Saved setups changed; refresh the list before reordering.")
+            conn.executemany("UPDATE loadouts SET sort_order = ? WHERE id = ?",
+                             ((index, item) for index, item in enumerate(loadout_ids)))
+            conn.commit()
 
     def get_loadout(self, loadout_id: int) -> LoadoutRecord | None:
         with self.connect() as conn:

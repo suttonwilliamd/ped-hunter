@@ -78,6 +78,7 @@ def editor(tmp_path, monkeypatch):
     # Rendering/querying unrelated tabs requires Tk. The controller's actual
     # saved-list refresh still executes, including stable identities/selection.
     app._refresh_all = app._refresh_loadouts
+    app._refresh_live_views = lambda: None  # Native tests cover session/header rendering.
     app._new_loadout_draft()
     app._refresh_loadouts()
     errors = []
