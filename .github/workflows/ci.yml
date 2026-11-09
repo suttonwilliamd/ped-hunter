@@ -131,4 +131,5 @@ jobs:
       - name: Record tested commit
         run: git rev-parse HEAD
       - name: Run complete test suite
-        run: xvfb-run --auto-servernum python -m pytest -ra
+        # Keep every test; identify a blocked native case and its own thread stack.
+        run: xvfb-run --auto-servernum python -m pytest -ra -vv -o faulthandler_timeout=60
