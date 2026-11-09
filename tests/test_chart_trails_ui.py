@@ -267,8 +267,6 @@ def test_vertical_local_sections_preserve_useful_ordinary_variation_and_event_or
         assert left < centers[index][0] < right
         assert bottom - top > 2 * (right - left)  # Vertical event column, not a horizontal band.
         sections[index] = left, right
-        labels = [canvas.itemcget(item, 'text') for item in items if canvas.type(item) == 'text']
-        assert any(str(outliers[index]) in label and 'PED' in label for label in labels)
         assert centers[index][1] == pytest.approx(projection['y_for'](index, outliers[index]))
     for item in canvas.find_withtag('series'):
         xs = canvas.coords(item)[::2]
@@ -282,6 +280,43 @@ def test_vertical_local_sections_preserve_useful_ordinary_variation_and_event_or
                                for item in canvas.find_withtag(f"trail:{data[affected]['event_id']}"))
     assert (data, histories) == before
     assert len(canvas.find_all()) < 450
+
+
+@pytest.mark.parametrize('extreme,fan_only', [
+    (1.11, False), (600, False), (-1.11, False), (-600, False),
+    (600, True), (-1.11, True),
+])
+def test_local_value_labels_identify_signed_observations_and_fit_own_adjacent_sections(hud, extreme, fan_only):
+    _, overlay, _ = hud
+    data = [dict(chart_point(i + 1, i + 1, 0.05, 0.04), avg_cost=0.19) for i in range(16)]
+    histories = {}
+    values = {7: extreme, 8: -600 if extreme > 0 else 600, 9: 2.25}
+    for index, value in values.items():
+        if not fan_only:
+            data[index]['loot'] = value
+        histories[index + 1] = ((0.01, 0.19, 0), (0.05, 0.19, value),
+                                (0.05, 0.19, data[index]['loot']))
+    original = deepcopy((data, histories))
+    overlay.kill_trend_points, overlay.kill_trail_histories = data, histories
+    for geometry in ('720x660', '520x480'):
+        overlay.geometry(geometry)
+        overlay.update()
+        overlay._chart_frame(1)
+        canvas = overlay.kill_chart
+        boxes = []
+        for index, value in values.items():
+            items = canvas.find_withtag(f'outlier:{index + 1}')
+            section = next(item for item in items if canvas.type(item) == 'rectangle')
+            label = next(item for item in items
+                         if canvas.type(item) == 'text' and float(canvas.itemcget(item, 'angle')) == 90)
+            assert float(canvas.itemcget(label, 'text')) == pytest.approx(value)
+            left, top, right, bottom = canvas.coords(section)
+            x0, y0, x1, y1 = canvas.bbox(label)
+            assert left <= x0 < x1 <= right
+            assert top <= y0 < y1 <= bottom
+            boxes.append((x0, y0, x1, y1))
+        assert all(first[2] < second[0] for first, second in zip(boxes, boxes[1:]))
+    assert (data, histories) == original
 
 
 def test_local_loss_and_fan_only_extremes_keep_honest_whiskers_after_resize(hud, monkeypatch):

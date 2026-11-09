@@ -2792,7 +2792,8 @@ class StreamerWindow(tk.Toplevel):
                                     outline="#D9A75A", width=1, tags=tags)
             canvas.create_text(base_x(index), pad_top - 3, text="local", anchor="s",
                                fill="#FCD58A", font=local_font, tags=tags)
-            label = f"{axis.low:.6g}–{axis.high:.6g} PED"
+            extreme = max((axis.low, axis.high), key=abs)
+            label = f"{extreme:.6g}"
             canvas.create_text(left + local_font.metrics("linespace") / 2 + 1,
                                pad_top + plot_h / 2, text=label, angle=90,
                                fill="#FCD58A", font=local_font, tags=tags)

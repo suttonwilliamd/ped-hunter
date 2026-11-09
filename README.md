@@ -370,8 +370,10 @@ available; revised per-group costs are explicitly marked as estimates.
 
 A clearly separated event envelope at least **3×** the lower visible cohort gets
 a narrow **vertical local-scale section at its chronological event position**.
-The amber boundary and rotated `low–high PED` label distinguish that event's
-linear scale from the ordinary left axis. The full spike remains visible,
+The amber boundary and `local` heading distinguish that event's linear scale
+from the ordinary left axis. Beside the spike, a value-only label shows the
+largest-magnitude observed value with its sign, including retained fan extrema;
+units remain PED in the chart heading. The full spike remains visible,
 including modest returns such as 1.11 PED among 0.05 PED costs, not just jackpots.
 Multiple or adjacent exceptional events each receive their own section. Selection
 requires three ordinary peers where available (fewer during startup); without a
@@ -523,6 +525,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+
+- Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.
 
 - Keep a permanent New setup entry, reject accidental same-name replacement, preserve plain-save activation and make unsaved Save/Discard/Cancel transitions explicit.
 - Put setup actions outside a scrollable form; scroll all Help controls, reduce default/minimum logical geometry and keep main fonts aligned with native monitor DPI without changing system scaling.
