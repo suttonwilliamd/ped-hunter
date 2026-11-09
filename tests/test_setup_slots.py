@@ -1,7 +1,9 @@
 """Saved-ID ordering and native HUD switches; real SQLite and isolated chat only."""
 import json
+import _tkinter
 import queue
 import tkinter as tk
+import time
 
 import pytest
 
@@ -197,11 +199,31 @@ def test_slots_follow_saved_order_and_disable_missing_entries(native_app, count)
 @pytest.mark.parametrize('scale,width,height', [(1,360,330),(1.25,450,413),(2,720,660),(2,520,480)])
 def test_native_header_buttons_and_metrics_fit_without_overlap(native_app, monkeypatch, scale, width, height):
     app, _ = native_app
-    monkeypatch.setattr(module, 'window_ui_scale', lambda _window: scale)
     ids, hud = open_hud(app, 6)
+    actual_scale = module.window_ui_scale
+    main_scale = app.display_scale
+    # Simulate the HUD changing monitors, not an unrelated main-window DPI
+    # transition beyond the headless display's supported size.
+    monkeypatch.setattr(module, 'window_ui_scale',
+                        lambda window: scale if window is hud else actual_scale(window))
     sid = app.store.start_session('hunt', app.store.get_loadout(ids[0]))
     hud.update_from_session(app.store.get_session(sid))
-    hud.geometry(f'{width}x{height}+100+100'); app.update(); hud._layout_values(); app.update()
+    hud.geometry(f'{width}x{height}+100+100')
+    deadline = time.monotonic() + 3
+    while app.tk.dooneevent(_tkinter.DONT_WAIT):
+        if time.monotonic() >= deadline:
+            pytest.fail(f"Native resize did not settle: main={app.geometry()}, "
+                        f"HUD={hud.geometry()}, scale={hud._content_scale}, "
+                        f"layout={hud._layout_geometry_key}, "
+                        f"pending={app.tk.call('after', 'info')}")
+    assert app.display_scale == main_scale
+    hud.geometry(f'{width}x{height}+100+100')
+    hud._layout_values()
+    deadline = time.monotonic() + 3
+    while app.tk.dooneevent(_tkinter.DONT_WAIT):
+        if time.monotonic() >= deadline:
+            pytest.fail(f"Native layout did not settle: HUD={hud.geometry()}")
+    assert (hud.winfo_width(), hud.winfo_height()) == (width, height)
     boxes = []
     for widget in [*hud.setup_buttons, hud.net_caption, hud.return_caption, hud.net_label, hud.return_label]:
         assert widget.winfo_ismapped()
