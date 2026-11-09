@@ -397,17 +397,30 @@ the raw data together with the current lines, including retained extrema.
 Session totals, recent arrivals, and the cost/average/return series remain
 available; revised per-group costs are explicitly marked as estimates.
 
-A clearly separated event envelope at least **3×** the lower visible cohort gets
-a narrow **vertical local-scale section at its chronological event position**.
-The amber boundary and `local` heading distinguish that event's linear scale
-from the ordinary left axis. Beside the spike, a value-only label shows the
-largest-magnitude observed value with its sign, including retained fan extrema;
-units remain PED in the chart heading. The full spike remains visible,
-including modest returns such as 1.11 PED among 0.05 PED costs, not just jackpots.
-Multiple or adjacent exceptional events each receive their own section. Selection
-requires three ordinary peers where available (fewer during startup); without a
-separated cohort the chart keeps one shared linear scale rather than inventing
-an ordinary population.
+A narrow **vertical local-scale section stays at its chronological event
+position** when its envelope is separated by at least **3×** and lies beyond
+the visible distribution's upper Tukey fence, **Q3 + 1.5×IQR**. Each event has
+one vote: its envelope includes current cost/average/return and retained fan
+extrema, regardless of how many samples it has. Thus a prevalent elevated
+cohort can share the ordinary axis without letting a separate 600-PED jackpot
+flatten it. There is no fixed count of sections that disables the feature.
+
+The amber boundary and `local` heading distinguish the independent linear
+scale. Its value-only label shows the largest-magnitude observation with its
+sign; PED units remain in the chart context. A sparse 1.11-PED return among
+0.05-PED costs still qualifies. Multiple/adjacent exceptional events keep
+their own sections. Three lower peers are required where available; short
+startup windows retain the gap rule until four visible events exist.
+
+Display-only hysteresis follows event IDs as the window advances: previously
+ordinary cohorts must cross the outer **3×IQR** fence to become local, while
+local cohorts remain local down to **1×IQR** and a **2×** gap. New/mixed cohorts
+use the initial fence. This limits small-update chatter without smoothing,
+clipping or rewriting PED values. Distribution tests use normalized magnitudes
+to avoid overflow and remain unit-invariant. Classification is not persisted
+as new event history; reopening starts from the current visible distribution.
+Common retained fan extrema can enlarge the ordinary axis even after current
+endpoints fall: those observations are retained, not erased or fabricated.
 
 Lines, grid lines, fan polygons and animation never bridge a local-scale boundary.
 An event at a boundary shows its retained sample range and up to four endpoint
@@ -554,6 +567,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
 - Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.
 

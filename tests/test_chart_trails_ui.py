@@ -347,6 +347,110 @@ def test_local_loss_and_fan_only_extremes_keep_honest_whiskers_after_resize(hud,
     assert histories == saved
 
 
+@pytest.mark.parametrize('fan_only', [False, True])
+def test_prevalent_cohort_and_jackpot_reproject_fans_without_rewriting_booked_rows(hud, monkeypatch, fan_only):
+    app, overlay, sid = hud
+    event(app, sid, 'combat', shot_cost=.05)
+    event(app, sid, 'loot', value=.04, item_name='Shrapnel')
+    with app.store.connect() as conn:
+        raw_before = [tuple(row) for row in conn.execute('SELECT * FROM events ORDER BY id')]
+    totals_before = app.store.get_session(sid)
+    projection = projection_spy(monkeypatch, overlay)
+    data = [dict(chart_point(i + 1, i + 1, .05, .04), avg_cost=.19) for i in range(16)]
+    histories = {}
+    for index, point in enumerate(data):
+        elevated = 1 + .03 * (index - 5) if index >= 5 else .04
+        if not fan_only:
+            point.update(loot=elevated, profit=elevated - .05)
+        histories[point['event_id']] = ((.01, .19, 0), (.05, .19, elevated),
+                                        (.05, .19, point['loot']))
+    overlay.kill_trend_points, overlay.kill_trail_histories = data, histories
+    overlay.geometry('720x660')
+    overlay.update()
+    overlay._chart_frame(1)
+    assert not overlay._chart_scales.local_indices
+    assert overlay._chart_scales.ordinary.high == pytest.approx(1.3)
+    assert not overlay.kill_chart.find_withtag('outlier-section')
+    assert_projected_envelopes(overlay, projection)
+    if fan_only:
+        histories[16] = (*histories[16], (.05, .19, 600))
+    else:
+        data[15].update(loot=600, profit=599.95)
+        histories[16] = (*histories[16], (.05, .19, 600))
+    original = deepcopy((data, histories))
+    for geometry in ('720x660', '520x480', '720x660'):
+        overlay.geometry(geometry)
+        overlay.update()
+        overlay._chart_frame(1)
+        assert overlay._chart_scales.local_indices == {15}
+        assert overlay._chart_scales.ordinary.high == pytest.approx(1.27)
+        canvas = overlay.kill_chart
+        markers = ordinary_markers(canvas)
+        assert len(markers) == 16
+        assert all(center(canvas, a)[0] < center(canvas, b)[0] for a, b in zip(markers, markers[1:]))
+        assert_projected_envelopes(overlay, projection)
+        assert not any(canvas.type(item) == 'polygon' for item in canvas.find_withtag('trail:16'))
+        section = next(item for item in canvas.find_withtag('outlier:16') if canvas.type(item) == 'rectangle')
+        left, _, right, _ = canvas.coords(section)
+        for item in canvas.find_withtag('series'):
+            xs = canvas.coords(item)[::2]
+            assert not (min(xs) < left and max(xs) > right)
+        assert canvas.itemcget(markers[-1], 'fill') == ('#FDA4AF' if fan_only else '#86EFAC')
+    assert (data, histories) == original
+    with app.store.connect() as conn:
+        assert [tuple(row) for row in conn.execute('SELECT * FROM events ORDER BY id')] == raw_before
+    assert app.store.get_session(sid) == totals_before
+
+
+def test_live_renderer_keeps_boundary_changes_stable_for_the_same_event(hud):
+    _, overlay, _ = hud
+    data = [dict(chart_point(i + 1, i + 1, .05, .04), avg_cost=.19) for i in range(16)]
+    overlay.kill_trend_points, overlay.kill_trail_histories = data, {}
+    overlay.geometry('720x660')
+    overlay.update()
+    for value in (.58, .56, .58, .55, .57):
+        data[7].update(loot=value, profit=value - .05)
+        overlay._chart_frame(1)
+        assert overlay.kill_chart.find_withtag('outlier:8')
+        assert overlay._chart_scales.events[7].high == value
+    data[7].update(loot=.37, profit=.32)
+    overlay._chart_frame(1)
+    assert not overlay.kill_chart.find_withtag('outlier:8')
+
+
+def test_native_window_reclassifies_entering_and_departing_events_without_stale_columns(hud):
+    _, overlay, _ = hud
+    data = [dict(chart_point(i + 1, i + 1, .05, .04), avg_cost=.19) for i in range(16)]
+    overlay.kill_trail_histories = {}
+    overlay.geometry('720x660')
+    overlay.update()
+    overlay.kill_trend_points = data
+    overlay._chart_frame(1)
+    for event_id in range(17, 28):
+        data = [*data[1:], dict(chart_point(event_id, event_id, .05, 1.11), avg_cost=.19)]
+        overlay.kill_trend_points = data
+        overlay._chart_frame(1)
+        if event_id == 19:
+            assert overlay._chart_scales.local_indices == {13, 14, 15}
+        if event_id >= 21:
+            assert not overlay.kill_chart.find_withtag('outlier-section')
+            assert overlay._chart_scales.ordinary.high == 1.11
+        markers = ordinary_markers(overlay.kill_chart)
+        assert len(markers) == 16
+        assert all(center(overlay.kill_chart, a)[0] < center(overlay.kill_chart, b)[0]
+                   for a, b in zip(markers, markers[1:]))
+    for event_id in range(28, 44):
+        data = [*data[1:], dict(chart_point(event_id, event_id, .05, .04), avg_cost=.19)]
+        overlay.kill_trend_points = data
+        overlay._chart_frame(1)
+        if event_id == 40:
+            assert overlay._chart_scales.local_indices == {0, 1, 2}
+            for point in data[:3]:
+                assert overlay.kill_chart.find_withtag(f"outlier:{point['event_id']}")
+    assert not overlay.kill_chart.find_withtag('outlier-section')
+    assert overlay._chart_scales.ordinary.high == .19
+
+
 
 def test_shared_cost_revisions_follow_existing_fans_through_reload_resize_and_range(hud, monkeypatch):
     app, overlay, sid = hud

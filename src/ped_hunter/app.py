@@ -2806,8 +2806,9 @@ class StreamerWindow(tk.Toplevel):
             "\nAmber vertical sections use their own labeled PED range at that event's x-position. "
             "Ordinary events share the left-hand scale. No lines or fan triangles connect different scales; "
             "fans at those boundaries retain their observed endpoint ranges as whiskers. "
-            "Relative compression, including retained fan extrema, activates sections without hiding an event "
-            "or changing the visible time window, underlying values, or session totals."
+            "Sections require a relative gap and an exceptional visible-event envelope; "
+            "common elevated cohorts share the ordinary axis. Fans count once per event, not per sample. "
+            "Display-only hysteresis reduces boundary chatter; values, event order and totals are unchanged."
         )
         self._footer_detail += (
             "\nHunting receipts have no creature IDs or confirmed kills. Shared costs use a stable recent "
@@ -2886,7 +2887,8 @@ class StreamerWindow(tk.Toplevel):
             )
             return
 
-        scales = plan_chart_scales(display_points, getattr(self, "kill_trail_histories", {}))
+        scales = plan_chart_scales(display_points, getattr(self, "kill_trail_histories", {}),
+                                   previous=getattr(self, "_chart_scales", None))
         self._chart_scales = scales
         axis_font = self._font(8)
         local_font = self._font(5) if scales.local_indices else None
