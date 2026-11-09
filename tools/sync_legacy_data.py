@@ -5,6 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import urllib.request
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from ped_hunter.catalog import merge_weapon_supplements
 
 RAW_BASE = "https://raw.githubusercontent.com/euloggeradmin/LootNanny/main/data/raw/"
 FRONTIER_HUNTING_RIFLE = {
@@ -129,6 +133,7 @@ def main() -> int:
         SET_COMBAT_BLADE.copy(),
     ])
     weapons.extend(item.copy() for item in MINING_FINDERS)
+    weapons = merge_weapon_supplements(weapons)
 
     attachments = []
     for source_name in ["attachments.json", "scopes.json", "sights.json"]:

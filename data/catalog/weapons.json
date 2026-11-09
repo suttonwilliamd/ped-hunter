@@ -2275,6 +2275,20 @@
     },
     {
       "aliases": [],
+      "ammo": 212,
+      "category": "Mining Laser (Low)",
+      "decay": 0.0011,
+      "max_tt": 10,
+      "min_tt": 0,
+      "name": "Basic Mining Laser, Type M (L)",
+      "source_name": "Entropia Nexus community catalog (2026-11-09)",
+      "source_page": "https://entropianexus.com/items/weapons/Basic~Mining~Laser%2C~Type~M~%28L%29",
+      "source_record_file": "weapon_supplements.json",
+      "source_retrieved_at": "2026-11-09T02:29:58.487572+00:00",
+      "source_url": "https://api.entropianexus.com/weapons/3058"
+    },
+    {
+      "aliases": [],
       "ammo": 568,
       "category": "Pistol",
       "decay": 0.0002,

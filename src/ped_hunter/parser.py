@@ -21,6 +21,7 @@ PATTERNS = {
     "damage_taken": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*took\s*({NUMBER})\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
     "critical": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Additional\s*damage!\s*You\s*inflicted\s*({NUMBER})\s*points\s*of\s*damage(?:\s*with\s*costs\s*of\s*{NUMBER}\s*PED)?\.?$"),
     "critical_armor": re.compile(rf"{SYSTEM_PREFIX}\s*Critical\s*hit\s*-\s*Armor\s*penetration!\s*You\s*took\s*({NUMBER})\s*points\s*of\s*damage(?:\s+into\s+\[.+?\])?\.?$"),
+    "outgoing_miss": re.compile(rf"{SYSTEM_PREFIX}\s*You\s+missed\.?$"),
     "miss": re.compile(rf"{SYSTEM_PREFIX}\s*The\s*attack\s*missed\s*you\.?$"),
     "dodge": re.compile(rf"{SYSTEM_PREFIX}\s*.*Dodged.*your\s*attack\.?$"),
     "evade": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*Evaded\s*the\s*attack\.?$"),
@@ -132,6 +133,8 @@ def parse_line(line: str) -> ParsedEvent | None:
 
         if kind == "miss":
             return ParsedEvent(kind="combat", timestamp=timestamp, raw_message=line, payload={"miss": True})
+        if kind == "outgoing_miss":
+            return ParsedEvent(kind="combat", timestamp=timestamp, raw_message=line, payload={"outgoing_miss": True})
         if kind == "dodge":
             return ParsedEvent(kind="combat", timestamp=timestamp, raw_message=line, payload={"dodged": True})
         if kind == "evade":

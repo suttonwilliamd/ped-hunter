@@ -201,3 +201,15 @@ def _merge_aliases(target: dict[str, str], path: Path) -> None:
         return
     for alias, canonical in raw.items():
         target[alias.casefold()] = canonical
+
+
+def merge_weapon_supplements(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep verified source snapshots when refreshing the legacy weapon feed."""
+    source = _load_json(_default_catalog_root() / "weapon_supplements.json") or {}
+    supplements = [
+        {key: value for key, value in item.items()
+         if key not in {"source_record", "ammo_source_record"}}
+        for item in source.get("items", [])
+    ]
+    names = {item["name"].strip().casefold() for item in supplements}
+    return [item for item in items if item["name"].strip().casefold() not in names] + supplements

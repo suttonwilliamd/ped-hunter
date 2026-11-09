@@ -214,7 +214,7 @@ class ActivityTrendBuilder:
                 self._begin_craft(event_id, payload, explicit=True)
                 self._touch_group(event_id, when)
             elif kind == 'combat':
-                outgoing = ('damage' in payload or bool(payload.get('dodged')) or payload.get('shot_cost') is not None or payload.get('ammo_cost') is not None)
+                outgoing = ('damage' in payload or bool(payload.get('dodged') or payload.get('outgoing_miss')) or payload.get('shot_cost') is not None or payload.get('ammo_cost') is not None)
                 if not outgoing:
                     continue
                 if self.crafting:

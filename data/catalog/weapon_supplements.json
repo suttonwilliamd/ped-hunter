@@ -1,0 +1,135 @@
+{
+  "units": {
+    "ammo": "raw units/use",
+    "decay": "PED/use",
+    "source_record.Properties.Economy.Decay": "PEC/use",
+    "ammo_source_record.Properties.Economy.MaxTT": "PED/unit"
+  },
+  "notes": "Community source snapshot, not direct inspection of the user item. Base unmodified selected-equipment cost only. AttachmentType.Name is null; no arbitrary Energy amp compatibility is inferred. No damage-magnitude use inference.",
+  "items": [
+    {
+      "name": "Basic Mining Laser, Type M (L)",
+      "category": "Mining Laser (Low)",
+      "ammo": 212,
+      "decay": 0.0011,
+      "max_tt": 10,
+      "min_tt": 0,
+      "aliases": [],
+      "source_name": "Entropia Nexus community catalog (2026-11-09)",
+      "source_url": "https://api.entropianexus.com/weapons/3058",
+      "source_page": "https://entropianexus.com/items/weapons/Basic~Mining~Laser%2C~Type~M~%28L%29",
+      "source_retrieved_at": "2026-11-09T02:29:58.487572+00:00",
+      "source_record_file": "weapon_supplements.json",
+      "source_record": {
+        "Id": 3058,
+        "ClassId": null,
+        "ItemId": 2003058,
+        "Name": "Basic Mining Laser, Type M (L)",
+        "Properties": {
+          "Description": "The debuff can be applied up to 10 times. Only one debuff can be applied to an asteroid at once.",
+          "Weight": 4.8,
+          "Type": "Mining Laser (Low)",
+          "Category": "Mounted",
+          "Class": "Ranged",
+          "UsesPerMinute": 60,
+          "Range": 150,
+          "ImpactRadius": null,
+          "Mindforce": null,
+          "Economy": {
+            "Efficiency": 70,
+            "MaxTT": 10,
+            "MinTT": 0,
+            "Decay": 0.11,
+            "AmmoBurn": 212
+          },
+          "Damage": {
+            "Stab": 0,
+            "Cut": 0,
+            "Impact": 10,
+            "Penetration": 0,
+            "Shrapnel": 0,
+            "Burn": 0,
+            "Cold": 0,
+            "Acid": 0,
+            "Electric": 0
+          },
+          "Skill": {
+            "Hit": {
+              "LearningIntervalStart": 0,
+              "LearningIntervalEnd": 10
+            },
+            "Dmg": {
+              "LearningIntervalStart": 0,
+              "LearningIntervalEnd": 10
+            },
+            "IsSiB": true
+          },
+          "IsUntradeable": false,
+          "IsRare": false
+        },
+        "Ammo": {
+          "Name": "Weapon Cells",
+          "Links": {
+            "$Url": "/materials/2501"
+          }
+        },
+        "ProfessionHit": {
+          "Name": "Mining Laser (Hit)",
+          "Links": {
+            "$Url": "/professions/94"
+          }
+        },
+        "ProfessionDmg": {
+          "Name": "Mining Laser (Dmg)",
+          "Links": {
+            "$Url": "/professions/93"
+          }
+        },
+        "AttachmentType": {
+          "Name": null,
+          "Links": {
+            "$Url": null
+          }
+        },
+        "EffectsOnEquip": [],
+        "EffectsOnUse": [
+          {
+            "Name": "Protection Decreased",
+            "Values": {
+              "Strength": 0.3,
+              "DurationSeconds": 5,
+              "Unit": "%",
+              "Description": "Reduces the protection of asteroids."
+            },
+            "Links": {
+              "$Url": "/effects/57"
+            }
+          }
+        ],
+        "Tiers": [],
+        "Links": {
+          "$Url": "/weapons/3058"
+        }
+      },
+      "ammo_source_record": {
+        "Id": 2501,
+        "ItemId": 1002501,
+        "ClassId": null,
+        "Name": "Weapon Cells",
+        "Properties": {
+          "Description": null,
+          "Type": "Consumable",
+          "Weight": 0,
+          "Economy": {
+            "MaxTT": 0.0001
+          },
+          "IsUntradeable": false,
+          "IsRare": false
+        },
+        "Links": {
+          "$Url": "/materials/2501"
+        }
+      }
+    }
+  ]
+}

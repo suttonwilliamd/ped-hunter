@@ -64,6 +64,66 @@ flattening it at the smaller minimum; all events remain available by scrolling.
 Chart text uses native-DPI font measurements for axis padding and a separate
 caption lane so values, event numbers and descriptions do not cover each other.
 
+## Basic Mining Laser, Type M (L) — 0.3.42
+
+The exact **Basic Mining Laser, Type M (L)** is searchable and selectable in
+**Setups**, distinct from Type A. Save it as a new setup and activate it for
+future uses; selecting it does not reprice an existing run's recorded history.
+
+| Unmodified per-use component | Community source units | PED |
+|---|---|---:|
+| Weapon Cells | 212 units | 0.02120 |
+| Decay | 0.11 PEC | 0.00110 |
+| Total | 2.23 PEC | 0.02230 |
+
+Source: [Entropia Nexus weapon 3058](https://api.entropianexus.com/weapons/3058)
+([item page](https://entropianexus.com/items/weapons/Basic~Mining~Laser%2C~Type~M~%28L%29)),
+retrieved 2026-11-09. [Weapon Cells](https://api.entropianexus.com/materials/2501)
+lists 0.0001 PED/unit. `data/catalog/weapon_supplements.json` retains the full
+original weapon/ammo records, URLs, retrieval timestamp and unit semantics.
+Both legacy catalog refresh paths merge this verified supplement exactly once,
+even if the upstream feed later adds a differently cased copy.
+
+These are **community catalog values, not inspection of your item**. Mining
+laser attachment/enhancer compatibility is unverified: use None and zero
+enhancers rather than assuming Ranged means an Energy amplifier fits. Markup,
+buffs, fuel, ship wear and other unlogged expenses are not added to this base
+cost. The catalog's maximum TT does not establish your item's current TT.
+
+Observed space-mining logs use ordinary outgoing damage (including critical
+hits), `You missed`, Mining Laser skills/tier notices, and personal
+`You received … x (…) Value: … PED` receipts. One outgoing hit/miss is one
+selected-setup use **regardless of damage magnitude**; incoming damage/misses,
+skill and tier messages are not tool uses. Receipt Value is the total reported
+value, not a unit price to multiply by quantity again. An unknown resource name
+with an explicit Value is still priced from that receipt.
+
+Equipment is not identified on each attack: this remains the **selected-setup
+TT-cost assumption**, not detected equipment or exact asteroid identification.
+Choose the correct setup before tracking. Silent/unlogged activations and
+receipts without a usable explicit value cannot be reconstructed. Exact
+adjacent/poll-boundary repeats are suppressed; identical legitimate same-second
+messages are inherently ambiguous. Recent loot groups/fans remain inferred,
+not predictions.
+
+### Deliberate upgrade continuity
+
+Ordinary Start/Resume still begins at the current EOF. A deliberate upgrade can
+instead stage a **one-use verified source cursor** after the old writer exits.
+It binds the still-current session/cost setup, a unique recent committed raw
+sequence in source order, complete byte/newline boundary, file identity, short
+anchor and the hash of the entire committed source prefix. Benign appends are
+allowed; missing/ambiguous anchors, changed setup, replacement or truncation
+fail closed rather than guessing zero/EOF.
+
+The new app's existing Resume and normal LogTail/parser account for real
+downtime and subsequent lines. No synthetic event or historical cost rewrite
+is needed. A claimed `.resume.json.claimed` receipt is **not completion proof**:
+it remains discoverable and blocks another Resume after an uncertain or
+partially committed handoff. Preserve it for reconciliation; the upgrade
+operator archives it only after real ingestion/history conservation is verified.
+
+
 
 ## Quick start
 

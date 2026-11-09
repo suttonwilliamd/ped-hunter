@@ -72,6 +72,15 @@ bug/feature sequences and required visual checks. A carefully justified direct
 file/node selection is valid focused evidence; do not use `-k` to discard failing
 or required cases. Update the mapping/guide when behavior moves between files.
 
+`test_space_mining` covers the Type M supplement/import paths, PEC/PED units,
+selected-setup attacks/misses, explicit loot values and recorded-history
+conservation. `test_resume_handoff` crosses ingestion and persistence with real
+files, SQLite and the normal Resume worker: unique ordered byte anchors,
+CRLF/UTF-8/partial writes, replacement/truncation, claimed/partial-failure holds,
+large gaps and changing future equipment. `test_space_mining_ui` adds real native
+search/save/activation and Resume/HUD consumers. Keep those dependencies together
+when changing source-cursor or selected-equipment accounting behavior.
+
 For setup or Help layout changes, run controller/data checks **and** authorized
 native layout checks. A headless controller/SQLite pass cannot prove that a
 button is visible, keyboard traversal works on Windows, or a preview child
@@ -98,7 +107,7 @@ On Windows, repeated Tk teardown in one process can be unreliable. When GUI
 execution is authorized, opt in to a fresh pytest process per selected case:
 
 ```powershell
-.\.venv\Scripts\python.exe tools\pytest_groups.py run desktop-ui --isolated -- -ra
+.\.venv\Scripts\python.exe tools\pytest_groups.py run desktop-ui --isolated -- --capture=sys -ra
 ```
 
 `--isolated` preserves the selected cases and reports failed child processes;
@@ -107,6 +116,10 @@ isolation** and grants no permission to interrupt a live hunt. Repeated-interpre
 `tcl_findLibrary`/`tk.tcl` initialization failures must be retained and reported,
 not converted into passes or silently skipped. Fresh-process case evidence must
 cover the complete selected inventory; do not discard the failing cases.
+Windows native checks use `--capture=sys` to avoid file-descriptor capture's
+interference with lazily initialized Tcl/Tk. This does not bypass collection,
+assertions, skips or child exit status, and does not alter CI's full discovery.
+
 
 While a live session is protected, do not activate/move/close/restart its app,
 HUD or game, change tracking/settings/data, or alter its live modules/install.

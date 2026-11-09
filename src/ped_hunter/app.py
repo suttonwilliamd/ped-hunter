@@ -6,7 +6,7 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 import logging
 import math
@@ -31,6 +31,7 @@ from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .scrolling import ScrollPane
+from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
 from .storage import LoadoutRecord, SessionSummary, Store
 
 
@@ -872,6 +873,8 @@ class PedHunterApp(tk.Tk):
         damage = _bounded_int(self.damage_enhancers.get())
         accuracy = _bounded_int(self.accuracy_enhancers.get())
         economy = _bounded_int(self.economy_enhancers.get())
+        if weapon.category.startswith("Mining Laser") and accuracy:
+            raise ValueError("Mining laser enhancer compatibility is unverified; use an unmodified setup")
         ammo, decay = calculate_loadout_cost(
             catalog=self.catalog,
             weapon_name=weapon.name,
@@ -1118,6 +1121,19 @@ class PedHunterApp(tk.Tk):
             messagebox.showerror("PED Hunter", "That session could not be found in local history.")
             self._refresh_all()
             return
+        try:
+            active = self.store.get_active_loadout()
+            handoff = read_resume_handoff(
+                self.store.db_path, session_id, path, asdict(active) if active else None,
+            )
+            if handoff is not None:
+                if session.ended_at is not None:
+                    raise ValueError("A cutover handoff cannot reopen an ended session")
+                claim_resume_handoff(self.store.db_path, handoff)
+        except (OSError, ValueError) as exc:
+            self.status_text.set(f"Resume requires reconciliation: {exc}")
+            messagebox.showerror("PED Hunter", self.status_text.get())
+            return
         if session.ended_at is not None:
             if not messagebox.askyesno(
                 "Resume ended session?",
@@ -1125,16 +1141,18 @@ class PedHunterApp(tk.Tk):
             ):
                 return
             self.store.resume_session(session_id)
-        restored_loadout = self._restore_session_loadout(session)
-        if restored_loadout and restored_loadout.id is not None:
-            self.store.set_active_loadout(restored_loadout.id)
+        if handoff is None:
+            restored_loadout = self._restore_session_loadout(session)
+            if restored_loadout and restored_loadout.id is not None:
+                self.store.set_active_loadout(restored_loadout.id)
 
         self.current_log_path = path
-        self._last_ingested_log_line = None
+        self._last_ingested_log_line = handoff["last_line"] if handoff else None
+        self._resume_handoff = handoff
         self._full_refresh_pending = False
         self.store.end_other_active_sessions(session_id)
         self.session_id = session_id
-        self.last_size = path.stat().st_size
+        self.last_size = int(handoff["offset"]) if handoff else path.stat().st_size
         self.running = True
         self.start_button.configure(state="disabled")
         self.resume_button.configure(state="disabled")
@@ -1162,6 +1180,8 @@ class PedHunterApp(tk.Tk):
         return sessions[0].session_id if sessions else None
 
     def _restore_default_context(self) -> None:
+        if has_resume_handoff(self.store.db_path):
+            return  # Preserve the captured active cost setup until validated Resume.
         preferred = self._preferred_session()
         if not preferred:
             return
@@ -1171,7 +1191,7 @@ class PedHunterApp(tk.Tk):
 
     def _restore_session_loadout(self, session: SessionSummary) -> LoadoutRecord | None:
         snapshot = session.loadout_snapshot or {}
-        if not isinstance(snapshot, dict):
+        if not isinstance(snapshot, dict) or not snapshot:
             return None
         loadout: LoadoutRecord | None = None
         snapshot_id = snapshot.get('id')
@@ -1253,7 +1273,8 @@ class PedHunterApp(tk.Tk):
         self._log_drain_pending = False
         worker = threading.Thread(
             target=self._log_worker_loop,
-            args=(self.current_log_path, self.session_id, self.last_size, stop_event),
+            args=(self.current_log_path, self.session_id, self.last_size, stop_event,
+                  self._last_ingested_log_line, getattr(self, "_resume_handoff", None)),
             daemon=True,
             name="ped-hunter-log-worker",
         )
@@ -1308,9 +1329,13 @@ class PedHunterApp(tk.Tk):
             if self.running and worker and worker.is_alive():
                 self._schedule_log_drain()
 
-    def _log_worker_loop(self, path: Path, session_id: str, start_size: int, stop_event: threading.Event) -> None:
-        tail = LogTail(path, start_size)
-        last_ingested_log_line: str | None = None
+    def _log_worker_loop(self, path: Path, session_id: str, start_size: int, stop_event: threading.Event,
+                         last_ingested_log_line: str | None = None, handoff: dict | None = None) -> None:
+        try:
+            tail = LogTail(path, start_size, handoff=handoff)
+        except (OSError, ValueError) as exc:
+            self._log_queue.put(("error", f"Resume handoff requires reconciliation: {exc}"))
+            return
         last_activity = time.monotonic()
         last_notice = None
         while not stop_event.is_set():
@@ -1324,15 +1349,22 @@ class PedHunterApp(tk.Tk):
                         self._log_queue.put(("status", f"Reading new lines from {path.name}"))
                     last_notice = None
                 if lines:
-                    parsed, last_ingested_log_line = self._process_lines(lines, session_id, last_ingested_log_line)
+                    parsed, last_ingested_log_line = self._process_lines(
+                        lines, session_id, last_ingested_log_line, handoff=handoff,
+                    )
                     if parsed:
                         self._log_queue.put(("parsed", parsed))
+                if handoff is not None and tail.acknowledge_handoff():
+                    handoff = None
                 if now - last_activity >= LOG_IDLE_WARNING_SECONDS:
                     notice = (f"No changes in {path.name} for 30s — if playing, check Entropia's chat logging and the selected file")
                     if notice != last_notice:
                         self._log_queue.put(("status", notice))
                         last_notice = notice
             except Exception as exc:
+                if handoff is not None:
+                    self._log_queue.put(("error", f"Resume handoff incomplete; retain receipt and reconcile: {exc}"))
+                    return
                 notice = f"Tracking error: {exc}"
                 if notice != last_notice:
                     self._log_queue.put(("error", notice))
@@ -1345,6 +1377,8 @@ class PedHunterApp(tk.Tk):
         lines: list[str],
         session_id: str,
         last_ingested_log_line: str | None,
+        *,
+        handoff: dict | None = None,
     ) -> tuple[int, str | None]:
         parsed = 0
         session_state = self.store.get_session(session_id)
@@ -1352,10 +1386,14 @@ class PedHunterApp(tk.Tk):
             # A stale worker from a stopped/older GUI must never keep appending
             # events to an ended session.
             return 0, last_ingested_log_line
-        active_loadout = self.store.get_active_loadout()
+        if handoff is not None:
+            saved_setup = handoff["cost_setup"]
+            active_loadout = LoadoutRecord(**saved_setup) if saved_setup is not None else None
+        else:
+            active_loadout = self.store.get_active_loadout()
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)
-        else:
+        elif handoff is None:
             session = self.store.get_session(session_id)
             if session:
                 active_loadout = self._restore_session_loadout(session)
@@ -3028,6 +3066,8 @@ def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
             return f"Damage dealt: {payload['damage']}{cost}"
         if payload.get("dodged"):
             return f"Dodged your attack{cost}"
+        if payload.get("outgoing_miss"):
+            return f"Outgoing miss{cost}"
         if "damage_taken" in payload:
             return f"Damage taken: {payload['damage_taken']}"
         if "healed" in payload:
@@ -3059,6 +3099,10 @@ def calculate_loadout_cost(
     weapon = catalog.find_weapon(weapon_name)
     if not weapon:
         raise ValueError(f"Unknown weapon: {weapon_name}")
+    if weapon.category.startswith("Mining Laser") and (
+        any((amp, scope, sight_1, sight_2)) or damage_enhancers or economy_enhancers
+    ):
+        raise ValueError("Mining laser attachment/enhancer compatibility is unverified; choose None and zero enhancers")
     multiplier = (1 + (0.1 * damage_enhancers)) * (1 - (0.01 * economy_enhancers))
     ammo = weapon.ammo * multiplier
     decay = weapon.decay * multiplier
@@ -3301,10 +3345,9 @@ def _bounded_int(value: str) -> int:
 def _event_consumes_shot(event: ParsedEvent) -> bool:
     if event.kind != "combat":
         return False
-    # LootNanny charged cost for outgoing attacks. In PED Hunter's parser those
-    # are damage events or creature dodges; incoming misses/damage/heals do not
-    # consume weapon ammo.
-    return "damage" in event.payload or bool(event.payload.get("dodged"))
+    # Outgoing hits, misses and creature dodges consume one selected-setup use,
+    # irrespective of damage magnitude. Incoming misses/damage/heals do not.
+    return "damage" in event.payload or bool(event.payload.get("dodged") or event.payload.get("outgoing_miss"))
 
 
 def _is_duplicate_log_line(previous_line: str | None, raw_line: str) -> bool:

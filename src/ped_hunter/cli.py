@@ -11,7 +11,7 @@ import urllib.request
 import json
 from contextlib import contextmanager
 
-from .catalog import Catalog
+from .catalog import Catalog, merge_weapon_supplements
 from .log_tail import LogTail
 from .parser import parse_line
 from .storage import Store
@@ -354,6 +354,7 @@ def _normalize(payloads: dict[str, dict]) -> dict[str, dict]:
         ]
     )
     weapon_items.extend(item.copy() for item in MINING_FINDERS)
+    weapon_items = merge_weapon_supplements(weapon_items)
 
     attachment_items = []
     for source in (attachments, scopes, sights):
