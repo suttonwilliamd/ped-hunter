@@ -62,7 +62,6 @@ actual imports and assertions, not from which source filename happened to change
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
 | `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
-| `healing.py`, `healing_tools.json`, selected-healing preference and healing expense payloads | `ingestion catalog-loadouts persistence-lifecycle` | `test_healing` covers observed self/other grammar, source PEC/PED/essence units, both real import paths, unsupported periodic/area tools, duplicates including old retained replays, tool changes, no selection, legacy history and resumed sessions. Add `desktop-ui` for `test_healing_ui`: real selector/change/clear, ordinary/minimum layout, setup independence, HUD totals and unchanged fan histories. `chart-accounting` includes both because healing is a run expense, not an invented creature allocation. Generic Store insertion and money-summary SQL changes are shared risk that can justify an early full run. |
 | Native widgets/layout/DPI, `scrolling.py`, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | `test_default_layout` exercises real setup/Help widgets, persistent actions, focused-control reveal, smaller geometry, native font bounds and simulated application DPI; `test_setup_editor` is controller/data evidence, not rendered acceptance. Includes streamer rendering/resize/toggle/placement/stability/crafting and GUI ingestion/fan cases. Add catalog/loadouts and persistence for setup controls/activation. A large `app.py` edit alone is not a full-suite gate. |
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
@@ -99,7 +98,7 @@ On Windows, repeated Tk teardown in one process can be unreliable. When GUI
 execution is authorized, opt in to a fresh pytest process per selected case:
 
 ```powershell
-.\.venv\Scripts\python.exe tools\pytest_groups.py run desktop-ui --isolated -- --capture=sys -ra
+.\.venv\Scripts\python.exe tools\pytest_groups.py run desktop-ui --isolated -- -ra
 ```
 
 `--isolated` preserves the selected cases and reports failed child processes;
@@ -108,15 +107,6 @@ isolation** and grants no permission to interrupt a live hunt. Repeated-interpre
 `tcl_findLibrary`/`tk.tcl` initialization failures must be retained and reported,
 not converted into passes or silently skipped. Fresh-process case evidence must
 cover the complete selected inventory; do not discard the failing cases.
-
-On the observed Windows Tk 8.6.15 stack, pytest's file-descriptor capture also
-disrupted lazy Tcl command loading (`tk_focusNext`), even in fresh processes.
-The same retained keyboard cases passed with `--capture=sys`, as did actual
-native keyboard input. Use sys capture for the recorded Windows native command:
-it keeps Python output capture without replacing native OS stream descriptors.
-This is not a skipped assertion or a Tcl/runtime patch; retain the failing
-capture-mode evidence and report the mode used. Existing CI discovery/configuration
-is unchanged.
 
 While a live session is protected, do not activate/move/close/restart its app,
 HUD or game, change tracking/settings/data, or alter its live modules/install.

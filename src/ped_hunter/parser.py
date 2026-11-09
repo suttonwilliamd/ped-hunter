@@ -24,8 +24,7 @@ PATTERNS = {
     "miss": re.compile(rf"{SYSTEM_PREFIX}\s*The\s*attack\s*missed\s*you\.?$"),
     "dodge": re.compile(rf"{SYSTEM_PREFIX}\s*.*Dodged.*your\s*attack\.?$"),
     "evade": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*Evaded\s*the\s*attack\.?$"),
-    "heal": re.compile(rf"^{SYSTEM_PREFIX}\s*You\s*healed\s*yourself\s*({NUMBER})\s*points\.?$"),
-    "heal_other": re.compile(rf"^{SYSTEM_PREFIX}\s*You\s*healed\s+(?P<heal_target>(?!yourself\b).+?)\s+with\s+(?P<heal_amount>{NUMBER})\s*points\.?$"),
+    "heal": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*healed\s*yourself\s*({NUMBER})\s*points\.?$"),
     "weapon": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*equipped\s*(.+)$"),
     "skill": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*({NUMBER})\s*experience\s*in\s*your\s*(.+?)\s*skill"),
     "skill_gain": re.compile(rf"{SYSTEM_PREFIX}\s*You\s*have\s*gained\s*({NUMBER})(?![\d.])\s*(.+)$"),
@@ -116,22 +115,13 @@ def parse_line(line: str) -> ParsedEvent | None:
                 },
             )
 
-        if kind in {"heal", "heal_other"}:
-            return ParsedEvent(
-                kind="combat", timestamp=timestamp, raw_message=line,
-                payload={
-                    "healed": float(match.group(1) if kind == "heal" else match.group("heal_amount")),
-                    "healing_action": "self" if kind == "heal" else "other",
-                    "healing_target": "self" if kind == "heal" else match.group("heal_target").strip(),
-                },
-            )
-
-        if kind in {"damage", "damage_taken", "critical", "critical_armor"}:
+        if kind in {"damage", "damage_taken", "critical", "critical_armor", "heal"}:
             key = {
                 "damage": "damage",
                 "damage_taken": "damage_taken",
                 "critical": "damage",
                 "critical_armor": "damage_taken",
+                "heal": "healed",
             }[kind]
             return ParsedEvent(
                 kind="combat",

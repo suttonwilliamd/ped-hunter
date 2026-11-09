@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
-import sys
 import urllib.request
-
-# Run against this checkout, even before its editable environment is refreshed.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from ped_hunter.healing import fetch_healing_catalog
 
 RAW_BASE = "https://raw.githubusercontent.com/euloggeradmin/LootNanny/main/data/raw/"
 FRONTIER_HUNTING_RIFLE = {
@@ -107,7 +102,6 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     payloads = {name: download(name) for name in ["weapons.json", "attachments.json", "scopes.json", "sights.json", "resources.json", "crafting.json"]}
-    healing_catalog = fetch_healing_catalog()
 
     weapons = []
     for name, item in payloads["weapons.json"]["data"].items():
@@ -161,7 +155,6 @@ def main() -> int:
     (out / "resources.json").write_text(json.dumps({"items": sorted(resources, key=lambda x: x["name"].casefold())}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     (out / "crafting.json").write_text(json.dumps({"items": sorted(crafting, key=lambda x: x["name"].casefold())}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     (out / "aliases.json").write_text(json.dumps({"Frontier Rifle": "Frontier Hunting Rifle"}, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    (out / "healing_tools.json").write_text(json.dumps(healing_catalog, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
 
     print(f"Wrote normalized catalog to {out}")
     print("Frontier Rifle alias -> Frontier Hunting Rifle")

@@ -51,7 +51,6 @@ def test_legacy_sync_preserves_adjusted_frontier_rifle(tmp_path, monkeypatch):
     spec.loader.exec_module(sync)
     monkeypatch.setattr(sync, "__file__", str(tmp_path / "tools" / "sync_legacy_data.py"))
     monkeypatch.setattr(sync, "download", lambda name: {"data": {}})
-    monkeypatch.setattr(sync, "fetch_healing_catalog", lambda: {"items": []})
     assert sync.main() == 0
     weapons = json.loads((tmp_path / "data/catalog/weapons.json").read_text())["items"]
     matches = [item for item in weapons if item["name"] == "Frontier Hunting Rifle, Adjusted"]
@@ -222,7 +221,6 @@ def test_regenerating_catalog_keeps_one_correct_set_blade(tmp_path, monkeypatch,
     if importer == "cli":
         monkeypatch.setattr(cli, "__file__", str(tmp_path / "src/ped_hunter/cli.py"))
         monkeypatch.setattr(cli, "_download_json", lambda name: payloads[name])
-        monkeypatch.setattr(cli, "fetch_healing_catalog", lambda: {"items": []})
         assert cli._seed_data(force=True) == 0
     else:
         path = Path(__file__).resolve().parents[1] / "tools/sync_legacy_data.py"
@@ -231,7 +229,6 @@ def test_regenerating_catalog_keeps_one_correct_set_blade(tmp_path, monkeypatch,
         spec.loader.exec_module(sync)
         monkeypatch.setattr(sync, "__file__", str(tmp_path / "tools/sync_legacy_data.py"))
         monkeypatch.setattr(sync, "download", lambda name: payloads[name])
-        monkeypatch.setattr(sync, "fetch_healing_catalog", lambda: {"items": []})
         assert sync.main() == 0
     root = tmp_path / "data/catalog"
     records = json.loads((root / "weapons.json").read_text(encoding="utf-8"))["items"]

@@ -35,9 +35,6 @@ class SessionSummary:
     manufacturing_attempt: int = 0
     manufacturing_attempts_total: int = 0
     manufacturing_attempts_remaining: int = 0
-    healing_cost: float = 0.0
-    estimated_healing_uses: int = 0
-    unpriced_heal_events: int = 0
 
 
 @dataclass(slots=True)
@@ -108,22 +105,6 @@ class Store:
         finally:
             conn.close()
 
-    def get_selected_healing_tool(self) -> str | None:
-        with self.connect() as conn:
-            row = conn.execute("SELECT value FROM app_settings WHERE key = 'healing_tool'").fetchone()
-        return row["value"] if row else None
-
-    def set_selected_healing_tool(self, name: str | None) -> None:
-        name = name.strip() if name else None
-        with self.connect() as conn:
-            if name:
-                conn.execute(
-                    "INSERT INTO app_settings (key, value) VALUES ('healing_tool', ?) "
-                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (name,))
-            else:
-                conn.execute("DELETE FROM app_settings WHERE key = 'healing_tool'")
-            conn.commit()
-
     def _ensure_schema(self) -> None:
         try:
             self._ensure_schema_once()
@@ -141,10 +122,6 @@ class Store:
             conn.executescript(
                 """
                 PRAGMA journal_mode=WAL;
-                CREATE TABLE IF NOT EXISTS app_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
                 CREATE TABLE IF NOT EXISTS sessions (
                     id TEXT PRIMARY KEY,
                     started_at TEXT NOT NULL,
@@ -235,10 +212,6 @@ class Store:
 
                 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
-                CREATE INDEX IF NOT EXISTS idx_events_healing_identity
-                ON events(session_id, timestamp, raw_message)
-                WHERE kind = 'combat' AND
-                  CASE WHEN json_valid(payload) THEN json_type(payload, '$.healed') END IN ('integer', 'real');
                 CREATE INDEX IF NOT EXISTS idx_loadouts_active ON loadouts(active);
                 """
             )
@@ -664,43 +637,18 @@ class Store:
             total += fallback_shots * fallback_decay
         return total
 
-    def add_event(self, session_id: str, event: dict) -> dict:
-        """Book an event and return its stored payload, including replay status."""
-        payload = event.get("payload", {})
-        healing = event["kind"] == "combat" and isinstance(payload, dict) and payload.get("healing_action") in {"self", "other"}
-        if healing:
-            payload = dict(payload)
+    def add_event(self, session_id: str, event: dict) -> None:
+        payload = json.dumps(event.get("payload", {}), ensure_ascii=False)
         timestamp = event.get("timestamp")
         if timestamp is not None and not isinstance(timestamp, str):
             timestamp = str(timestamp)
         with self.connect() as conn:
-            if healing:
-                conn.execute("BEGIN IMMEDIATE")
-                # No activation IDs exist. Exact same-run timestamp/message
-                # replays keep their raw audit row but no second charge. The
-                # partial index covers retained heals, not an in-memory history
-                # or a recent window that could reprice an older replay.
-                duplicate = conn.execute(
-                    """SELECT id FROM events
-                    WHERE session_id = ? AND timestamp = ? AND raw_message = ?
-                      AND kind = 'combat' AND
-                      CASE WHEN json_valid(payload) THEN json_type(payload, '$.healed') END IN ('integer', 'real')
-                    ORDER BY id LIMIT 1""",
-                    (session_id, timestamp, event["raw_message"]),
-                ).fetchone()
-                if duplicate:
-                    for key in ("healing_cost", "healing_decay_cost", "healing_ammo_cost", "healing_cost_estimated"):
-                        payload.pop(key, None)
-                    payload["healing_cost_status"] = "duplicate"
-                    payload["healing_duplicate_of_event_id"] = duplicate["id"]
             conn.execute(
                 "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
-                (session_id, timestamp, event["kind"], event["raw_message"], json.dumps(payload, ensure_ascii=False)),
+                (session_id, timestamp, event["kind"], event["raw_message"], payload),
             )
-            if not healing:  # Healing is not a weapon shot or repair reset.
-                self._recompute_session_repair_state(conn, session_id)
+            self._recompute_session_repair_state(conn, session_id)
             conn.commit()
-        return payload
 
     def allocate_manufacturing_attempt(self, session_id: str, craft_item: str | None = None) -> dict[str, object] | None:
         """Reserve one FIFO manufacturing attempt and persist its attribution."""
@@ -1084,19 +1032,9 @@ _SESSION_SUMMARY_SQL = """
                ELSE 0
            END), 0) AS loot_value,
            COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload) THEN json_extract(e.payload, '$.damage') ELSE 0 END), 0) AS combat_damage,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload)
-               THEN json_extract(e.payload, '$.healing_cost') ELSE 0 END), 0) AS healing_cost,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload)
-               AND json_extract(e.payload, '$.healing_cost_status') = 'selected_tool_estimate'
-               THEN 1 ELSE 0 END), 0) AS estimated_healing_uses,
-           COALESCE(SUM(CASE WHEN e.kind = 'combat' AND json_valid(e.payload)
-               AND json_extract(e.payload, '$.healing_cost_status') IN
-                   ('not_selected', 'tool_not_found', 'missing_timestamp', 'unresolved_activation', 'unknown_cost')
-               THEN 1 ELSE 0 END), 0) AS unpriced_heal_events,
            COALESCE(SUM(CASE
                 WHEN e.kind = 'combat' AND json_valid(e.payload) THEN
                     COALESCE(json_extract(e.payload, '$.shot_cost'), json_extract(e.payload, '$.ammo_cost'), 0)
-                    + COALESCE(json_extract(e.payload, '$.healing_cost'), 0)
                 WHEN e.kind = 'repair' AND json_valid(e.payload) THEN
                     COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
                 WHEN e.kind IN ('craft', 'manufacturing_offset') AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
@@ -1151,9 +1089,6 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         manufacturing_attempt=int(row["manufacturing_attempt"] or 0),
         manufacturing_attempts_total=int(row["manufacturing_attempts_total"] or 0),
         manufacturing_attempts_remaining=int(row["manufacturing_attempts_remaining"] or 0),
-        healing_cost=float(row["healing_cost"] or 0),
-        estimated_healing_uses=int(row["estimated_healing_uses"] or 0),
-        unpriced_heal_events=int(row["unpriced_heal_events"] or 0),
     )
 
 
