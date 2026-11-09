@@ -89,6 +89,9 @@ untouched. Equipment switching is unavailable while session restoration is still
 being prepared. No shortcut rewrites previous event prices, booked totals or
 observed fan data. Costs still assume the selected setup; the buttons do not
 detect which weapon the game actually uses.
+The compact metric columns reserve ordinary signed money and percentage widths
+before live updates, keeping typical digit changes steady. Exceptionally large
+values still shrink within their own field rather than moving other controls.
 
 ## Responsive session Resume — 0.3.43
 

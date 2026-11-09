@@ -2498,12 +2498,12 @@ class StreamerWindow(tk.Toplevel):
         if not self._layout_busy:
             self._fit_fixed_text(key)
 
-    def _fit_fixed_text(self, key) -> None:
+    def _fit_fixed_text(self, key, sample: str | None = None) -> None:
         available = self._fixed_widths.get(key, 0)
         if available <= 0:
             return
         font, _ = self._fixed_fonts[key]
-        lines = self.vars[key].get().splitlines() or [""]
+        lines = (sample if sample is not None else self.vars[key].get()).splitlines() or [""]
         size = abs(int(font.cget("size")))
         # Only an actual overflow can shrink this field. Do not grow it again
         # on the next animation frame/value; reset its budget on a real resize.
@@ -2587,6 +2587,10 @@ class StreamerWindow(tk.Toplevel):
                                  damage=round(72 * scale) - 4)
         for key in ("loot", "cost", "kills"):
             self._fixed_widths[key] = (width - 2 * round(6 * scale)) // 3 - round(4 * scale) - 4
+        # Reserve ordinary signed money/return widths before the first value.
+        # The shortcuts narrow these columns; 99→100 must not change typography.
+        self._fit_fixed_text("net_big", "+999.99 PED\n-$999.99")
+        self._fit_fixed_text("return", "999.99%")
         self._loadout_width = max(10, width - round(110 * scale))
         required = 2 * round(6 * scale) + 2  # outer padding and border
         for widget in self.outer.pack_slaves():
