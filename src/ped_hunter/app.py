@@ -6,7 +6,7 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import json
 import logging
 import math
@@ -1097,7 +1097,7 @@ class PedHunterApp(tk.Tk):
         self._refresh_loadouts()
         streamer = self.__dict__.get("streamer_window")
         if self.running and self.session_id:
-            self._refresh_live_views()
+            self._refresh_setup_views()
         elif streamer and streamer.winfo_exists():
             streamer.update_from_session(None)
         return True
@@ -1718,6 +1718,22 @@ class PedHunterApp(tk.Tk):
     def _refresh_live_views(self) -> None:
         session_id = self._session_id_value()
         display = self.store.get_session(session_id) if session_id else None
+        self._refresh_metrics(display, [])
+        if self.streamer_window and self.streamer_window.winfo_exists():
+            self.streamer_window.update_from_session(display)
+
+    def _refresh_setup_views(self) -> None:
+        """Setup changes do not invalidate the last displayed financial totals."""
+        session_id = self._session_id_value()
+        display = self.__dict__.get("_session_summaries", {}).get(session_id)
+        state = self.store.get_session_resume_state(session_id) if display else None
+        if state is None:
+            self._refresh_live_views()
+            return
+        snapshot = state.loadout_snapshot
+        display = replace(display, ended_at=state.ended_at,
+                          loadout_name=snapshot.get("name") if snapshot else None,
+                          loadout_snapshot=snapshot)
         self._refresh_metrics(display, [])
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)

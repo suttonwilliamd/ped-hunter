@@ -5,6 +5,8 @@ import queue
 import tkinter as tk
 import time
 
+from contextlib import contextmanager
+import sqlite3
 import pytest
 
 from ped_hunter import app as module
@@ -330,3 +332,92 @@ def test_native_hud_switch_prices_only_subsequent_actual_file_events(native_app)
     assert hud._setup_slot_ids == ids
     assert '✓' in hud.setup_buttons[1].cget('text')
     assert '✓' not in hud.setup_buttons[0].cget('text')
+
+
+@pytest.mark.parametrize("hud_open", [False, True])
+def test_setup_switch_reuses_visible_totals_without_reading_event_history(native_app, monkeypatch, hud_open):
+    app, _ = native_app
+    ids = add_setups(app.store, 2)
+    sid = app.store.start_session("hunt", app.store.get_loadout(ids[0]))
+    app.store.add_event(sid, {"kind": "combat", "raw_message": "original priced use",
+                              "payload": {"shot_cost": .0102, "damage": 9}})
+    app.session_id, app.running = sid, True
+    app._log_queue = queue.Queue()
+    app._refresh_loadouts()
+    app._refresh_live_views()
+    if hud_open:
+        app._open_streamer_window()
+    original = app.store.get_session(sid)
+    with app.store.connect() as conn:
+        events = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
+    connect = app.store.connect
+    @contextmanager
+    def no_history():
+        with connect() as conn:
+            conn.set_authorizer(lambda action, table, *_args:
+                                sqlite3.SQLITE_DENY if action == sqlite3.SQLITE_READ and table == "events"
+                                else sqlite3.SQLITE_OK)
+            yield conn
+    # Enforce a history-independent switch, not a hardware-specific duration.
+    with monkeypatch.context() as patch:
+        patch.setattr(app.store, "connect", no_history)
+        assert app._activate_saved_loadout(ids[1])
+    app.update()
+    assert app.store.get_active_loadout().id == ids[1]
+    assert app.store.get_session(sid).loadout_snapshot["id"] == ids[1]
+    displayed = app._session_summaries[sid]
+    assert displayed.loadout_snapshot["id"] == ids[1]
+    assert displayed.hunting_cost == original.hunting_cost == .0102
+    assert original.loadout_snapshot["id"] == ids[0]  # No in-place cache mutation.
+    assert app.store.get_loadout(ids[1]).name in app.hero_session.get()
+    if hud_open:
+        assert app.streamer_window.vars["loadout"].get() == app.store.get_loadout(ids[1]).name
+    with app.store.connect() as conn:
+        assert [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")] == events
+
+
+def test_pending_ingestion_totals_are_not_repriced_or_lost_on_rapid_setup_switches(native_app):
+    app, _ = native_app
+    ids, hud = open_hud(app, 2)
+    sid = app.store.start_session("hunt", app.store.get_loadout(ids[0]))
+    app.session_id, app.running = sid, True
+    app._log_queue = queue.Queue()
+    app.store.add_event(sid, {"kind": "combat", "raw_message": "already displayed",
+                              "payload": {"shot_cost": .0102}})
+    app._refresh_live_views()
+    # A reader may commit more priced events before its UI notification is drained.
+    app.store.add_event(sid, {"kind": "combat", "raw_message": "notification pending",
+                              "payload": {"shot_cost": .0102}})
+    with app.store.connect() as conn:
+        recorded = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
+    for target in (ids[1], ids[0], ids[1]):
+        assert app._activate_saved_loadout(target)
+    app.update()  # Drain queued TreeviewSelect events; they must not reactivate an old row.
+    assert app.store.get_active_loadout().id == ids[1]
+    assert app.store.get_session(sid).loadout_snapshot["id"] == ids[1]
+    assert hud.vars["loadout"].get() == app.store.get_loadout(ids[1]).name
+    assert app._session_summaries[sid].hunting_cost == .0102
+    app._refresh_live_views()  # Normal financial refresh incorporates the pending event.
+    assert app._session_summaries[sid].hunting_cost == pytest.approx(.0204)
+    with app.store.connect() as conn:
+        assert [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")] == recorded
+
+
+def test_setup_switch_without_current_display_cache_uses_current_session_not_history(native_app):
+    app, _ = native_app
+    ids, hud = open_hud(app, 2)
+    historical = app.store.start_session("hunt", app.store.get_loadout(ids[0]))
+    app.store.add_event(historical, {"kind": "combat", "raw_message": "historical cost",
+                                     "payload": {"shot_cost": 9}})
+    app.store.end_session(historical)
+    current = app.store.start_session("hunt", app.store.get_loadout(ids[0]))
+    app.store.add_event(current, {"kind": "combat", "raw_message": "current cost",
+                                  "payload": {"shot_cost": .0102}})
+    app._session_summaries = {historical: app.store.get_session(historical)}
+    app.session_id, app.running = current, True
+    app._log_queue = queue.Queue()
+    assert app._activate_saved_loadout(ids[1])
+    assert app._session_summaries[current].hunting_cost == .0102
+    assert hud.vars["loadout"].get() == app.store.get_loadout(ids[1]).name
+    assert app.store.get_session(historical).loadout_snapshot["id"] == ids[0]
+    assert app.store.get_session(historical).hunting_cost == 9
