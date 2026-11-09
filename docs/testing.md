@@ -81,6 +81,16 @@ large gaps and changing future equipment. `test_space_mining_ui` adds real nativ
 search/save/activation and Resume/HUD consumers. Keep those dependencies together
 when changing source-cursor or selected-equipment accounting behavior.
 
+`test_resume_responsiveness` adds native/SQLite checks for a responsive event
+loop while history preparation is held, arrivals and duplicate lines during
+preparation, ended-session confirmation without a success modal, draft/settings
+preservation, cancellation followed by another run, stale setup changes and
+failed preparation with a retained claimed source cursor. It belongs to
+ingestion, persistence/lifecycle and desktop UI. Large-session wall-clock and
+heartbeat measurements require isolated real-data reproduction as well; a
+small controlled regression is not a performance claim for a user's database.
+
+
 For setup or Help layout changes, run controller/data checks **and** authorized
 native layout checks. A headless controller/SQLite pass cannot prove that a
 button is visible, keyboard traversal works on Windows, or a preview child

@@ -82,7 +82,9 @@ def handoff_run(tmp_path, monkeypatch):
     app.chat_path = Value(str(path))
     app.status_text = Value()
     app._resume_session_id = lambda: sid
-    app._refresh_all = lambda: None  # UI is incidental; the real Resume/store/worker run.
+    # This headless fixture excludes rendering; native Resume tests cover the
+    # asynchronous view gate before the same real reader starts.
+    app._begin_resume_refresh = lambda _sid: app._start_log_worker()
     app._schedule_log_drain = lambda: None
     app._log_worker = None
     app._log_worker_stop = threading.Event()

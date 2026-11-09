@@ -64,6 +64,20 @@ flattening it at the smaller minimum; all events remain available by scrolling.
 Chart text uses native-DPI font measurements for axis padding and a separate
 caption lane so values, event numbers and descriptions do not cover each other.
 
+## Responsive session Resume — 0.3.43
+
+Resume prepares recorded summaries, skills and the historical streamer trend
+off the UI thread. The status bar shows **Restoring** until the complete view
+is ready; there is no successful-resume information dialog. Reopening an ended
+session still requires confirmation, and invalid or uncertain handoffs still
+show their error instead of silently skipping to EOF.
+
+New chat lines arriving during preparation remain behind the captured source
+offset and are read when restoration completes. End run cancels a pending
+restoration; an obsolete result cannot restart that run's reader. A setup or
+session change invalidates a prepared view before it can replace newer state.
+Recorded events/prices, totals and observed fan histories are not repriced.
+
 ## Basic Mining Laser, Type M (L) — 0.3.42
 
 The exact **Basic Mining Laser, Type M (L)** is searchable and selectable in

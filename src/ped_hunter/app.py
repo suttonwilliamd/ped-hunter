@@ -20,6 +20,7 @@ import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 import uuid
 
+from .activity_trend import ActivityTrendBuilder
 from .catalog import Catalog, WeaponRecord
 from .chart_scales import plan_chart_scales
 from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
@@ -32,7 +33,7 @@ from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .scrolling import ScrollPane
 from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
-from .storage import LoadoutRecord, SessionSummary, Store
+from .storage import LifetimeTotals, LoadoutRecord, SessionResumeState, SessionSummary, SkillGainSummary, Store
 
 
 POLL_MS = 250
@@ -53,6 +54,18 @@ class MetricCard:
     frame: ttk.Frame
     value: tk.StringVar
     label: tk.StringVar
+
+
+@dataclass(slots=True)
+class _ResumeView:
+    """Read-only work prepared off Tk; ownership transfers through one queue."""
+    revision: tuple
+    session: SessionSummary
+    sessions: list[SessionSummary]
+    totals: LifetimeTotals
+    skills: list[SkillGainSummary]
+    builder: ActivityTrendBuilder | None
+    points: list[dict[str, object]]
 
 
 class PedHunterApp(tk.Tk):
@@ -77,6 +90,9 @@ class PedHunterApp(tk.Tk):
 
         self.streamer_window: StreamerWindow | None = None
         self._full_refresh_pending = False
+        self._resume_pending: queue.Queue | None = None
+        self._prepared_resume: _ResumeView | None = None
+        self._session_summaries: dict[str, SessionSummary] = {}
         self._log_drain_pending = False
         self._log_worker: threading.Thread | None = None
         self._log_worker_stop = threading.Event()
@@ -1068,7 +1084,15 @@ class PedHunterApp(tk.Tk):
             self.streamer_window.destroy()
             return
         self.streamer_window = StreamerWindow(self)
-        self.streamer_window.update_from_session(self.store.get_current_session())
+        if self.__dict__.get("_resume_pending") is not None:
+            self.streamer_window.update_from_session(None)
+            self.streamer_window.vars["state"].set("RESTORING")
+            for key in ("net_big", "return", "loot", "cost", "kills"):
+                self.streamer_window.vars[key].set("—")
+            return
+        session = self.store.get_current_session()
+        self._prime_resume_chart(session)
+        self.streamer_window.update_from_session(session)
 
     def start(self) -> None:
         if self.running:
@@ -1091,6 +1115,7 @@ class PedHunterApp(tk.Tk):
         active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
         self._last_ingested_log_line = None
+        self._prepared_resume = None
         self._full_refresh_pending = False
         self.store.end_other_active_sessions()
         self.session_id = self.store.start_session("hunt", active_loadout)
@@ -1116,7 +1141,7 @@ class PedHunterApp(tk.Tk):
             messagebox.showerror("PED Hunter", f"Chat log not found:\n{path}")
             self.status_text.set(f"Chat log not found: {path}")
             return
-        session = self.store.get_session(session_id)
+        session = self.store.get_session_resume_state(session_id)
         if not session:
             messagebox.showerror("PED Hunter", "That session could not be found in local history.")
             self._refresh_all()
@@ -1157,9 +1182,83 @@ class PedHunterApp(tk.Tk):
         self.start_button.configure(state="disabled")
         self.resume_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
-        self.status_text.set(f"Resumed {session_id}; tracking new lines from {path.name}")
-        self._refresh_all()
+        self.status_text.set(f"Restoring {session_id}; new log lines will be read after history is ready")
+        self._begin_resume_refresh(session_id)
+
+    def _begin_resume_refresh(self, session_id: str) -> None:
+        result_queue: queue.Queue = queue.Queue(maxsize=1)
+        self._resume_pending = result_queue
+        store = self.store
+
+        def prepare() -> None:
+            try:
+                result_queue.put(_load_resume_view(store, session_id))
+            except Exception as exc:
+                result_queue.put(exc)
+
+        threading.Thread(target=prepare, daemon=True, name="ped-hunter-resume-view").start()
+        self.after(20, lambda: self._poll_resume_refresh(session_id, result_queue))
+
+    def _poll_resume_refresh(self, session_id: str, result_queue: queue.Queue) -> None:
+        if self._resume_pending is not result_queue or not self.running or self.session_id != session_id:
+            return  # End run/new context invalidated this result; never restart its reader.
+        try:
+            view = result_queue.get_nowait()
+        except queue.Empty:
+            self.after(20, lambda: self._poll_resume_refresh(session_id, result_queue))
+            return
+        if isinstance(view, Exception):
+            self._resume_refresh_failed(view)
+            return
+        try:
+            if view.revision != _resume_revision(self.store):
+                self._begin_resume_refresh(session_id)
+                return  # A real setup/session/input change invalidated the read.
+            self._prepared_resume = view
+            self._activity_cache = Snapshot(
+                session_id, view.session.loot_value, view.session.events,
+                {gain.skill: gain.procs for gain in view.skills},
+            )
+            self._refresh_metrics(view.session, view.sessions)
+            self._refresh_lifetime_totals(view.totals)
+            self._refresh_sessions(view.sessions[:20])
+            self._refresh_events(session_id)
+            self._refresh_skills(session_id, view.skills)
+            self._refresh_loot_chart(session_id)
+            self._refresh_wtb()
+            self._refresh_loadouts()
+            if self.streamer_window and self.streamer_window.winfo_exists():
+                self._prime_resume_chart(view.session)
+                self.streamer_window.update_from_session(view.session)
+        except Exception as exc:
+            logging.exception("Resume view restoration failed")
+            self._resume_refresh_failed(exc)
+            return
+        self._resume_pending = None
+        self.status_text.set(f"Resumed {session_id}; tracking new lines from {self.current_log_path.name}")
         self._start_log_worker()
+
+    def _resume_refresh_failed(self, error: Exception) -> None:
+        self._resume_pending = None
+        self._prepared_resume = None
+        self.running = False
+        self.start_button.configure(state="disabled" if self.__dict__.get("_resume_handoff") else "normal")
+        self.resume_button.configure(state="normal")
+        self.stop_button.configure(state="disabled")
+        self.status_text.set(f"Resume restoration failed; tracking has not started: {error}")
+        messagebox.showerror("PED Hunter", self.status_text.get())
+
+    def _prime_resume_chart(self, session: SessionSummary | None) -> None:
+        view = self.__dict__.get("_prepared_resume")
+        if (view is None or view.builder is None or session is None
+                or (view.session.session_id, view.session.events) != (session.session_id, session.events)):
+            return
+        overlay = self.streamer_window
+        overlay._trend_builder = view.builder
+        overlay._raw_kill_trend_points = view.points
+        overlay._kill_trend_key = (session.session_id, session.events)
+        overlay._hunt_attribution = HuntAttribution(self.store)
+        self._prepared_resume = None
 
     def _selected_session_id(self) -> str | None:
         selection = self.sessions_tree.selection()
@@ -1189,7 +1288,7 @@ class PedHunterApp(tk.Tk):
         if restored_loadout and restored_loadout.id is not None:
             self.store.set_active_loadout(restored_loadout.id)
 
-    def _restore_session_loadout(self, session: SessionSummary) -> LoadoutRecord | None:
+    def _restore_session_loadout(self, session: SessionSummary | SessionResumeState) -> LoadoutRecord | None:
         snapshot = session.loadout_snapshot or {}
         if not isinstance(snapshot, dict) or not snapshot:
             return None
@@ -1236,7 +1335,7 @@ class PedHunterApp(tk.Tk):
         if not session_id:
             self.selected_session_text.set("Select a recent session.")
             return
-        session = self.store.get_session(session_id)
+        session = self.__dict__.get("_session_summaries", {}).get(session_id) or self.store.get_session(session_id)
         if not session:
             self.selected_session_text.set("Selected session is no longer available.")
             return
@@ -1251,6 +1350,8 @@ class PedHunterApp(tk.Tk):
         if not self.running:
             return
         self._stop_log_worker()
+        self._resume_pending = None
+        self._prepared_resume = None
         if self.session_id:
             self.store.end_session(self.session_id)
         self.running = False
@@ -1592,6 +1693,8 @@ class PedHunterApp(tk.Tk):
         return None
 
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
+        if session is not None:
+            self.__dict__.setdefault("_session_summaries", {})[session.session_id] = session
         state = "Live" if self.running else "Idle"
         self.hero_state.set(state)
         context = (session.session_id if session else None, self.currency_mode.get(), self.running)
@@ -1642,8 +1745,9 @@ class PedHunterApp(tk.Tk):
         self._activity_cache = snapshot
         return snapshot
 
-    def _refresh_lifetime_totals(self) -> None:
-        totals = self.store.lifetime_totals()
+    def _refresh_lifetime_totals(self, totals: LifetimeTotals | None = None) -> None:
+        if totals is None:
+            totals = self.store.lifetime_totals()
         if totals.session_count == 0:
             self.lifetime_summary_text.set("No completed runs yet — start tracking to build your lifetime stats.")
             self._set_empty_lifetime_totals()
@@ -1681,6 +1785,7 @@ class PedHunterApp(tk.Tk):
             self.hero_return_label.configure(style=f"HeroReturn{suffix}.TLabel")
 
     def _refresh_sessions(self, sessions: list[SessionSummary]) -> None:
+        self._session_summaries = {session.session_id: session for session in sessions}
         previous_selection = self._selected_session_id()
         self.sessions_tree.delete(*self.sessions_tree.get_children())
         for index, session in enumerate(sessions):
@@ -1707,8 +1812,10 @@ class PedHunterApp(tk.Tk):
             self.selected_session_text.set("No saved sessions yet.")
             return
 
-        preferred = self._preferred_session()
-        preferred_id = preferred.session_id if preferred else None
+        preferred_id = self._session_id_value()
+        if preferred_id is None:
+            preferred = self._preferred_session()
+            preferred_id = preferred.session_id if preferred else None
         session_ids = {session.session_id for session in sessions}
         selected = previous_selection if previous_selection in session_ids else preferred_id if preferred_id in session_ids else sessions[0].session_id
         self.sessions_tree.selection_set(selected)
@@ -1750,7 +1857,7 @@ class PedHunterApp(tk.Tk):
                 tree.item(iid, tags=("even" if index % 2 == 0 else "odd",))
         self.animator.jobs[key] = self.after(1200, fade)
 
-    def _refresh_skills(self, session_id: str | None) -> None:
+    def _refresh_skills(self, session_id: str | None, gains: list[SkillGainSummary] | None = None) -> None:
         self.skills_tree.delete(*self.skills_tree.get_children())
         if not session_id:
             self._skill_context = None
@@ -1760,7 +1867,8 @@ class PedHunterApp(tk.Tk):
             self.skill_summary_text.set("No session selected — start or select a run to see skill gains.")
             return
 
-        gains = self.store.skill_gains_for_session(session_id)
+        if gains is None:
+            gains = self.store.skill_gains_for_session(session_id)
         total_xp = sum(gain.xp for gain in gains)
         total_procs = sum(gain.procs for gain in gains)
         self.skill_total_text.set(f"{total_xp:.4f} XP")
@@ -2381,7 +2489,6 @@ class StreamerWindow(tk.Toplevel):
             else:
                 previous_key = getattr(self, "_kill_trend_key", None)
                 if previous_key is None or previous_key[0] != trend_key[0] or trend_key[1] < previous_key[1]:
-                    from .activity_trend import ActivityTrendBuilder
                     self._trend_builder = ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
                     if previous_key is not None:
                         self._hunt_attribution = HuntAttribution(self.app.store)
@@ -3448,7 +3555,6 @@ def _parse_event_timestamp(value: object) -> float | None:
 def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16, builder=None) -> list[dict[str, object]]:
     if not session_id:
         return []
-    from .activity_trend import ActivityTrendBuilder
     builder = builder if builder is not None else ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
     def iter_rows():
         # Keep the cursor and connection alive while streaming rows. Calling
@@ -3467,6 +3573,31 @@ def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16, bu
 
     builder.extend(iter_rows())
     return builder.snapshot()
+
+
+def _resume_revision(store: Store) -> tuple:
+    """Cheap normal-writer guard; recorded events are append-only."""
+    with store.connect() as conn:
+        sessions = tuple(tuple(row) for row in conn.execute("SELECT * FROM sessions ORDER BY id"))
+        events = tuple(conn.execute("SELECT COUNT(*), COALESCE(MAX(id), 0) FROM events").fetchone())
+    return sessions, events
+
+
+def _load_resume_view(store: Store, session_id: str) -> _ResumeView:
+    revision = _resume_revision(store)
+    sessions = store.list_all_sessions()
+    session = next((item for item in sessions if item.session_id == session_id), None)
+    if session is None:
+        raise ValueError("The resumed session no longer exists")
+    skills = store.skill_gains_for_session(session_id)
+    builder = ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
+    try:
+        points = _kill_trend_points(store, session_id, builder=builder)
+    except Exception:
+        # Chart failures remain separate from ingestion/accounting, as on live ticks.
+        logging.exception("Historical trend preparation failed")
+        builder, points = None, []
+    return _ResumeView(revision, session, sessions, store.lifetime_totals(sessions), skills, builder, points)
 
 
 def _streamer_trend_detail(points: list[dict[str, object]]) -> str:

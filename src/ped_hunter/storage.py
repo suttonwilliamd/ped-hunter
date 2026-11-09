@@ -37,6 +37,13 @@ class SessionSummary:
     manufacturing_attempts_remaining: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class SessionResumeState:
+    """Resume preconditions without aggregating the session's event history."""
+    ended_at: str | None
+    loadout_snapshot: dict[str, object] | None
+
+
 @dataclass(slots=True)
 class LoadoutRecord:
     id: int | None
@@ -881,6 +888,13 @@ class Store:
             ).fetchone()
         return _session_from_row(row) if row else None
 
+    def get_session_resume_state(self, session_id: str) -> SessionResumeState | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT ended_at, loadout_snapshot FROM sessions WHERE id = ?", (session_id,),
+            ).fetchone()
+        return SessionResumeState(row["ended_at"], _loadout_snapshot(row["loadout_snapshot"])) if row else None
+
     def get_session(self, session_id: str) -> SessionSummary | None:
         with self.connect() as conn:
             row = conn.execute(
@@ -952,9 +966,10 @@ class Store:
                 )
             conn.commit()
 
-    def lifetime_totals(self) -> LifetimeTotals:
-        """Return meaningful all-session PED totals and averages."""
-        sessions = self.list_all_sessions()
+    def lifetime_totals(self, sessions: list[SessionSummary] | None = None) -> LifetimeTotals:
+        """Return all-session totals, optionally reusing an already read snapshot."""
+        if sessions is None:
+            sessions = self.list_all_sessions()
         total_loot = sum(session.loot_value for session in sessions)
         total_cost = sum(session.hunting_cost for session in sessions)
         total_net = total_loot - total_cost
@@ -1057,20 +1072,22 @@ def _single_line_text(value: object | None) -> str:
     return text.splitlines()[0].strip()
 
 
+def _loadout_snapshot(encoded: str | None) -> dict[str, object] | None:
+    if encoded:
+        try:
+            snapshot = json.loads(encoded)
+            if isinstance(snapshot, dict):
+                return snapshot
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
 def _session_from_row(row: sqlite3.Row) -> SessionSummary:
     loot_value = float(row["loot_value"] or 0)
     hunting_cost = float(row["hunting_cost"] or 0)
-    loadout_name = None
-    loadout_snapshot = None
-    if row["loadout_snapshot"]:
-        try:
-            loaded_snapshot = json.loads(row["loadout_snapshot"])
-            if isinstance(loaded_snapshot, dict):
-                loadout_snapshot = loaded_snapshot
-                loadout_name = _single_line_text(loaded_snapshot.get("name")) or None
-        except json.JSONDecodeError:
-            loadout_name = None
-            loadout_snapshot = None
+    loadout_snapshot = _loadout_snapshot(row["loadout_snapshot"])
+    loadout_name = _single_line_text(loadout_snapshot.get("name")) or None if loadout_snapshot else None
     return SessionSummary(
         session_id=row["id"],
         started_at=row["started_at"],
