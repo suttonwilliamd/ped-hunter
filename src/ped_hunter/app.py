@@ -6,7 +6,6 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
-from collections import OrderedDict
 from dataclasses import asdict, dataclass, replace
 import json
 import logging
@@ -35,7 +34,6 @@ from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item
 from .scrolling import ScrollPane
 from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
 from .storage import LifetimeTotals, LoadoutRecord, SessionResumeState, SessionSummary, SkillGainSummary, Store
-from .weapon_images import WeaponImageCache, exact_weapon_names, neutral_image
 
 
 POLL_MS = 250
@@ -2256,13 +2254,6 @@ class StreamerWindow(tk.Toplevel):
         self.durability_label = "Equipment"
         self._fit_after_id: str | None = None
         self._user_resized = False
-        self._weapon_image_cache = WeaponImageCache()
-        self._weapon_image_names = exact_weapon_names(app.catalog.weapons, app.catalog.aliases)
-        self._setup_image_after = None
-        self._setup_image_photos = OrderedDict()
-        self._setup_slot_weapons = [None] * 4
-        self._setup_slot_images = [None] * 4
-        self._setup_slot_image_states = ["unavailable"] * 4
         self._build()
         for key in self._fixed_labels:
             self.vars[key].trace_add("write", lambda *_args, key=key: self._on_metric_change(key))
@@ -2326,7 +2317,6 @@ class StreamerWindow(tk.Toplevel):
         self.setup_buttons = []
         self._setup_slot_ids = [None] * 4
         self._setup_slot_labels = [""] * 4
-        self._setup_slot_titles = [None] * 4
         self._setup_slot_text_width = round(52 * self._content_scale)
         for index, color in enumerate(HUD_SETUP_COLORS):
             self.setup_slot_frame.columnconfigure(index % 2, weight=1, uniform="setup")
@@ -2458,81 +2448,21 @@ class StreamerWindow(tk.Toplevel):
         for index, button in enumerate(self.setup_buttons):
             loadout = loadouts[index] if index < len(loadouts) else None
             self._setup_slot_ids[index] = loadout.id if loadout else None
-            self._setup_slot_titles[index] = (loadout.name, loadout.active) if loadout else None
-            weapon = loadout.weapon.strip() if loadout and loadout.weapon else ""
-            self._setup_slot_weapons[index] = (
-                weapon if weapon in self.app.catalog.weapons
-                else self._weapon_image_names.get(weapon.casefold()))
             self._setup_slot_labels[index] = (
                 f"{index + 1} {'✓ ' if loadout.active else ''}{loadout.name}" if loadout else f"{index + 1} Empty")
             button.configure(state="normal" if loadout else "disabled",
                              bg="#253C42" if loadout and loadout.active else "#131E2E",
                              highlightbackground=HUD_SETUP_COLORS[index] if loadout and loadout.active else "#334155",
                              cursor="hand2" if loadout else "")
-        self._weapon_image_cache.select(self._setup_slot_weapons)
-        self._update_setup_images()
         self._fit_setup_labels()
 
     def _fit_setup_labels(self) -> None:
         font = self._font(9, True)
-        for index, (button, full) in enumerate(zip(self.setup_buttons, self._setup_slot_labels)):
-            title = self._setup_slot_titles[index]
-            if title is None:
-                button.configure(text=full)
-                continue
-            name, active = title
-            text_width = max(12, self._setup_slot_text_width - round(18 * self._content_scale))
-            while len(name) > 1 and font.measure(name) > text_width:
-                name = name[:-2].rstrip("…") + "…"
-            # Use the existing two-row button height, not a taller header.
-            # Keep the active marker separate from the truncated setup name.
-            marker = f"{index + 1}{' ✓' if active else ''}"
-            button.configure(text=f"{marker}\n{name}", justify="left")
-
-    def _update_setup_images(self) -> None:
-        results = self._weapon_image_cache.poll()
-        size = max(8, min(64, round(16 * self._content_scale)))
-        for index, button in enumerate(self.setup_buttons):
-            if self._setup_slot_ids[index] is None:
-                self._setup_slot_images[index] = None
-                self._setup_slot_image_states[index] = "unavailable"
-                button.configure(image="")
-                continue
-            result = results.get(self._setup_slot_weapons[index])
-            status = result.status if result else "unknown_weapon"
-            key = (result.sha256, size) if result and result.data else ("neutral", size)
-            cached = self._setup_image_photos.get(key)
-            if cached is None:
-                rendered_status = status
-                try:
-                    data = result.data if result and result.data else neutral_image(size)
-                    image = tk.PhotoImage(master=self, data=data, format="png")
-                    if result and result.data:
-                        side = max(result.width, result.height)
-                        factor = max(1, math.ceil(side / size))
-                        if factor > 1:
-                            image = image.subsample(factor)
-                        elif size // side > 1:
-                            image = image.zoom(size // side)
-                except tk.TclError:
-                    image = tk.PhotoImage(master=self, data=neutral_image(size), format="png")
-                    rendered_status = "broken_asset"
-                cached = (image, rendered_status if result and result.data else None)
-                self._setup_image_photos[key] = cached
-            self._setup_image_photos.move_to_end(key)
-            while len(self._setup_image_photos) > 32:
-                self._setup_image_photos.popitem(last=False)
-            image, rendered_status = cached
-            self._setup_slot_image_states[index] = rendered_status or status
-            if self._setup_slot_images[index] is not image:
-                button.configure(image=image, compound="left")
-                self._setup_slot_images[index] = image
-        if self._weapon_image_cache.pending and self._setup_image_after is None:
-            self._setup_image_after = self.after(40, self._poll_setup_images)
-
-    def _poll_setup_images(self) -> None:
-        self._setup_image_after = None
-        self._update_setup_images()
+        for button, full in zip(self.setup_buttons, self._setup_slot_labels):
+            text = full
+            while len(text) > 3 and font.measure(text) > self._setup_slot_text_width:
+                text = text[:-2].rstrip("…") + "…"
+            button.configure(text=text)
 
     def _activate_setup_slot(self, index: int) -> None:
         loadout_id = self._setup_slot_ids[index]
@@ -2543,10 +2473,7 @@ class StreamerWindow(tk.Toplevel):
 
     def _show_setup_slot(self, index: int) -> None:
         if self._setup_slot_ids[index] is not None:
-            text = self._setup_slot_labels[index]
-            if self._setup_slot_image_states[index] != "ready":
-                text += "\nWeapon image unavailable"
-            self._show_loadout(text=text)
+            self._show_loadout(text=self._setup_slot_labels[index])
 
     def _fit_hero_captions(self) -> None:
         budgets = (self._fixed_widths.get("net_big", 0), self._fixed_widths.get("return", 0))
@@ -2650,7 +2577,6 @@ class StreamerWindow(tk.Toplevel):
         self.setup_slot_frame.grid_configure(padx=round(3 * scale))
         self._setup_slot_text_width = max(12, slot_width // 2 - round(6 * scale))
         self._fit_setup_labels()
-        self._update_setup_images()
         hero_caption_height = 2 * self._font(9, True).metrics("linespace") + 6
         self.hero.configure(height=hero_caption_height + net_height)
         self.hero.rowconfigure(0, minsize=hero_caption_height, weight=0)
@@ -3295,12 +3221,6 @@ class StreamerWindow(tk.Toplevel):
             self._layout_busy = False
 
     def destroy(self) -> None:
-        if self._setup_image_after is not None:
-            self.after_cancel(self._setup_image_after)
-            self._setup_image_after = None
-        self._weapon_image_cache.close()
-        self._setup_slot_images = [None] * 4
-        self._setup_image_photos.clear()
         self._stop_resize(None)
         self._hide_loadout()
         self.animator.cancel_all()
