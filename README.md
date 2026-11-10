@@ -89,12 +89,6 @@ untouched. Equipment switching is unavailable while session restoration is still
 being prepared. No shortcut rewrites previous event prices, booked totals or
 observed fan data. Costs still assume the selected setup; the buttons do not
 detect which weapon the game actually uses.
-Setup switches refresh the displayed equipment from committed setup metadata
-without re-summing unchanged event history. Financial totals continue through
-normal ingestion refreshes; a missing display context uses the normal full
-summary instead. Activation remains synchronous so rapid switches retain the
-latest choice, without a delayed activation worker overwriting it.
-
 The compact metric columns reserve ordinary signed money and percentage widths
 before live updates, keeping typical digit changes steady. Exceptionally large
 values still shrink within their own field rather than moving other controls.
@@ -573,7 +567,6 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
-- Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
 - Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.

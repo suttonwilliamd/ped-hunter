@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ped-hunter"
-version = "0.3.47"
+version = "0.3.46"
 description = "Free, local-first Entropia Universe profit intelligence"
 readme = "README.md"
 requires-python = ">=3.11"
