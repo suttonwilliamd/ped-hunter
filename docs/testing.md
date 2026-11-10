@@ -66,6 +66,14 @@ actual imports and assertions, not from which source filename happened to change
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
 
+Recent-cost reconsideration adds headless `test_hunt_attribution_reconsideration`
+and real-SQLite `test_hunt_attribution_revision_storage` coverage: delayed and
+interleaved receipts, independent later support, whole-pool retention,
+away-and-back context batches, hard finalization, and atomic decision/fan
+rollback/reload. Portable v1 fixtures preserve the actual synthetic PED-006
+observations; the numerical historical-window fixture is deidentified. These
+checks do not establish native orange-line/fan appearance or installed delivery.
+
 Select the changed component **plus affected dependencies**. Groups are useful
 starting points, not proof that every acceptance case is covered. Preserve named
 bug/feature sequences and required visual checks. A carefully justified direct

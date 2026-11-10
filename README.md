@@ -434,14 +434,25 @@ coordinate from raw PED. These are views of observed/inferred events, not foreca
 Recent hunting input can be shared across several receipts when creatures are
 killed before looting. An unusually expensive interval followed by little or no
 new input triggers a **bounded reconsideration**, not proof of a particular kill
-allocation. A robust reference needs at least five clean, completed, same-setup
-intervals from the latest 32. Variable/mixed costs or insufficient evidence stay
-ambiguous rather than falling back to invented equal shares.
+allocation. A robust reference needs at least five clean, completed, same-context
+raw intervals from the latest 32, before **or after** the suspected cluster.
+Candidate and previously shared intervals cannot supply their own reference.
+Variable/mixed costs or insufficient evidence stay ambiguous rather than falling
+back to invented equal shares. Moderate high/low clusters need both a departure
+from ordinary input and a combined budget balanced within one observed use's
+price; lowering the old high-input threshold alone would misclassify mixed hunts.
 
-The mutable window is limited to **12 receipt groups, 5 minutes, 1024 charged
-shots, and a 4096 event-ID span**. Intervening shots enter its input pool once;
-ongoing shots without a receipt remain separate. Supported groups get provisional
-typical-cost estimates; excess input stays **shared/unassigned** until observed
+A pool accepts at most **12 receipt groups**. Closing it to new members does not
+make its derived estimates permanent: the latest **16 observed loot groups**
+remain eligible for supported automatic reconsideration. A whole pool is retained
+while its last member is eligible, including older anchors/budgets (at most 27
+retained members), rather than truncating its budget at a display-cache edge.
+Reconsideration also stops at **5 minutes, 1024 observed uses from the pool's
+start, a 4096 event-ID span**, or a context boundary. Intervening uses enter a
+pool once; ongoing input without a receipt stays separate. Paid ordinary
+intervals after an unsupported pool remain independent evidence, not additional
+ambiguous members. Supported groups get provisional typical-cost estimates;
+excess input stays **shared/unassigned** until observed
 evidence supports its allocation. It is already included in session expenditure,
 not another charge or a prediction of more loot. Estimates plus unassigned input
 conserve the original recorded hunting cost. The blue **booked average** still
@@ -450,17 +461,25 @@ includes all raw input, including unassigned cost.
 Amber-ring chart points and `~` costs identify estimates; unknown costs/profits
 are gray, not free wins. Recent revisions append new endpoints only to fans with
 previously observed history, retaining their earlier provisional positions.
-Pricing, equipped-weapon, repair and crafting boundaries, or window limits, freeze
-the earlier estimates and any unresolved remainder. Future evidence does not
-rewrite those frozen decisions. The log contains neither creature IDs nor
-confirmed kill markers, so these are receipt-group estimates, never exact
-per-creature costs or predictions.
+Pricing, equipped-weapon, repair and crafting boundaries, or the evidence horizon,
+**hard-finalize** earlier decisions and unresolved input. Returning to an old
+setup name after another context does not reopen that cohort. Within the horizon,
+closed unresolved pools and earlier standalone points can benefit from independent
+later evidence; all affected decisions and extensions of existing fan histories
+commit atomically. Reload cannot expose a revised cost with an older saved fan.
+Whole retained pools can be replaced by a larger supported recent cluster, but
+never by taking only a visible suffix or borrowing a hard-finalized budget.
+Every selected raw interval is excluded from its own independent reference.
+The log contains neither creature IDs nor confirmed kill markers, so these are
+receipt-group estimates, never exact per-creature costs or predictions.
 
 Allocation state and per-group overrides persist in separate SQLite tables keyed
 to the original session/events; raw events, totals and loadouts are not rewritten.
-Saved estimates reload when the HUD reopens or the session resumes. Existing
-groups before the feature's first live activation retain their original interval
-costs; there is no historical backfill. Estimation runs on HUD refreshes, while
+Saved estimates reload when the HUD reopens or the session resumes. A one-time
+state upgrade can reconsider complete recent legacy frozen pools only while their
+original context and bounds still hold. Ended/nonlive views and hard-finalized
+history are unchanged. Groups before the feature's first live activation retain
+their original interval costs; there is no raw-event backfill. Estimation runs on HUD refreshes, while
 fan samples still require live observation: closed/paused gaps cannot fabricate
 missing visual traces. Optional projection/storage failures leave recorded totals
 available and identify the unavailable allocation.
@@ -567,6 +586,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49; native/installed acceptance pending).
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
 - Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.

@@ -128,6 +128,15 @@ class TrailRecorder:
             loaded = self._store.load_chart_trails(session_id, missing)
             self._histories.update({event_id: bounded_samples(history) for event_id, history in loaded.items() if event_id in ids and history})
             self._loaded.update(missing)
+        revised_visible = ids.intersection(revised_event_ids)
+        if live and revised_visible:
+            # Allocation commits may already have atomically appended an
+            # observed revision, including for a previously off-screen member.
+            # Reload before appending so an older UI cache cannot erase it.
+            refreshed = self._store.load_chart_trails(session_id, list(revised_visible))
+            for event_id in revised_visible:
+                if refreshed.get(event_id):
+                    self._histories[event_id] = bounded_samples(refreshed[event_id])
 
         if not live:
             # A paused/closed-HUD gap cannot be reconstructed on the next call.

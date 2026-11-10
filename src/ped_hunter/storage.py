@@ -403,42 +403,53 @@ class Store:
         for decision in decisions.values():
             pools.setdefault(decision['cost_pool_id'], []).append(decision)
         frozen_pending = []
+        retained = {pool['id']: pool for pool in state.get('closed_pools', [])}
+        if state['active'] is not None:
+            retained[state['active']['id']] = state['active']
         for pool_id, members in pools.items():
             if pool_id not in decisions or decisions[pool_id]['cost_pool_id'] != pool_id:
                 raise ValueError("Attribution pool has no anchor decision")
             total, pending = members[0]['cost_pool_total'], members[0]['cost_unassigned']
             frozen = members[0]['cost_status'].startswith('frozen_')
+            lifecycle = members[0]['cost_status'].split('shared_', 1)[0]
             if any(member['cost_pool_total'] != total or member['cost_unassigned'] != pending
-                   or member['cost_status'].startswith('frozen_') != frozen for member in members):
+                   or member['cost_status'].split('shared_', 1)[0] != lifecycle for member in members):
                 raise ValueError("Inconsistent attribution pool")
             if not math.isclose(math.fsum(member['raw_cost'] for member in members), total, abs_tol=1e-9):
                 raise ValueError("Attribution pool omits original input")
             if not math.isclose(math.fsum(member['cost'] or 0.0 for member in members) + pending, total, abs_tol=1e-9):
                 raise ValueError("Attribution pool does not conserve input")
             if frozen:
+                if pool_id in retained:
+                    raise ValueError("Hard-finalized input cannot also remain reconsiderable")
                 frozen_pending.append(pending)
-            elif total:
-                active = state['active']
-                if active is None or active['id'] != pool_id or active['pending'] != pending:
-                    raise ValueError("Attribution pool has no active state")
-                if {member['event_id'] for member in active['members']} != {
+            elif total or pool_id in retained or lifecycle == 'closed_':
+                pool = retained.get(pool_id)
+                if pool is None or pool['pending'] != pending:
+                    raise ValueError("Attribution pool has no retained state")
+                expected_lifecycle = '' if pool is state['active'] else 'closed_'
+                if lifecycle != expected_lifecycle:
+                    raise ValueError("Attribution pool lifecycle mismatch")
+                if {member['event_id'] for member in pool['members']} != {
                     event_id for event_id, decision in decisions.items() if decision['cost_pool_id'] == pool_id
                 }:
                     raise ValueError("Attribution pool membership mismatch")
                 if any(decisions[member['event_id']]['raw_cost'] != member['raw_cost']
-                       for member in active['members']):
+                       for member in pool['members']):
                     raise ValueError("Attribution state disagrees with original input")
-        active = state['active']
-        if active is not None and active['id'] not in pools:
+        if any(pool_id not in pools for pool_id in retained):
             raise ValueError("Attribution state has no decisions")
         if not math.isclose(math.fsum(frozen_pending), state['frozen_pending'], abs_tol=1e-9):
             raise ValueError("Attribution state loses frozen input")
 
-    def save_hunt_attribution(self, session_id: str, state: dict, decisions: Mapping[int, dict]) -> None:
-        """Atomically save bounded state and changed, session-owned overrides.
+    def save_hunt_attribution(
+        self, session_id: str, state: dict, decisions: Mapping[int, dict], *,
+        observations: Mapping[int, Sample] | None = None,
+    ) -> None:
+        """Commit decisions, bounded state and existing fan observations together.
 
-        Invalid writes fail closed, including foreign IDs and changes to frozen
-        decisions. Original events, session totals and loadouts are never written.
+        Hard-finalized v2 history is immutable. A v1 upgrade may reopen complete
+        eligible pools; raw event prices, sessions and loadouts are never written.
         """
         try:
             ids = _validate_state(state)
@@ -454,6 +465,14 @@ class Store:
                 event_id: json.dumps(decision, separators=(",", ":"), allow_nan=False)
                 for event_id, decision in decisions.items()
             }
+            samples = {}
+            for event_id, values in (observations or {}).items():
+                if event_id not in decisions:
+                    raise ValueError("Fan observation has no changed decision")
+                sample = bounded_samples([values])[0]
+                if sample[0] != decisions[event_id]['cost']:
+                    raise ValueError("Fan cost disagrees with its decision")
+                samples[event_id] = sample
         except (KeyError, TypeError, OverflowError) as exc:
             raise ValueError("Invalid attribution record") from exc
         with self.connect() as conn:
@@ -462,8 +481,8 @@ class Store:
                 "SELECT state FROM hunt_attribution_state WHERE session_id = ?", (session_id,),
             ).fetchone()
             previous_state = None
-            reset = (not decisions and state['active'] is None and state['frozen_pending'] == 0
-                     and state['activation_event_id'] == state['watermark'])
+            reset = (not decisions and state['active'] is None and not state.get('closed_pools')
+                     and state['frozen_pending'] == 0 and state['activation_event_id'] == state['watermark'])
             if previous_row is not None:
                 try:
                     previous_state = json.loads(previous_row['state'])
@@ -479,8 +498,10 @@ class Store:
 
             pool_ids = {decision['cost_pool_id'] for decision in decisions.values()}
             for snapshot in (previous_state, state):
-                if snapshot and snapshot['active']:
-                    pool_ids.add(snapshot['active']['id'])
+                if snapshot:
+                    pool_ids.update(pool['id'] for pool in snapshot.get('closed_pools', []))
+                    if snapshot['active']:
+                        pool_ids.add(snapshot['active']['id'])
             changed_ids = list(decisions)
             for start in range(0, len(changed_ids), 900):
                 chunk = changed_ids[start:start + 900]
@@ -496,8 +517,8 @@ class Store:
                         raise ValueError("Corrupt existing attribution decision") from exc
                     pool_ids.add(old['cost_pool_id'])
 
-            # Read only affected pools through the expression index. Frozen
-            # history was validated at load and cannot be changed by later saves.
+            # Read complete affected pools through the expression index. Closed
+            # pools remain revisable; hard-finalized history cannot be reopened.
             previous = {}
             pool_expression = "CASE WHEN json_valid(decision) THEN json_extract(decision, '$.cost_pool_id') END"
             pool_values = list(pool_ids)
@@ -519,8 +540,17 @@ class Store:
                     except (KeyError, TypeError, ValueError, OverflowError) as exc:
                         raise ValueError("Corrupt existing attribution decision") from exc
                     if event_id in decisions and old != decisions[event_id]:
+                        if old['raw_cost'] != decisions[event_id]['raw_cost']:
+                            raise ValueError("Attribution cannot reprice original input")
                         if old['cost_status'].startswith('frozen_'):
-                            raise ValueError("Frozen attribution decisions are immutable")
+                            reopened = (
+                                previous_state is not None and previous_state['version'] == 1
+                                and state['version'] == 2
+                                and any(event_id in {member['event_id'] for member in pool['members']}
+                                        for pool in state.get('closed_pools', []))
+                            )
+                            if not reopened:
+                                raise ValueError("Hard-finalized attribution decisions are immutable")
                         if decisions[event_id]['attribution_revision'] <= old['attribution_revision']:
                             raise ValueError("Attribution revisions must increase")
                     previous[event_id] = old
@@ -551,6 +581,28 @@ class Store:
                    WHERE hunt_attribution_decisions.decision != excluded.decision""",
                 [(session_id, event_id, encoded) for event_id, encoded in encoded_decisions.items()],
             )
+            for event_id, decision in decisions.items():
+                row = conn.execute(
+                    "SELECT samples FROM chart_trails WHERE session_id = ? AND event_id = ?",
+                    (session_id, event_id),
+                ).fetchone()
+                if row is None:
+                    continue  # Never invent unobserved historical fan samples.
+                old = previous.get(event_id)
+                if event_id not in samples:
+                    if old is None or old['cost'] != decision['cost']:
+                        raise ValueError("Changed fan endpoint requires an atomic observation")
+                    continue
+                try:
+                    history = bounded_samples(json.loads(row['samples']))
+                except (TypeError, ValueError, OverflowError):
+                    continue  # A corrupt history is not provenance to recreate.
+                if history and history[-1] != samples[event_id]:
+                    history = bounded_samples((*history, samples[event_id]))
+                    conn.execute(
+                        "UPDATE chart_trails SET samples = ? WHERE session_id = ? AND event_id = ?",
+                        (json.dumps(history, separators=(",", ":"), allow_nan=False), session_id, event_id),
+                    )
             conn.commit()
 
     def start_session(self, activity: str = "hunt", loadout: LoadoutRecord | None = None) -> str:

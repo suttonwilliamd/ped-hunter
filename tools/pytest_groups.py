@@ -41,7 +41,7 @@ GROUPS = {
         "test_storage_repair_cache.py", "test_resume_default.py", "test_space_mining*.py")),
     "persistence-lifecycle": Group("Stored events/estimates/fans, session resume and instance ownership", (
         "test_session_lifecycle.py", "test_resume_default.py", "test_storage_repair_cache.py",
-        "test_hunt_attribution_storage.py", "test_chart_trails*.py", "test_log_ingestion.py",
+        "test_hunt_attribution*storage.py", "test_chart_trails*.py", "test_log_ingestion.py",
         "test_loadouts.py", "test_setup_editor.py", "test_setup_slots.py", "test_single_instance.py", "test_dashboard_startup.py",
         "test_resume_handoff.py", "test_resume_responsiveness.py", "test_space_mining*.py")),
     "desktop-ui": Group("Native layout, DPI, feedback, streamer behavior and live UI refresh", (

@@ -20,7 +20,7 @@ class MemoryStore:
     def load_hunt_attribution(self, session_id):
         return deepcopy(self.sessions.get(session_id, (None, {})))
 
-    def save_hunt_attribution(self, session_id, state, decisions):
+    def save_hunt_attribution(self, session_id, state, decisions, *, observations=None):
         if self.fail_save:
             raise OSError('temporary attribution persistence failure')
         _, previous = self.sessions.get(session_id, (None, {}))
@@ -76,7 +76,7 @@ class HuntStream:
         assert self.points.manufacturing == raw.manufacturing
         return self.points
 
-    def event(self, kind, *, advance=0.01, timestamp=None, **payload):
+    def event(self, kind, *, advance=0.01, timestamp=None, refresh=True, **payload):
         self.clock += advance
         when = timestamp if timestamp is not None else (
             datetime(2026, 1, 1, 10) + timedelta(seconds=self.clock)
@@ -85,7 +85,8 @@ class HuntStream:
                'payload': json.dumps(payload)}
         self.rows.append(row)
         self.builder.extend([row])
-        self.refresh()
+        if refresh:
+            self.refresh()
         return row['id']
 
     def shots(self, count):
@@ -212,7 +213,7 @@ def test_normal_single_kills_and_high_solo_without_low_followup_remain_raw():
     assert next(p for p in stream.points if p['event_id'] == high_id)['cost'] == pytest.approx(4)
     assert stream.points[-1]['cost'] == pytest.approx(1)
     assert stream.points.attribution_pending == pytest.approx(0)
-    assert not any(p.get('cost_status', '').startswith('shared_') for p in stream.points)
+    assert not any(p.get('cost_status') for p in stream.points)
 
 
 def test_low_receipt_alone_does_not_revise_previous_normal_kill_or_claim_free_profit():
@@ -356,7 +357,7 @@ def test_invalid_or_backward_receipt_times_never_support_confident_split(timesta
     stream.receipt(timestamp=timestamp)
     stream.receipt()
     members = [p for p in stream.points if p['event_id'] >= first_id]
-    assert not any(p.get('cost_status') == 'shared_estimate' for p in members)
+    assert not any(p.get('cost_status', '').endswith('shared_estimate') for p in members)
 
 
 def test_failed_save_does_not_advance_in_memory_past_unpersisted_revision():
@@ -414,7 +415,7 @@ def test_mixed_shot_price_in_one_interval_does_not_claim_a_clean_reference():
     stream.receipt()
     stream.receipt()
     members = [p for p in stream.points if p['event_id'] >= first_id]
-    assert not any(p.get('cost_status') == 'shared_estimate' for p in members)
+    assert not any(p.get('cost_status', '').endswith('shared_estimate') for p in members)
 
 
 def test_changed_ids_and_revision_are_stable_on_idle_poll():

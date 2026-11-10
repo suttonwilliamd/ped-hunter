@@ -1,0 +1,1395 @@
+{
+  "provenance": {
+    "source": "PED-006 isolated synthetic native-repro unsupported/run.sqlite3",
+    "originalSHA256": "701aa51930222f51a91f9dfb8228b4051c43f4c3a5801df8ef1664229a1807dc",
+    "notProductionOrRestoreTarget": true,
+    "transformation": "Removed synthetic session ID;preserved complete event IDs/messages/payload strings/timestamps,v1state,decisions and actually observed fan samples. No player chat or live data."
+  },
+  "events": [
+    {
+      "id": 1,
+      "timestamp": "2026-01-01T10:00:01",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:01 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-01-01T10:00:02",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:02 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-01-01T10:00:03",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:03 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-01-01T10:00:04",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:04 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 5,
+      "timestamp": "2026-01-01T10:00:05",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:05 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 6,
+      "timestamp": "2026-01-01T10:00:06",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:06 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 7,
+      "timestamp": "2026-01-01T10:00:07",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:07 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 8,
+      "timestamp": "2026-01-01T10:00:08",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:08 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 9,
+      "timestamp": "2026-01-01T10:00:09",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:09 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 10,
+      "timestamp": "2026-01-01T10:00:10",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:10 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 11,
+      "timestamp": "2026-01-01T10:00:11",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:11 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 12,
+      "timestamp": "2026-01-01T10:00:12",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:12 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 13,
+      "timestamp": "2026-01-01T10:00:13",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:13 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 14,
+      "timestamp": "2026-01-01T10:00:14",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:14 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 15,
+      "timestamp": "2026-01-01T10:00:15",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:15 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 16,
+      "timestamp": "2026-01-01T10:00:19",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:19 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 17,
+      "timestamp": "2026-01-01T10:00:23",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:23 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 18,
+      "timestamp": "2026-01-01T10:00:27",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:27 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 19,
+      "timestamp": "2026-01-01T10:00:28",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:28 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 20,
+      "timestamp": "2026-01-01T10:00:29",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:29 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 21,
+      "timestamp": "2026-01-01T10:00:30",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:30 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 22,
+      "timestamp": "2026-01-01T10:00:31",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:31 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 23,
+      "timestamp": "2026-01-01T10:00:32",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:32 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 24,
+      "timestamp": "2026-01-01T10:00:36",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:36 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 25,
+      "timestamp": "2026-01-01T10:00:37",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:37 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 26,
+      "timestamp": "2026-01-01T10:00:38",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:38 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 27,
+      "timestamp": "2026-01-01T10:00:39",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:39 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 28,
+      "timestamp": "2026-01-01T10:00:40",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:40 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 29,
+      "timestamp": "2026-01-01T10:00:41",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:41 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 30,
+      "timestamp": "2026-01-01T10:00:45",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:45 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 31,
+      "timestamp": "2026-01-01T10:00:46",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:46 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 32,
+      "timestamp": "2026-01-01T10:00:47",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:47 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 33,
+      "timestamp": "2026-01-01T10:00:48",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:48 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 34,
+      "timestamp": "2026-01-01T10:00:49",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:49 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 35,
+      "timestamp": "2026-01-01T10:00:50",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:50 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 36,
+      "timestamp": "2026-01-01T10:00:54",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:00:54 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 37,
+      "timestamp": "2026-01-01T10:00:55",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:55 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 38,
+      "timestamp": "2026-01-01T10:00:56",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:56 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 39,
+      "timestamp": "2026-01-01T10:00:57",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:57 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 40,
+      "timestamp": "2026-01-01T10:00:58",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:58 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 41,
+      "timestamp": "2026-01-01T10:00:59",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:00:59 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 42,
+      "timestamp": "2026-01-01T10:01:03",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:03 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 43,
+      "timestamp": "2026-01-01T10:01:04",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:04 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 44,
+      "timestamp": "2026-01-01T10:01:05",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:05 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 45,
+      "timestamp": "2026-01-01T10:01:06",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:06 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 46,
+      "timestamp": "2026-01-01T10:01:07",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:07 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 47,
+      "timestamp": "2026-01-01T10:01:08",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:08 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 48,
+      "timestamp": "2026-01-01T10:01:12",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:12 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 49,
+      "timestamp": "2026-01-01T10:01:13",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:13 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 50,
+      "timestamp": "2026-01-01T10:01:14",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:14 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 51,
+      "timestamp": "2026-01-01T10:01:15",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:15 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 52,
+      "timestamp": "2026-01-01T10:01:16",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:16 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 53,
+      "timestamp": "2026-01-01T10:01:17",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:17 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 54,
+      "timestamp": "2026-01-01T10:01:21",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:21 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 55,
+      "timestamp": "2026-01-01T10:01:22",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:22 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 56,
+      "timestamp": "2026-01-01T10:01:23",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:23 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 57,
+      "timestamp": "2026-01-01T10:01:24",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:24 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 58,
+      "timestamp": "2026-01-01T10:01:25",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:25 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 59,
+      "timestamp": "2026-01-01T10:01:26",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:26 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 60,
+      "timestamp": "2026-01-01T10:01:30",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:30 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 61,
+      "timestamp": "2026-01-01T10:01:31",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:31 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 62,
+      "timestamp": "2026-01-01T10:01:32",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:32 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 63,
+      "timestamp": "2026-01-01T10:01:33",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:33 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 64,
+      "timestamp": "2026-01-01T10:01:34",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:34 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 65,
+      "timestamp": "2026-01-01T10:01:35",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:35 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 66,
+      "timestamp": "2026-01-01T10:01:39",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:39 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 67,
+      "timestamp": "2026-01-01T10:01:40",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:40 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 68,
+      "timestamp": "2026-01-01T10:01:41",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:41 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 69,
+      "timestamp": "2026-01-01T10:01:42",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:42 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 70,
+      "timestamp": "2026-01-01T10:01:43",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:43 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 71,
+      "timestamp": "2026-01-01T10:01:44",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:44 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 72,
+      "timestamp": "2026-01-01T10:01:48",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:48 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 73,
+      "timestamp": "2026-01-01T10:01:49",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:49 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 74,
+      "timestamp": "2026-01-01T10:01:50",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:50 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 75,
+      "timestamp": "2026-01-01T10:01:51",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:51 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 76,
+      "timestamp": "2026-01-01T10:01:52",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:52 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 77,
+      "timestamp": "2026-01-01T10:01:53",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:53 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 78,
+      "timestamp": "2026-01-01T10:01:57",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:01:57 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 79,
+      "timestamp": "2026-01-01T10:01:58",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:58 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 80,
+      "timestamp": "2026-01-01T10:01:59",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:01:59 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 81,
+      "timestamp": "2026-01-01T10:02:00",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:00 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 82,
+      "timestamp": "2026-01-01T10:02:01",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:01 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 83,
+      "timestamp": "2026-01-01T10:02:02",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:02 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 84,
+      "timestamp": "2026-01-01T10:02:06",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:06 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 85,
+      "timestamp": "2026-01-01T10:02:07",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:07 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 86,
+      "timestamp": "2026-01-01T10:02:08",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:08 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 87,
+      "timestamp": "2026-01-01T10:02:09",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:09 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 88,
+      "timestamp": "2026-01-01T10:02:10",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:10 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 89,
+      "timestamp": "2026-01-01T10:02:11",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:11 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 90,
+      "timestamp": "2026-01-01T10:02:15",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:15 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 91,
+      "timestamp": "2026-01-01T10:02:16",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:16 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 92,
+      "timestamp": "2026-01-01T10:02:17",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:17 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 93,
+      "timestamp": "2026-01-01T10:02:18",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:18 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 94,
+      "timestamp": "2026-01-01T10:02:19",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:19 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 95,
+      "timestamp": "2026-01-01T10:02:20",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:20 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 96,
+      "timestamp": "2026-01-01T10:02:24",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:24 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 97,
+      "timestamp": "2026-01-01T10:02:25",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:25 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 98,
+      "timestamp": "2026-01-01T10:02:26",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:26 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 99,
+      "timestamp": "2026-01-01T10:02:27",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:27 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 100,
+      "timestamp": "2026-01-01T10:02:28",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:28 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 101,
+      "timestamp": "2026-01-01T10:02:29",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:29 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 102,
+      "timestamp": "2026-01-01T10:02:33",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:33 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 103,
+      "timestamp": "2026-01-01T10:02:34",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:34 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 104,
+      "timestamp": "2026-01-01T10:02:35",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:35 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 105,
+      "timestamp": "2026-01-01T10:02:36",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:36 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 106,
+      "timestamp": "2026-01-01T10:02:37",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:37 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 107,
+      "timestamp": "2026-01-01T10:02:38",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:38 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 108,
+      "timestamp": "2026-01-01T10:02:42",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:42 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    },
+    {
+      "id": 109,
+      "timestamp": "2026-01-01T10:02:43",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:43 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 110,
+      "timestamp": "2026-01-01T10:02:44",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:44 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 111,
+      "timestamp": "2026-01-01T10:02:45",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:45 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 112,
+      "timestamp": "2026-01-01T10:02:46",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:46 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 113,
+      "timestamp": "2026-01-01T10:02:47",
+      "kind": "combat",
+      "raw_message": "2026-01-01 10:02:47 [System] [] You inflicted 4.0 points of damage",
+      "payload": "{\"damage\": 4.0, \"shot_cost\": 0.0102, \"ammo_cost\": 0.01, \"repair_decay\": 0.0002, \"loadout\": \"Isolated FHR TT\"}"
+    },
+    {
+      "id": 114,
+      "timestamp": "2026-01-01T10:02:51",
+      "kind": "loot",
+      "raw_message": "2026-01-01 10:02:51 [System] [] You received Animal Muscle Oil x (1) Value: 0.12 PED",
+      "payload": "{\"item_name\": \"Animal Muscle Oil\", \"quantity\": 1, \"value\": 0.12, \"is_personal\": true}"
+    }
+  ],
+  "state": {
+    "version": 1,
+    "activation_event_id": 0,
+    "watermark": 114,
+    "processed_count": 19,
+    "tail": [
+      {
+        "event_id": 1,
+        "last_event_id": 16,
+        "shot_count": 15,
+        "first_event_time": 1767279601.0,
+        "last_event_time": 1767279619.0,
+        "first_loot_time": 1767279619.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.15299999999999997
+      },
+      {
+        "event_id": 17,
+        "last_event_id": 17,
+        "shot_count": 0,
+        "first_event_time": 1767279623.0,
+        "last_event_time": 1767279623.0,
+        "first_loot_time": 1767279623.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.0
+      },
+      {
+        "event_id": 18,
+        "last_event_id": 18,
+        "shot_count": 0,
+        "first_event_time": 1767279627.0,
+        "last_event_time": 1767279627.0,
+        "first_loot_time": 1767279627.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.0
+      },
+      {
+        "event_id": 19,
+        "last_event_id": 24,
+        "shot_count": 5,
+        "first_event_time": 1767279628.0,
+        "last_event_time": 1767279636.0,
+        "first_loot_time": 1767279636.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 25,
+        "last_event_id": 30,
+        "shot_count": 5,
+        "first_event_time": 1767279637.0,
+        "last_event_time": 1767279645.0,
+        "first_loot_time": 1767279645.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 31,
+        "last_event_id": 36,
+        "shot_count": 5,
+        "first_event_time": 1767279646.0,
+        "last_event_time": 1767279654.0,
+        "first_loot_time": 1767279654.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 37,
+        "last_event_id": 42,
+        "shot_count": 5,
+        "first_event_time": 1767279655.0,
+        "last_event_time": 1767279663.0,
+        "first_loot_time": 1767279663.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 43,
+        "last_event_id": 48,
+        "shot_count": 5,
+        "first_event_time": 1767279664.0,
+        "last_event_time": 1767279672.0,
+        "first_loot_time": 1767279672.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 49,
+        "last_event_id": 54,
+        "shot_count": 5,
+        "first_event_time": 1767279673.0,
+        "last_event_time": 1767279681.0,
+        "first_loot_time": 1767279681.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 55,
+        "last_event_id": 60,
+        "shot_count": 5,
+        "first_event_time": 1767279682.0,
+        "last_event_time": 1767279690.0,
+        "first_loot_time": 1767279690.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 61,
+        "last_event_id": 66,
+        "shot_count": 5,
+        "first_event_time": 1767279691.0,
+        "last_event_time": 1767279699.0,
+        "first_loot_time": 1767279699.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 67,
+        "last_event_id": 72,
+        "shot_count": 5,
+        "first_event_time": 1767279700.0,
+        "last_event_time": 1767279708.0,
+        "first_loot_time": 1767279708.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 73,
+        "last_event_id": 78,
+        "shot_count": 5,
+        "first_event_time": 1767279709.0,
+        "last_event_time": 1767279717.0,
+        "first_loot_time": 1767279717.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 79,
+        "last_event_id": 84,
+        "shot_count": 5,
+        "first_event_time": 1767279718.0,
+        "last_event_time": 1767279726.0,
+        "first_loot_time": 1767279726.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 85,
+        "last_event_id": 90,
+        "shot_count": 5,
+        "first_event_time": 1767279727.0,
+        "last_event_time": 1767279735.0,
+        "first_loot_time": 1767279735.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 91,
+        "last_event_id": 96,
+        "shot_count": 5,
+        "first_event_time": 1767279736.0,
+        "last_event_time": 1767279744.0,
+        "first_loot_time": 1767279744.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 97,
+        "last_event_id": 102,
+        "shot_count": 5,
+        "first_event_time": 1767279745.0,
+        "last_event_time": 1767279753.0,
+        "first_loot_time": 1767279753.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 103,
+        "last_event_id": 108,
+        "shot_count": 5,
+        "first_event_time": 1767279754.0,
+        "last_event_time": 1767279762.0,
+        "first_loot_time": 1767279762.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": true,
+        "raw_cost": 0.051000000000000004
+      },
+      {
+        "event_id": 109,
+        "last_event_id": 114,
+        "shot_count": 5,
+        "first_event_time": 1767279763.0,
+        "last_event_time": 1767279771.0,
+        "first_loot_time": 1767279771.0,
+        "context_key": "[0,\"Isolated FHR TT\",0.0102]",
+        "context_mixed": false,
+        "closed": false,
+        "raw_cost": 0.051000000000000004
+      }
+    ],
+    "active": null,
+    "frozen_pending": 0.612
+  },
+  "decisions": {
+    "1": {
+      "raw_cost": 0.15299999999999997,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 11
+    },
+    "17": {
+      "raw_cost": 0.0,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 12
+    },
+    "18": {
+      "raw_cost": 0.0,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 11
+    },
+    "19": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 10
+    },
+    "25": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 9
+    },
+    "31": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 8
+    },
+    "37": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 7
+    },
+    "43": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 6
+    },
+    "49": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 5
+    },
+    "55": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 4
+    },
+    "61": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 3
+    },
+    "67": {
+      "raw_cost": 0.051000000000000004,
+      "cost": null,
+      "cost_status": "frozen_shared_ambiguous",
+      "cost_pool_id": 1,
+      "cost_pool_total": 0.612,
+      "cost_unassigned": 0.612,
+      "cost_reason": "Observed receipts do not support a stable same-context input allocation. Frozen at the bounded window or context boundary.",
+      "attribution_revision": 2
+    }
+  },
+  "fans": {
+    "1": [
+      [
+        0.15299999999999997,
+        0.15299999999999997,
+        0.0
+      ],
+      [
+        0.15299999999999997,
+        0.15299999999999997,
+        0.12
+      ],
+      [
+        null,
+        0.15299999999999997,
+        0.12
+      ]
+    ],
+    "17": [
+      [
+        null,
+        0.07649999999999998,
+        0.12
+      ]
+    ],
+    "18": [
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "19": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "25": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "31": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "37": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "43": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "49": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "55": [
+      [
+        0.051000000000000004,
+        0.05099999999999999,
+        0.0
+      ],
+      [
+        null,
+        0.05099999999999999,
+        0.12
+      ]
+    ],
+    "61": [
+      [
+        0.051000000000000004,
+        0.051,
+        0.0
+      ],
+      [
+        null,
+        0.051,
+        0.12
+      ]
+    ],
+    "67": [
+      [
+        0.051000000000000004,
+        0.051,
+        0.0
+      ],
+      [
+        null,
+        0.051,
+        0.12
+      ]
+    ],
+    "73": [
+      [
+        0.051000000000000004,
+        0.051000000000000004,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.051000000000000004,
+        0.12
+      ]
+    ],
+    "79": [
+      [
+        0.051000000000000004,
+        0.051000000000000004,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.051000000000000004,
+        0.12
+      ]
+    ],
+    "85": [
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.12
+      ]
+    ],
+    "91": [
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.12
+      ]
+    ],
+    "97": [
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.05100000000000001,
+        0.12
+      ]
+    ],
+    "103": [
+      [
+        0.051000000000000004,
+        0.05100000000000002,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.05100000000000002,
+        0.12
+      ]
+    ],
+    "109": [
+      [
+        0.051000000000000004,
+        0.05100000000000002,
+        0.0
+      ],
+      [
+        0.051000000000000004,
+        0.05100000000000002,
+        0.12
+      ]
+    ]
+  },
+  "expected_reference_PED": 0.051,
+  "expected_booked_PED": 0.969
+}
