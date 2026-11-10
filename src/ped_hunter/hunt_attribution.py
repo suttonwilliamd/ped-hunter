@@ -36,6 +36,21 @@ def _identifier(value, *, zero=False):
     return value
 
 
+def _validate_neighbor_support(support):
+    if not isinstance(support, dict) or not isinstance(support.get('event_ids'), list):
+        raise ValueError("Invalid neighbor evidence")
+    values = support['event_ids']
+    if not 3 <= len(values) <= 10:
+        raise ValueError("Unbounded neighbor evidence")
+    ids = {_identifier(value) for value in values}
+    if values != sorted(ids):
+        raise ValueError("Invalid neighbor evidence ordering")
+    low, typical, high = (_number(support[key]) for key in ('low', 'median', 'high'))
+    if not 0 < low <= typical <= high <= 4 * low:
+        raise ValueError("Invalid neighbor evidence band")
+    return ids
+
+
 def _validate_member(member):
     if not isinstance(member, dict):
         raise ValueError("Invalid attribution receipt")
@@ -98,6 +113,11 @@ def _validate_state(state):
                 or [member['event_id'] for member in pool['members']] != sorted(member_ids)):
             raise ValueError("Invalid attribution pool membership")
         retained_ids.update(member_ids)
+        if 'cost_support' in pool:
+            support_ids = _validate_neighbor_support(pool['cost_support'])
+            if support_ids & member_ids:
+                raise ValueError("Allocated input cannot support its own neighbor estimate")
+            ids.update(support_ids)
         if _outside(pool['members']) or not _timed(pool['members']) or not all(
             _same_context(pool['members'][0], member) for member in pool['members']
         ):
@@ -129,6 +149,10 @@ def _validate_decision(decision):
     if not isinstance(decision['cost_reason'], str):
         raise ValueError("Invalid attribution explanation")
     _identifier(decision['attribution_revision'])
+    if 'cost_basis' in decision or 'cost_support' in decision:
+        if decision.get('cost_basis') != 'neighbors' or cost is None:
+            raise ValueError("Invalid neighbor estimate basis")
+        ids.update(_validate_neighbor_support(decision.get('cost_support')))
     return ids
 
 
@@ -153,24 +177,27 @@ def _timed(members):
     return True
 
 
-def _reference(tail, candidate, decisions, excluded=()):
-    """Independent raw closed intervals only; never allocated estimates."""
+def _reference_members(tail, candidate, decisions, excluded=()):
+    """Independent raw intervals within one contiguous equipment context."""
     excluded = set(excluded) | {candidate['event_id']}
-    # A name/price returning after another context does not reopen the earlier
-    # hunt cohort, including when all changes arrived in a single reader batch.
     before = [member['event_id'] for member in tail
               if member['event_id'] < candidate['event_id'] and not _same_context(member, candidate)]
     after = [member['event_id'] for member in tail
              if member['event_id'] > candidate['event_id'] and not _same_context(member, candidate)]
     lower, upper = max(before, default=0), min(after, default=2**63)
-    values = [member['raw_cost'] for member in tail[-REFERENCE_LOOKBACK:]
-              if member['closed'] and member['event_id'] not in excluded
-              and lower < member['event_id'] < upper
-              and member['raw_cost'] > 0 and member['event_id'] not in decisions
-              and _same_context(member, candidate) and _timed([member])
-              and candidate['first_loot_time'] is not None
-              and abs(member['first_loot_time'] - candidate['first_loot_time']) <= MAX_SECONDS
-              and abs(member['event_id'] - candidate['event_id']) <= MAX_EVENT_SPAN]
+    return [member for member in tail[-REFERENCE_LOOKBACK:]
+            if member['closed'] and member['event_id'] not in excluded
+            and lower < member['event_id'] < upper
+            and member['raw_cost'] > 0 and member['event_id'] not in decisions
+            and _same_context(member, candidate) and _timed([member])
+            and candidate['first_loot_time'] is not None
+            and abs(member['first_loot_time'] - candidate['first_loot_time']) <= MAX_SECONDS
+            and abs(member['event_id'] - candidate['event_id']) <= MAX_EVENT_SPAN]
+
+
+def _reference(tail, candidate, decisions, excluded=()):
+    """Robust reference; allocated estimates never become independent evidence."""
+    values = [member['raw_cost'] for member in _reference_members(tail, candidate, decisions, excluded)]
     if len(values) < 5:
         return None
     typical = median(values)
@@ -181,6 +208,35 @@ def _reference(tail, candidate, decisions, excluded=()):
     if len(inliers) < 5 or mad > 0.2 * typical or spread > 0.4 * typical:
         return None
     return median(inliers)
+
+
+def _neighbor_reference(tail, members, decisions):
+    """A plausible local band supports an approximate share, not exact kills."""
+    if len(members) < 2 or members[0]['raw_cost'] <= 0:
+        return None
+    available = _reference_members(tail, members[0], decisions,
+                                   [member['event_id'] for member in members])
+    neighbors = ([member for member in available if member['event_id'] < members[0]['event_id']][-5:]
+                 + [member for member in available if member['event_id'] > members[-1]['event_id']][:5])
+    if len(neighbors) < 3:
+        return None
+    chronological = [member['raw_cost'] for member in neighbors]
+    half = len(chronological) // 2
+    early, late = median(chronological[:half]), median(chronological[half:])
+    if max(early, late) > 2 * min(early, late):
+        return None  # An evolving cost regime is not one local neighbor cohort.
+    values = sorted(member['raw_cost'] for member in neighbors)
+    typical = median(values)
+    low, high = values[math.floor((len(values) - 1) * .25)], values[math.ceil((len(values) - 1) * .75)]
+    average = math.fsum(member['raw_cost'] for member in members) / len(members)
+    following = math.fsum(member['raw_cost'] for member in members[1:]) / (len(members) - 1)
+    # Allow ordinary variable hunts, but not widely separated cost regimes,
+    # insufficient input, or ordinary paid receipts masquerading as a gap.
+    if (high > 4 * low or not low - 1e-12 <= average <= high + 1e-12
+            or members[0]['raw_cost'] < typical or following > .35 * typical):
+        return None
+    return {'event_ids': [member['event_id'] for member in neighbors],
+            'median': typical, 'low': low, 'high': high}
 
 
 def _outside(members, latest=None):
@@ -250,6 +306,11 @@ class HuntAttribution:
             costs = [typical] * len(members)
             pending = total - math.fsum(costs)
             reason = 'Provisional same-context receipt-interval estimate; excess input remains unassigned, not future loot.'
+        support = pool.get('cost_support')
+        if support is not None and costs[0] is not None:
+            reason = ('Approximate equal share of observed input; independent same-context neighboring '
+                      f"intervals {support['event_ids']} support a {support['low']:.8g}–{support['high']:.8g} PED band. "
+                      'Variable costs remain uncertain; this does not identify creatures or observed uses.')
         pool['pending'] = pending
         for member, cost in zip(members, costs):
             self._put(decisions, changes, member['event_id'], {
@@ -257,7 +318,7 @@ class HuntAttribution:
                 'cost_status': ('closed_' if closed else '') + ('shared_ambiguous' if cost is None else 'shared_estimate'),
                 'cost_pool_id': pool['id'], 'cost_pool_total': total,
                 'cost_unassigned': pending, 'cost_reason': reason,
-            })
+            } | ({'cost_basis': 'neighbors', 'cost_support': support} if support is not None and cost is not None else {}))
 
     def _finalize(self, state, pool, decisions, changes):
         for member in pool['members']:
@@ -458,6 +519,13 @@ class HuntAttribution:
                 if len(members) < 2:
                     continue
                 reference = _reference(tail, left, decisions, [member['event_id'] for member in members])
+                support = None if _supported_cluster(members, reference) else _neighbor_reference(tail, members, decisions)
+                if support is not None:
+                    current_reference = math.fsum(member['raw_cost'] for member in members) / len(members)
+                    signal = members
+                    if self._eligible({'members': members}, latest, recent, boundary, watermark, tail):
+                        selected = (members, list(selected_owners), current_reference, support)
+                    continue
                 if reference is None:
                     continue
                 if signal is None and _supported_cluster(members, reference):
@@ -472,10 +540,10 @@ class HuntAttribution:
                     # Zero-input receipts can invalidate a formerly sufficient
                     # budget: retain the full cluster and let _allocate report
                     # ambiguity rather than leave an earlier short split stale.
-                    selected = (members, list(selected_owners), reference)
+                    selected = (members, list(selected_owners), reference, None)
             if selected is None:
                 continue
-            members, selected_owners, reference = selected
+            members, selected_owners, reference, support = selected
             if original is not None and members == original['members']:
                 continue
             was_active = any(owner is state['active'] for owner in selected_owners)
@@ -485,6 +553,8 @@ class HuntAttribution:
                 else:
                     state['closed_pools'].remove(owner)
             pool = {'id': left['event_id'], 'members': members, 'reference': reference, 'pending': 0.0}
+            if support is not None:
+                pool['cost_support'] = support
             if was_active or (members[-1]['event_id'] == tail[-1]['event_id']
                               and state['active'] is None and not members[-1]['closed']):
                 state['active'] = pool
@@ -493,8 +563,35 @@ class HuntAttribution:
                 state['closed_pools'].append(pool)
                 self._allocate(pool, decisions, changes, closed=True)
         for pool in state['closed_pools'] + ([state['active']] if state['active'] else []):
-            pool['reference'] = _reference(tail, pool['members'][0], decisions)
+            members = pool['members']
+            reference = _reference(tail, members[0], decisions)
+            support = None if _supported_cluster(members, reference) else _neighbor_reference(tail, members, decisions)
+            if support is not None:
+                pool['reference'] = math.fsum(member['raw_cost'] for member in members) / len(members)
+                pool['cost_support'] = support
+            else:
+                pool['reference'] = reference
+                pool.pop('cost_support', None)
             self._allocate(pool, decisions, changes, closed=pool is not state['active'])
+
+    def _reconsider_stable(self, state, raw_points, decisions, changes):
+        def signature():
+            return tuple(
+                (member['event_id'], decision.get('cost_pool_id'), decision.get('cost') is None)
+                for member in state['tail']
+                for decision in [decisions.get(member['event_id'], {})]
+            )
+
+        # Assigning a later interval removes it from independent evidence for
+        # earlier pools. Settle that dependency before ONE atomic publication,
+        # not on the next UI frame/reload. Keys only grow and pools only merge:
+        # at most 32 new decisions + 31 merges, with a support pass after each.
+        for _ in range(4 * REFERENCE_LOOKBACK + 1):
+            before = signature()
+            self._reconsider(state, raw_points, decisions, changes)
+            if signature() == before:
+                return
+        raise ValueError("Recent input allocation did not converge within its bounded evidence window")
 
     def update(self, session_id, raw_points, live: bool):
         if session_id != self._session_id:
@@ -516,7 +613,7 @@ class HuntAttribution:
                     self._upgrade(state, raw_points, decisions, changes)
                 for point in raw_points[max(0, state['processed_count'] - 1):]:
                     self._consume(state, decisions, changes, point)
-                self._reconsider(state, raw_points, decisions, changes)
+                self._reconsider_stable(state, raw_points, decisions, changes)
                 state['processed_count'] = len(raw_points)
             if state != self._state or changes:
                 state['watermark'] = max(state['watermark'], watermark)

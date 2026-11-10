@@ -89,6 +89,12 @@ untouched. Equipment switching is unavailable while session restoration is still
 being prepared. No shortcut rewrites previous event prices, booked totals or
 observed fan data. Costs still assume the selected setup; the buttons do not
 detect which weapon the game actually uses.
+Setup switches refresh the displayed equipment from committed setup metadata
+without re-summing unchanged event history. Financial totals continue through
+normal ingestion refreshes; a missing display context uses the normal full
+summary instead. Activation remains synchronous so rapid switches retain the
+latest choice, without a delayed activation worker overwriting it.
+
 The compact metric columns reserve ordinary signed money and percentage widths
 before live updates, keeping typical digit changes steady. Exceptionally large
 values still shrink within their own field rather than moving other controls.
@@ -437,10 +443,21 @@ new input triggers a **bounded reconsideration**, not proof of a particular kill
 allocation. A robust reference needs at least five clean, completed, same-context
 raw intervals from the latest 32, before **or after** the suspected cluster.
 Candidate and previously shared intervals cannot supply their own reference.
-Variable/mixed costs or insufficient evidence stay ambiguous rather than falling
-back to invented equal shares. Moderate high/low clusters need both a departure
-from ordinary input and a combined budget balanced within one observed use's
-price; lowering the old high-input threshold alone would misclassify mixed hunts.
+The robust path requires a high/low signal and a compatible complete input budget,
+not merely a lower high-input threshold. If strict stability fails, a visibly
+marked **neighbor estimate** may instead share the observed pool input. It uses
+at most five independent completed raw intervals before and five after the gap,
+with at least three samples, in the same uninterrupted equipment/price context.
+The proposed pool average must fit their observed middle-half cost band; that
+band cannot span more than fourfold, nor may early/late neighboring medians
+shift more than twofold. These are conservative approximation safeguards, not
+claims that the loadout identifies a creature or that costs are exact.
+An ordinary-cost paid anchor followed by little/no new input can qualify without
+being an exceptional spike. No supporting budget, too few samples, strongly mixed
+regimes or an incompatible context still leave the gap unknown. Allocated
+estimates never become supporting samples, and no additional expenditure is
+created. Each neighbor estimate persists its supporting raw interval IDs and
+observed band; later evidence can revise it within the same bounded policy.
 
 A pool accepts at most **12 receipt groups**. Closing it to new members does not
 make its derived estimates permanent: the latest **16 observed loot groups**
@@ -461,6 +478,9 @@ includes all raw input, including unassigned cost.
 Amber-ring chart points and `~` costs identify estimates; unknown costs/profits
 are gray, not free wins. Recent revisions append new endpoints only to fans with
 previously observed history, retaining their earlier provisional positions.
+Neighbor-based values additionally say `~Neighbor cost`; coincident orange costs
+and dashed blue averages use distinct stroke widths at their unchanged values,
+so agreement does not visually erase the cost line.
 Pricing, equipped-weapon, repair and crafting boundaries, or the evidence horizon,
 **hard-finalize** earlier decisions and unresolved input. Returning to an old
 setup name after another context does not reopen that cohort. Within the horizon,
@@ -586,7 +606,9 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
-- Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49; native/installed acceptance pending).
+- Integrate prompt setup/HUD refresh with bounded recent derived-cost reconsideration and visibly identified, conserved neighbor estimates; keep orange cost visible when it overlaps the average (0.3.50). Imagery and healing remain excluded.
+- Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49).
+- Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
 - Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.

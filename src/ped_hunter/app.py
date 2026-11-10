@@ -6,7 +6,7 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import json
 import logging
 import math
@@ -1097,7 +1097,7 @@ class PedHunterApp(tk.Tk):
         self._refresh_loadouts()
         streamer = self.__dict__.get("streamer_window")
         if self.running and self.session_id:
-            self._refresh_live_views()
+            self._refresh_setup_views()
         elif streamer and streamer.winfo_exists():
             streamer.update_from_session(None)
         return True
@@ -1718,6 +1718,22 @@ class PedHunterApp(tk.Tk):
     def _refresh_live_views(self) -> None:
         session_id = self._session_id_value()
         display = self.store.get_session(session_id) if session_id else None
+        self._refresh_metrics(display, [])
+        if self.streamer_window and self.streamer_window.winfo_exists():
+            self.streamer_window.update_from_session(display)
+
+    def _refresh_setup_views(self) -> None:
+        """Setup changes do not invalidate the last displayed financial totals."""
+        session_id = self._session_id_value()
+        display = self.__dict__.get("_session_summaries", {}).get(session_id)
+        state = self.store.get_session_resume_state(session_id) if display else None
+        if state is None:
+            self._refresh_live_views()
+            return
+        snapshot = state.loadout_snapshot
+        display = replace(display, ended_at=state.ended_at,
+                          loadout_name=snapshot.get("name") if snapshot else None,
+                          loadout_snapshot=snapshot)
         self._refresh_metrics(display, [])
         if self.streamer_window and self.streamer_window.winfo_exists():
             self.streamer_window.update_from_session(display)
@@ -2717,8 +2733,10 @@ class StreamerWindow(tk.Toplevel):
         if self._attribution_error:
             self.chart_note.configure(text="* Allocation unavailable · PED")
         elif any(point.get("cost_status") for point in kill_points[-16:]):
-            self.chart_note.configure(text="* Estimated/shared · PED" +
-                                      (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
+            self.chart_note.configure(text=("* Neighbor estimates · PED" if any(
+                point.get("cost_basis") == "neighbors" for point in kill_points[-16:]
+            ) else "* Estimated/shared · PED") +
+                (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
@@ -2977,18 +2995,21 @@ class StreamerWindow(tk.Toplevel):
         self._draw_kill_trail_fans(display_points, x_for, y_for, value_for, scales)
         for key, color, dash in (("cost", "#FDBA74", ()), ("avg_cost", "#7DD3FC", (4, 2)),
                                  ("loot", "#86EFAC", ())):
+            # Keep both series visible at equal values: a thin dashed average
+            # overlays the wider cost stroke without displacing either value.
+            line_width = 3 if key == "cost" else 1 if key == "avg_cost" else 2
             coords = []
             for index, point in enumerate(display_points):
                 value = value_for(index, key)
                 if value is None or (index and not scales.connected(index - 1, index)):
                     if len(coords) >= 4:
-                        canvas.create_line(*coords, fill=color, width=2, dash=dash,
+                        canvas.create_line(*coords, fill=color, width=line_width, dash=dash,
                                            tags=("series", f"series:{key}"))
                     coords = []
                 if value is not None:
                     coords.extend((x_for(index), y_for(index, value)))
             if len(coords) >= 4:
-                canvas.create_line(*coords, fill=color, width=2, dash=dash,
+                canvas.create_line(*coords, fill=color, width=line_width, dash=dash,
                                    tags=("series", f"series:{key}"))
             for index, point in enumerate(display_points):
                 value = value_for(index, key)
@@ -3791,8 +3812,9 @@ def _streamer_trend_detail(points: list[dict[str, object]]) -> str:
               "= unchanged" if not latest["delta_profit"] else
               f"{latest['trend_symbol']} {float(latest['delta_profit']):+.2f} vs prev")
     if shared:
+        basis = "~Neighbor cost" if latest.get("cost_basis") == "neighbors" else "~Cost"
         return (f"{label} · Est. profit {float(latest['profit']):+.2f} PED · {change}\n"
-                f"~Cost {float(latest['cost']):.4f} · Shared/unassigned {pending:.4f} PED")
+                f"{basis} {float(latest['cost']):.4f} · Shared/unassigned {pending:.4f} PED")
     scope = "Batch avg" if latest.get("kind") == "craft" else "Booked avg"
     detail = (f"{label} · Profit {float(latest['profit']):+.2f} PED · {change}\n"
               f"Cost {float(latest['cost']):.2f} · {scope} {float(latest['avg_cost']):.2f} PED")

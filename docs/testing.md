@@ -75,6 +75,13 @@ observations. Their captured UTC offset is explicit, original timestamp text is
 retained separately, and equivalent UTC replay is tested without changing system
 timezones. The numerical historical-window fixture is deidentified. These
 checks do not establish native orange-line/fan appearance or installed delivery.
+`test_hunt_attribution_neighbors` covers before/after raw-neighbor support,
+insufficient evidence, equipment boundaries, conservation and reload, including
+a deidentified exact K995/event304816 interval copy. Native evidence must
+separately identify the actual process/source/profile, distinguish a null
+endpoint from overlapping cost/average strokes, and verify settled resize
+dimensions rather than accepting a clipped capture of an earlier frame.
+
 
 Select the changed component **plus affected dependencies**. Groups are useful
 starting points, not proof that every acceptance case is covered. Preserve named
