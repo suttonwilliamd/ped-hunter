@@ -71,7 +71,9 @@ and real-SQLite `test_hunt_attribution_revision_storage` coverage: delayed and
 interleaved receipts, independent later support, whole-pool retention,
 away-and-back context batches, hard finalization, and atomic decision/fan
 rollback/reload. Portable v1 fixtures preserve the actual synthetic PED-006
-observations; the numerical historical-window fixture is deidentified. These
+observations. Their captured UTC offset is explicit, original timestamp text is
+retained separately, and equivalent UTC replay is tested without changing system
+timezones. The numerical historical-window fixture is deidentified. These
 checks do not establish native orange-line/fan appearance or installed delivery.
 
 Select the changed component **plus affected dependencies**. Groups are useful

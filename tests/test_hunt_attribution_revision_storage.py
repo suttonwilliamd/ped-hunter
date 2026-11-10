@@ -1,5 +1,6 @@
 """Real SQLite revisions preserve raw money and existing observed fan provenance."""
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -131,18 +132,22 @@ def test_closed_unknown_pools_hard_finalize_at_whole_evidence_boundaries(boundar
 
 @pytest.mark.parametrize('new_boundary', [False, True])
 @pytest.mark.parametrize('fixture_name', ['delayed', 'standalone'])
-def test_actual_preserved_v1_closed_pool_upgrade_is_whole_atomic_and_context_bound(tmp_path, new_boundary, fixture_name):
+@pytest.mark.parametrize('timestamp_utc', [False, True])
+def test_actual_preserved_v1_closed_pool_upgrade_is_whole_atomic_and_context_bound(tmp_path, new_boundary, fixture_name, timestamp_utc):
     fixture = json.loads((Path(__file__).parent / f'fixtures/hunt_attribution_v1_{fixture_name}.json').read_text(encoding='utf-8'))
     store = Store(tmp_path / 'legacy.sqlite3')
     sid = store.start_session('hunt')
     for event in fixture['events']:
-        store.add_event(sid, dict(event, payload=json.loads(event['payload'])))
+        timestamp = datetime.fromisoformat(event['timestamp'])
+        if timestamp_utc:
+            timestamp = timestamp.astimezone(timezone.utc)
+        store.add_event(sid, dict(event, timestamp=timestamp.isoformat(), payload=json.loads(event['payload'])))
     old_decisions = {int(key): value for key, value in fixture['decisions'].items()}
     old_fans = {int(key): values for key, values in fixture['fans'].items()}
     store.save_hunt_attribution(sid, fixture['state'], old_decisions)
     store.save_chart_trails(sid, old_fans)
     if new_boundary:
-        store.add_event(sid, {'timestamp': '2026-01-01T10:10:00', 'kind': 'weapon',
+        store.add_event(sid, {'timestamp': (timestamp + timedelta(seconds=10)).isoformat(), 'kind': 'weapon',
                              'raw_message': 'isolated context boundary', 'payload': {'weapon': 'Other'}})
     with store.connect() as conn:
         raw_before = [tuple(row) for row in conn.execute('SELECT * FROM events ORDER BY id')]
