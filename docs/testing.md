@@ -58,7 +58,7 @@ actual imports and assertions, not from which source filename happened to change
 
 | Changed source/contract | Start with | Dependency guidance grounded in existing tests |
 |---|---|---|
-| `activity_trend`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
+| `activity_trend`, `team_encounters`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft/team grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
 | `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
@@ -81,6 +81,24 @@ a deidentified exact K995/event304816 interval copy. Native evidence must
 separately identify the actual process/source/profile, distinguish a null
 endpoint from overlapping cost/average strokes, and verify settled resize
 dimensions rather than accepting a clipped capture of an earlier frame.
+
+`test_team_encounters` exercises the captured 44-marker English Sacred Idol
+sequence and controlled ambiguity/boundary cases: own recorded input versus
+incoming/other-player activity, pending versus supported personal return,
+weighted conservation without a boss multiplier, no-price/unallocated receipts,
+unsupported/delayed linkage, source-progress/run-end receipt-batch closure,
+repeated event IDs versus distinct notices, whole-encounter retention,
+global booked-input averages and atomic genuine-fan transfer/reload—even when
+the transferred endpoint has not moved. SQLite write failure must retain the
+original source observations for a retry, not publish a cache-only new identity.
+The portable fixture is deidentified, preserves recorded prices, lists omitted unrelated rows,
+and pins the private source-prefix hash/range; it is not invented dungeon identity.
+Real SQLite feed tests cover the shared live/Resume query and attribution stage,
+not just direct builder input. `test_team_encounters_ui` uses isolated Store/log
+paths and actual native pending/return/fan canvases at ordinary and compact sizes.
+Private full captures and before/after native/performance evidence belong in the
+coordinator results, not the repository or live database. Headless passes alone
+do not establish rendered readability, current-session restoration or deployment.
 
 
 Select the changed component **plus affected dependencies**. Groups are useful

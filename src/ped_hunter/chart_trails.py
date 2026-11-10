@@ -8,10 +8,10 @@ from __future__ import annotations
 from collections.abc import Collection, Mapping, Sequence
 import math
 from typing import Protocol
+from .team_encounters import visible_chart_points
 
 TRAIL_MAX_SAMPLES = 24
-_VISIBLE_GROUPS = 16
-Sample = tuple[float | None, float | None, float]
+Sample = tuple[float | None, float | None, float | None]
 
 
 class _TrailStore(Protocol):
@@ -21,12 +21,12 @@ class _TrailStore(Protocol):
 
 
 def _sample(values: Sequence[object]) -> Sample:
-    """Validate an endpoint without conflating unknown cost and zero cost."""
+    """Validate an endpoint without conflating pending cost/return and zero."""
     if not isinstance(values, (list, tuple)) or len(values) != 3:
         raise ValueError("A chart trail sample must contain cost, average cost and loot")
     result: list[float | None] = []
-    for index, value in enumerate(values):
-        if value is None and index < 2:
+    for value in values:
+        if value is None:
             result.append(None)
             continue
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -38,12 +38,14 @@ def _sample(values: Sequence[object]) -> Sample:
         if not math.isfinite(number) or number < 0:
             raise ValueError("Chart trail values must be finite nonnegative numbers")
         result.append(number)
+    if all(value is None for value in result):
+        raise ValueError("A chart trail sample needs at least one observed coordinate")
     return (result[0], result[1], result[2])  # type: ignore[return-value]
 
 
 def _coordinates(sample: Sample) -> tuple[float | None, ...]:
     cost, average, loot = sample
-    return cost, average, loot, loot - cost if cost is not None else None
+    return cost, average, loot, loot - cost if cost is not None and loot is not None else None
 
 
 def bounded_samples(samples: Sequence[Sample]) -> tuple[Sample, ...]:
@@ -96,7 +98,7 @@ def _event_id(point: Mapping[str, object]) -> int | None:
 
 
 class TrailRecorder:
-    """Record only observed live endpoints, with a last-16-group read cache."""
+    """Record actual live endpoints with a bounded, encounter-aware read cache."""
 
     def __init__(self, store: _TrailStore) -> None:
         self._store = store
@@ -104,6 +106,7 @@ class TrailRecorder:
         self._histories: dict[int, tuple[Sample, ...]] = {}
         self._loaded: set[int] = set()
         self._active_id: int | None = None
+        self._seen_source_id: int | None = None
 
     def update(
         self, session_id: str | None, points: Sequence[dict], live: bool,
@@ -114,57 +117,82 @@ class TrailRecorder:
             self._histories.clear()
             self._loaded.clear()
             self._active_id = None
+            self._seen_source_id = None
         if session_id is None:
             self._active_id = None
             return {}
 
-        visible = points[-_VISIBLE_GROUPS:]
+        visible = visible_chart_points(points)
         by_id = {event_id: point for point in visible if (event_id := _event_id(point)) is not None}
         ids = set(by_id)
-        self._histories = {event_id: history for event_id, history in self._histories.items() if event_id in ids}
-        self._loaded.intersection_update(ids)
-        missing = [event_id for event_id in by_id if event_id not in self._loaded]
+        source_end = getattr(points, "last_event_id", max(ids, default=0))
+        carried = {}
+        if live and self._active_id is not None:
+            for event_id, point in by_id.items():
+                if (point.get("is_observed_no_loot_marker")
+                        and point.get("cost") is not None
+                        and point.get("development_event_id") == self._active_id
+                        and event_id != self._active_id and self._histories.get(self._active_id)):
+                    # Only this live interval's observed input/average transfers.
+                    # Never relabel an old aggregate fan or invent prior returns.
+                    carried[event_id] = bounded_samples([
+                        (sample[0], sample[1], None) for sample in self._histories[self._active_id]
+                    ])
+        # Publish cache/identity changes only AFTER the atomic Store write.
+        # A failed transfer must leave its genuine source observations retryable.
+        histories = {event_id: history for event_id, history in self._histories.items() if event_id in ids}
+        loaded_ids = self._loaded.intersection(ids)
+        missing = [event_id for event_id in by_id if event_id not in loaded_ids]
         if missing:
             loaded = self._store.load_chart_trails(session_id, missing)
-            self._histories.update({event_id: bounded_samples(history) for event_id, history in loaded.items() if event_id in ids and history})
-            self._loaded.update(missing)
+            histories.update({event_id: bounded_samples(history) for event_id, history in loaded.items()
+                              if event_id in ids and history})
+            loaded_ids.update(missing)
         revised_visible = ids.intersection(revised_event_ids)
         if live and revised_visible:
-            # Allocation commits may already have atomically appended an
-            # observed revision, including for a previously off-screen member.
-            # Reload before appending so an older UI cache cannot erase it.
             refreshed = self._store.load_chart_trails(session_id, list(revised_visible))
             for event_id in revised_visible:
                 if refreshed.get(event_id):
-                    self._histories[event_id] = bounded_samples(refreshed[event_id])
-
+                    histories[event_id] = bounded_samples(refreshed[event_id])
         if not live:
-            # A paused/closed-HUD gap cannot be reconstructed on the next call.
+            self._histories, self._loaded = histories, loaded_ids
             self._active_id = None
-            return dict(self._histories)
+            self._seen_source_id = source_end
+            return dict(histories)
+        changed = {}
+        for event_id, history in carried.items():
+            if event_id not in histories:
+                histories[event_id] = history
+                changed[event_id] = history  # Persist identity transfer even when its endpoint did not move.
 
         latest_id = _event_id(visible[-1]) if visible else None
-        observed = []
+        observed = list(carried)
         if self._active_id in by_id and self._active_id != latest_id:
             observed.append(self._active_id)
         if latest_id is not None:
-            observed.append(latest_id)
-        # Reconsidered allocations are new observations of an earlier endpoint,
-        # not a reconstruction of its missing past. Only extend existing trails.
+            point = by_id[latest_id]
+            observation = point.get("observation_event_id")
+            fresh_observation = (type(observation) is int and self._seen_source_id is not None
+                                 and observation > self._seen_source_id)
+            if point.get("trail_recordable", True) or fresh_observation:
+                observed.append(latest_id)
+        # Revisions extend only genuine histories, including off-screen members
+        # now retained by the whole-encounter view. No missing past is replayed.
         observed.extend(event_id for event_id in by_id
-                        if event_id in revised_event_ids and self._histories.get(event_id)
+                        if event_id in revised_event_ids and histories.get(event_id)
                         and event_id not in observed)
-        changed: dict[int, tuple[Sample, ...]] = {}
         for event_id in observed:
             point = by_id[event_id]
+            if all(point.get(key) is None for key in ("cost", "avg_cost", "loot")):
+                continue
             sample = _sample((point.get("cost"), point.get("avg_cost"), point.get("loot")))
-            history = self._histories.get(event_id, ())
+            history = histories.get(event_id, ())
             if not history or sample != history[-1]:
                 changed[event_id] = bounded_samples((*history, sample))
         if changed:
-            # Commit before changing cached observations, so storage errors can
-            # be retried without silently losing an observed endpoint.
             self._store.save_chart_trails(session_id, changed)
-            self._histories.update(changed)
-        self._active_id = latest_id
-        return dict(self._histories)
+            histories.update(changed)
+        self._histories, self._loaded = histories, loaded_ids
+        self._active_id = latest_id if latest_id in observed else None
+        self._seen_source_id = source_end
+        return dict(histories)

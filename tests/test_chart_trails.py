@@ -237,9 +237,8 @@ def test_storage_roundtrip_preserves_unknown_cost_and_never_changes_accounting(s
 
 
 @pytest.mark.parametrize('invalid', [(-1, 1, 1), (1, -1, 1), (1, 1, -1),
-                                     (math.nan, 1, 1), (1, math.inf, 1), (1, 1, -math.inf),
-                                     (1, 1, None)])
-def test_storage_rejects_nonfinite_negative_and_unknown_loot(store, invalid):
+                                     (math.nan, 1, 1), (1, math.inf, 1), (1, 1, -math.inf)])
+def test_storage_rejects_nonfinite_and_negative_samples(store, invalid):
     sid = store.start_session('hunt')
     event_id = add_event(store, sid, value=1)
     with pytest.raises(ValueError):

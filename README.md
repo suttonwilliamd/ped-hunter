@@ -392,8 +392,9 @@ lines. A single observation is not a fan; missing intermediate positions while
 the HUD is closed, paused, or between refreshes cannot be reconstructed. Each
 group stores at most **24** raw-PED observations, preserving first/latest positions
 and per-series/profit extrema; at most four faint traces per series keep it
-readable. Only the latest 16 groups are drawn/cached. The first visible group's
-endpoint range is shown without inventing an off-chart anchor.
+readable. The latest 16 ordinary groups are drawn/cached; a latest supported team
+encounter instead retains its whole bounded marker sequence. The first visible
+group's endpoint range is shown without inventing an off-chart anchor.
 
 Samples persist in the same session SQLite database, separately from accounting
 events, and reload with their original group IDs. They remain stored while their
@@ -402,6 +403,60 @@ window. Resize, monitor-scale changes, and automatic chart range changes reproje
 the raw data together with the current lines, including retained extrema.
 Session totals, recent arrivals, and the cost/average/return series remain
 available; revised per-group costs are explicitly marked as estimates.
+
+### Team no-loot encounters
+
+An empty-speaker `[Team] [] This creature didn't carry any loot` message creates
+a **team marker**, labelled `T1.1`, `T1.2`, and so on. It does not prove a personal
+kill, a dungeon, a particular enemy or boss. The orange input is the user's
+recorded, priced uses between markers—not other players' attacks or damage-based
+guessing. No own use or missing prices leave the corresponding enemy cost
+unknown. Return and profit remain **pending**, not zero; the hero uses `—`
+while the current batch is unresolved, with recorded Cost/Loot cards still visible.
+
+Five captured English-log sequences each contain 44 such notices followed by
+an empty-speaker Force message ending `opened a Sacred Idol` and personal System
+receipts. The HUD supports this narrow **inferred container association**:
+the opening must follow the last marker within 60 seconds, and linked personal
+receipts must fall within the ordinary 0.75-second receipt window. Their observed
+subtotal is shared in proportion to recorded own input; subsequent linked
+receipts revise the estimates. Profit stays pending until later recorded source
+activity closes that receipt window, or the recorded run ends. This closes an
+**inferred receipt batch**, not a fabricated dungeon-completion event. A last
+interval gets a larger share only if its supported input warrants it—there is
+no boss name or arbitrary multiplier. An unmarked final own-input interval is
+still inferred, not an invented kill notice. Team/Force announcements of other
+players' loot are not personal returns.
+
+Amber estimate markers distinguish inferred shares from actual receipts.
+Pending/unknown profit is neutral. The blue average retains the original
+hunting-input budget, including shared/unassigned input, but uses the derived
+hunting-group count, so replacing one dungeon with many markers cannot inflate
+later averages. A known booked average is not an exact creature cost.
+Missing prices prevent weighted allocation; known personal subtotals remain
+separately visible once, with profit unresolved. Unsupported or delayed linkage
+retains the ordinary receipt projection rather than guessing a completion.
+Conflicting legacy component/recorded budgets and existing cross-receipt pools
+are not truncated or borrowed merely to make a team view fit. Repairs/crafting
+and team disbanding can interrupt support; other booked charges stay in the
+session ledger rather than being assigned to an invented enemy.
+
+The latest encounter stays visible as a whole while it overlaps the normal
+16-group window. Safety limits are **256 markers, two hours and 65,536 source-event
+IDs**, not declarations of dungeon boundaries. Interrupted/no-payout encounters
+remain pending. Distinct recorded notices stay distinct markers even when their
+text and timestamp match; replaying the same event ID adds nothing. Marker count
+is not confirmed kill count. Only genuine live input/average observations
+transfer into a marker's fan. Previously saved aggregate fans remain stored,
+but cannot truthfully be split among new markers; their prior return positions
+are not relabelled as observed enemy loot. Retained samples may reflect earlier
+grouping/attribution assumptions. No missing development is fabricated.
+All raw events, booked prices, personal loot and session totals remain unchanged,
+and the derived view rebuilds on reload. Current recognition uses the evidenced
+English server notices; unsupported/localized forms remain ordinary chat.
+
+
+### Event-local chart scales
 
 A narrow **vertical local-scale section stays at its chronological event
 position** when its envelope is separated by at least **3×** and lies beyond
@@ -606,6 +661,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Show bounded team no-loot marker timelines with pending profits and source-supported, cost-weighted Sacred Idol receipt estimates; retain whole encounters, genuine fans and immutable booked totals, without claiming dungeon/boss identity (0.3.51).
 - Integrate prompt setup/HUD refresh with bounded recent derived-cost reconsideration and visibly identified, conserved neighbor estimates; keep orange cost visible when it overlaps the average (0.3.50). Imagery and healing remain excluded.
 - Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49).
 - Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).

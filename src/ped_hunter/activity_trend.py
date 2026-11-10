@@ -12,6 +12,7 @@ import math
 from typing import Iterable, Mapping
 
 from .parser import is_conversion_output_item
+from .team_encounters import TeamEncounterBuilder
 
 CRAFT_RECEIPT_WINDOW_SECONDS = 1.25
 
@@ -95,6 +96,7 @@ class ActivityTrendBuilder:
         self._attribution_epoch = 0
         self._last_shot_context: str | None = None
         self._attribution_boundary_id = 0
+        self._team_encounters = TeamEncounterBuilder()
 
     def _point(self, group, closed=False):
         cost = group.cost
@@ -181,6 +183,7 @@ class ActivityTrendBuilder:
                 continue
             if not isinstance(payload, dict):
                 continue
+            self._team_encounters.extend_row(row, payload)
             kind = row['kind']
             when = _time(row['timestamp'])
             if kind in {'weapon', 'repair'}:
@@ -267,6 +270,7 @@ class ActivityTrendBuilder:
         result.manufacturing = replace(self.plan) if self.plan else None
         result.last_event_id = self.last_event_id
         result.attribution_boundary_id = self._attribution_boundary_id
+        result.team_encounters = self._team_encounters.snapshot()
         if self.group:
             result.append(self._point(self.group))
             if self.group.kind == 'craft' and self.group.cost is None:
