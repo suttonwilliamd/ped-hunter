@@ -69,6 +69,54 @@ def test_worker_ingests_appended_combat_loot_skill_with_costs(worker):
     assert worker[0]._log_queue.get_nowait() == ('parsed', 3)
 
 
+def test_same_second_team_marker_occurrences_survive_worker_without_duplicate_paid_receipts(worker):
+    from ped_hunter.app import _kill_trend_points
+    from ped_hunter.team_encounters import project_team_encounters
+
+    marker = b"2026-10-24 04:36:30 [Team] [] This creature didn't carry any loot\r\n"
+    opening = b"2026-10-24 04:36:31 [Force] [] Teammate opened a Sacred Idol\r\n"
+    payout = LOOT.replace(b"04:36:36", b"04:36:31")
+    session = run_polls(worker, [
+        lambda: append(worker[2], SHOT + marker + marker + opening + payout + payout),
+        lambda: None,
+    ])
+    app, sid, _ = worker
+    with app.store.connect() as conn:
+        notices = conn.execute(
+            "SELECT id,raw_message FROM events WHERE session_id=? AND kind='chat' ORDER BY id",
+            (sid,),
+        ).fetchall()
+    assert session.events == 5
+    assert len(notices) == 3
+    assert notices[0]['id'] != notices[1]['id']
+    assert notices[0]['raw_message'] == notices[1]['raw_message']
+    points = project_team_encounters(_kill_trend_points(app.store, sid))
+    assert len(points) == 2
+    assert [point['cost'] for point in points] == [pytest.approx(.0102), None]
+    assert points[0]['loot'] == pytest.approx(.0527)
+    assert points[1]['loot'] is None
+    assert session.hunting_cost == pytest.approx(.0102)
+    assert session.loot_value == pytest.approx(.0527)
+
+
+@pytest.mark.parametrize(('message', 'recorded_notices'), [
+    ("[Team] [Alice] This creature didn't carry any loot", 1),
+    ("[System] [] This creature didn't carry any loot", 0),
+    ("[Force] [] Teammate opened a Sacred Idol", 1),
+])
+def test_ordinary_repeated_chat_keeps_existing_dedup_and_cannot_create_team_markers(worker, message, recorded_notices):
+    from ped_hunter.app import _kill_trend_points
+    from ped_hunter.team_encounters import project_team_encounters
+
+    line = f"2026-10-24 04:36:30 {message}\r\n".encode()
+    session = run_polls(worker, [lambda: append(worker[2], SHOT + line + line)])
+    assert session.events == 1 + recorded_notices
+    assert session.hunting_cost == pytest.approx(.0102)
+    assert session.loot_value == 0
+    points = project_team_encounters(_kill_trend_points(worker[0].store, worker[1]))
+    assert all(not point.get('encounter_id') for point in points)
+
+
 @pytest.mark.parametrize('split', [10, 45, 70, len(LOOT) - 1])
 def test_split_writes_are_buffered_until_newline_and_ingested_exactly_once(worker, split):
     app, sid, path = worker

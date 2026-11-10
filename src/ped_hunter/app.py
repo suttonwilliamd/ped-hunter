@@ -34,7 +34,7 @@ from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item
 from .scrolling import ScrollPane
 from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
 from .storage import LifetimeTotals, LoadoutRecord, SessionResumeState, SessionSummary, SkillGainSummary, Store
-from .team_encounters import project_team_encounters, visible_chart_points
+from .team_encounters import is_team_no_loot_notice, project_team_encounters, visible_chart_points
 
 
 POLL_MS = 250
@@ -3707,7 +3707,13 @@ def _event_consumes_shot(event: ParsedEvent) -> bool:
 
 def _is_duplicate_log_line(previous_line: str | None, raw_line: str) -> bool:
     normalized = raw_line.strip()
-    return bool(normalized) and normalized == previous_line
+    if not normalized or normalized != previous_line:
+        return False
+    # Identical physical Team notice lines can describe distinct observations
+    # in one timestamp second. Record the occurrences, not invented kill IDs;
+    # they charge nothing. Keep the existing paid/combat duplicate safeguard.
+    event = parse_line(normalized)
+    return not (event and event.kind == "chat" and is_team_no_loot_notice(event.payload))
 
 
 def _typeahead_match(values: tuple[str, ...] | list[str], prefix: str) -> str | None:

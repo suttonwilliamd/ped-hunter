@@ -96,6 +96,10 @@ and pins the private source-prefix hash/range; it is not invented dungeon identi
 Real SQLite feed tests cover the shared live/Resume query and attribution stage,
 not just direct builder input. `test_team_encounters_ui` uses isolated Store/log
 paths and actual native pending/return/fan canvases at ordinary and compact sizes.
+`test_log_ingestion` also feeds identical same-second Team notice occurrences
+through the actual file worker/parser/SQLite path, alongside a duplicate paid
+receipt: both nonfinancial observations survive, the receipt is booked once,
+and a marker with no own use remains unknown rather than acquiring fake cost.
 Private full captures and before/after native/performance evidence belong in the
 coordinator results, not the repository or live database. Headless passes alone
 do not establish rendered readability, current-session restoration or deployment.

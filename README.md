@@ -445,15 +445,21 @@ The latest encounter stays visible as a whole while it overlaps the normal
 16-group window. Safety limits are **256 markers, two hours and 65,536 source-event
 IDs**, not declarations of dungeon boundaries. Interrupted/no-payout encounters
 remain pending. Distinct recorded notices stay distinct markers even when their
-text and timestamp match; replaying the same event ID adds nothing. Marker count
-is not confirmed kill count. Only genuine live input/average observations
+text and timestamp match; replaying the same event ID adds nothing. The normal
+writer retains separate physical occurrences of this nonfinancial server notice,
+while existing paid/combat duplicate safeguards remain unchanged. Such occurrences
+are not unique server kill IDs: an apparent duplicate without another own use
+keeps its cost unknown and adds no charge. Older notices omitted by the previous
+writer are not backfilled. Marker count is not confirmed kill count.
+Only genuine live input/average observations
 transfer into a marker's fan. Previously saved aggregate fans remain stored,
 but cannot truthfully be split among new markers; their prior return positions
 are not relabelled as observed enemy loot. Retained samples may reflect earlier
 grouping/attribution assumptions. No missing development is fabricated.
 All raw events, booked prices, personal loot and session totals remain unchanged,
 and the derived view rebuilds on reload. Current recognition uses the evidenced
-English server notices; unsupported/localized forms remain ordinary chat.
+English server notices; unsupported/localized forms keep the parser's existing
+ordinary/ignored behavior rather than becoming inferred dungeon events.
 
 
 ### Event-local chart scales
@@ -662,6 +668,7 @@ For convenience, PED Hunter also accepts the shorthand:
 
 ### Unreleased
 - Show bounded team no-loot marker timelines with pending profits and source-supported, cost-weighted Sacred Idol receipt estimates; retain whole encounters, genuine fans and immutable booked totals, without claiming dungeon/boss identity (0.3.51).
+- Preserve same-second physical Team no-loot occurrences through the real log worker without duplicating paid receipts or inventing enemy cost; previously omitted history remains untouched (0.3.51).
 - Integrate prompt setup/HUD refresh with bounded recent derived-cost reconsideration and visibly identified, conserved neighbor estimates; keep orange cost visible when it overlaps the average (0.3.50). Imagery and healing remain excluded.
 - Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49).
 - Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).

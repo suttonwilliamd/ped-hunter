@@ -23,6 +23,12 @@ OPENING_WINDOW = 60
 RECEIPT_WINDOW = 0.75
 
 
+def is_team_no_loot_notice(payload):
+    """Recognize the evidenced server notice, not a unique kill/server event ID."""
+    return (not payload.get('speaker') and payload.get('channel') == 'Team'
+            and payload.get('message') == NO_LOOT)
+
+
 def _number(value):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -194,7 +200,7 @@ class TeamEncounterBuilder:
             self._close('interrupted_team')
             self.input = _Input()
             return
-        if channel == 'Team' and message == NO_LOOT:
+        if is_team_no_loot_notice(payload):
             if self.active and self.active.opener_id is not None:
                 self._close('container_linked' if self.active.receipt_ids else 'container_pending')
             if self.active and len(self.active.members) >= MAX_MARKERS:
