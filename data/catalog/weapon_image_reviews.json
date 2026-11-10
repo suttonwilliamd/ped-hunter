@@ -1,0 +1,84 @@
+{
+  "Sollomate Opalo": {
+    "catalog_name": "Sollomate Opalo",
+    "identity": {
+      "source": "entropia_nexus",
+      "entity_type": "weapon",
+      "id": 2629,
+      "item_id": 2002629,
+      "name": "Sollomate Opalo"
+    },
+    "source_item_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf#page=14",
+    "original_image_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf",
+    "original_sha256": "79bd3ccb77a286f71519e916d4e2b4405d16f811f3613547076056d585779868",
+    "retrieved_at": "2026-11-10",
+    "identity_evidence": "Original 2017 guide page 14 screenshot explicitly titles this exact item, with no variant suffix. Current in-game appearance is not independently verified.",
+    "source_image_record": {
+      "container": "Entropia Universe Guide2017 Edition4.2 PDF",
+      "page": 14,
+      "pdf_object": 176,
+      "media_type": "image/jpeg",
+      "sha256": "b6665cbfba93a25fbcb3788fba1616ae62513a8f57f1a99ed758a2de414ed849",
+      "dimensions": [
+        386,
+        533
+      ]
+    },
+    "attribution": "Richard “Dirk” Tomlin and Entropia Universe Guide contributors,2017 Edition4.2;MindArk game IP retained;no endorsement. See weapon_images/ATTRIBUTION.md.",
+    "reuse": {
+      "status": "approved",
+      "basis": "Publisher explicitly licenses guide content CC BY-SA4.0 on page1 and describes reuse/previous-material permission on page8. Image adaptation remains CC BY-SA4.0 with attribution,source and change notice;other game/trademark rights retained.",
+      "evidence_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf#page=1",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "notice": "weapon_images/ATTRIBUTION.md"
+    },
+    "status": "available",
+    "processing": "Unchanged JPEG object176 extracted;crop112,172,186,112;HighQualityBicubic/HighQuality pixel offset via owned windowless System.Drawing memory bitmap;letterbox0,12,64,39 on transparent64x64 PNG;no retouch or detail reconstruction.",
+    "asset": {
+      "path": "weapon_images/sollomate-opalo-guide2017-64.png",
+      "sha256": "c8f193a76ee7c86403ffcec6fee777a55979b5104cdbc90691ab4eb0decd9980",
+      "width": 64,
+      "height": 64
+    }
+  },
+  "Bukin's Blade": {
+    "catalog_name": "Bukin's Blade",
+    "identity": {
+      "source": "entropia_nexus",
+      "entity_type": "weapon",
+      "id": 354,
+      "item_id": 2000354,
+      "name": "Bukin's Blade"
+    },
+    "source_item_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf#page=16",
+    "original_image_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf",
+    "original_sha256": "79bd3ccb77a286f71519e916d4e2b4405d16f811f3613547076056d585779868",
+    "retrieved_at": "2026-11-10",
+    "identity_evidence": "Original 2017 guide page 16 screenshot explicitly titles this exact item, with no variant suffix. Current in-game appearance is not independently verified.",
+    "source_image_record": {
+      "container": "Entropia Universe Guide2017 Edition4.2 PDF",
+      "page": 16,
+      "pdf_object": 183,
+      "media_type": "image/jpeg",
+      "sha256": "b98388326005b17ea7fd308e03e357619e0d400e16abe004557560ed0a2487cf",
+      "dimensions": [
+        739,
+        533
+      ]
+    },
+    "attribution": "Richard “Dirk” Tomlin and Entropia Universe Guide contributors,2017 Edition4.2;MindArk game IP retained;no endorsement. See weapon_images/ATTRIBUTION.md.",
+    "reuse": {
+      "status": "approved",
+      "basis": "Publisher explicitly licenses guide content CC BY-SA4.0 on page1 and describes reuse/previous-material permission on page8. Image adaptation remains CC BY-SA4.0 with attribution,source and change notice;other game/trademark rights retained.",
+      "evidence_url": "https://www.entropiamuseum.com/guides/2014/08/guide2014081.pdf#page=1",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "notice": "weapon_images/ATTRIBUTION.md"
+    },
+    "status": "unusable",
+    "processing": "Unchanged JPEG object183 extracted and inspected statically;no thumbnail produced.",
+    "asset": null,
+    "unusable_reason": "Weapon model is obscured by stat text and red explanatory annotations. A clean recognizable complete-weapon crop cannot be established without reconstructing hidden details;retain neutral fallback."
+  }
+}

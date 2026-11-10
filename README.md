@@ -50,6 +50,15 @@ reprices recorded events. Starting a new draft leaves the active setup and
 current run unchanged. Changing selection with unsaved edits offers Save
 (without activation), Discard or Cancel. Delete is disabled for an unsaved draft.
 
+HUD weapon imagery uses an exact-identity, local-only asynchronous cache in the
+four saved-setup buttons. The [all-weapon image audit](docs/weapon-images.md)
+accounts for all 2,899 catalog entries and records source/reuse evidence and
+explicit unresolved inventories. **One exact historical Sollomate Opalo image**
+is bundled from an explicitly CC BY-SA 4.0 guide, with attribution and change
+notice. Most artwork availability/reuse remains unresolved; neutral marks are
+not substitute weapon pictures. Native visual acceptance and live delivery are
+pending; background checks do not establish installed UI acceptance.
+
 The setup fields and explanatory text scroll, while draft state, current cost
 feedback and all three actions stay outside that scroll viewport. The saved
 comparison table has horizontal scrolling instead of forcing the form wider.
@@ -573,6 +582,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Add an all-entry weapon-image identity/provenance audit and bounded local asynchronous HUD image/fallback loading (0.3.48), including one exactly identified CC BY-SA guide crop; artwork coverage is 1/2,899, native visual acceptance and deployment remain pending.
 - Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 

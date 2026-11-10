@@ -98,6 +98,18 @@ chart/accounting and desktop UI. Reordering must conserve every original field
 and all historical rows; activation may change only subsequent cost context.
 Native captures must distinguish actual Windows DPI from simulated HUD scale.
 
+`test_weapon_images` is headless: original synthetic PNGs exercise exact names
+and explicit aliases (not fuzzy weapon search), variant separation, all four
+requested identities, missing/broken/unapproved assets, stale asynchronous
+completions under a blocked reader, finite worker/cache storage, and all-entry
+catalog/provenance/reuse auditing. It belongs to catalog/loadouts and desktop
+UI groups, but does **not** open Tk or prove compact rendered readability.
+During a background-only pass, run this module directly plus affected safe
+dependencies; do not run a native fixture simply because its group overlaps.
+Actual HUD image/font/active-state contrast at ordinary and minimum sizes and
+representative DPI requires separately authorized native captures. Synthetic
+test art and an all-entry manifest are not recognizable weapon-image coverage.
+
 
 For setup or Help layout changes, run controller/data checks **and** authorized
 native layout checks. A headless controller/SQLite pass cannot prove that a
