@@ -340,10 +340,11 @@ speculative fixes.
 
 ## Live visual feedback
 
-The dashboard and Streamer UI show bundled loot arrivals, actual skill-gain activity,
-rolling monetary totals, and short chart transitions. New loot/skill rows briefly
-highlight. Historical sessions and resumed tracking establish a quiet baseline;
-opening a saved run never replays its loot as new arrivals.
+The dashboard shows bundled loot arrivals and actual skill-gain activity; new
+loot/skill rows briefly highlight. The Streamer HUD omits the event-feed panel
+and uses that space for its chart and financial context instead. Both retain
+rolling totals and chart transitions. Historical sessions and resumed tracking
+establish a quiet dashboard baseline, never replaying old loot as new arrivals.
 
 Use **Reduced motion** in **Help** to settle totals immediately and disable motion
 and flashes. Quiet loot/skill sounds can be enabled in **Help** on Windows; they are
@@ -369,7 +370,7 @@ Closing and reopening the Streamer UI restores the bottom-right starting positio
 The broadcast HUD uses a side-by-side net/return hero, a persistent tracking state,
 and compact overlay-local typography. Its default size is **360×330** at 100%
 scaling, with a **260×240** minimum. Fonts and spacing adapt when you resize,
-not on live-data or animation ticks. The hero, metrics, activity, chart summary,
+not on live-data or animation ticks. The hero, metrics, chart summary,
 and footer keep stable slots inside the chosen rectangle without changing the
 main window's scaling. Large monetary totals fit their own field's font without
 moving other sections or losing precision. No-session and zero-cost
@@ -573,11 +574,11 @@ never raises the minimum. Focus the brand or resize handle with
 Tab, then use arrow keys to move by 10 pixels or Shift+arrows to resize. The close
 button supports Space/Enter, and Escape dismisses only the overlay. Enlargement gives the chart more room; shrinking adapts fonts, spacing, and
 field allocations instead of imposing a minimum based on previously enlarged content.
-Activity uses two fixed single-line slots; long messages ellipsize visually
-without changing the strip's height. Arrival messages settle back to quiet copy
-after four seconds without moving the HUD, including with
-reduced motion. Preview keeps a persistent **DEMO** state and synthetic-money
-warning and uses the same layout/placement as the production overlay.
+The Streamer HUD has no waiting/event-feed or skill-arrival section. Its chart
+follows the metrics directly, with the conditional crafting-input row between
+them when needed; no empty feed placeholder remains. Dashboard activity and
+quiet sounds are unchanged. Preview keeps a persistent **DEMO** state and uses
+the same layout/placement as the production overlay.
 
 ### Crafting inputs in the streamer
 
@@ -667,6 +668,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Remove the streamer-only waiting/loot/skill event-feed panel and its update timers; reclaim compact chart space while preserving dashboard feedback, all parsed skill XP/loot, financial history, setup buttons and chart fans (0.3.52).
 - Show bounded team no-loot marker timelines with pending profits and source-supported, cost-weighted Sacred Idol receipt estimates; retain whole encounters, genuine fans and immutable booked totals, without claiming dungeon/boss identity (0.3.51).
 - Preserve same-second physical Team no-loot occurrences through the real log worker without duplicating paid receipts or inventing enemy cost; previously omitted history remains untouched (0.3.51).
 - Integrate prompt setup/HUD refresh with bounded recent derived-cost reconsideration and visibly identified, conserved neighbor estimates; keep orange cost visible when it overlaps the average (0.3.50). Imagery and healing remain excluded.

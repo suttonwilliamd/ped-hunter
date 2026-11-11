@@ -6,6 +6,7 @@ import time
 import pytest
 
 from ped_hunter.app import PedHunterApp
+from ped_hunter.catalog import Catalog
 from ped_hunter.feedback import Animator, ArrivalTracker, Snapshot, ease_out
 from ped_hunter.storage import Store
 
@@ -84,8 +85,6 @@ def test_live_feedback_and_reduced_motion_do_not_change_records(tmp_path, monkey
         assert cues == ["loot"]  # The overlay does not duplicate the dashboard's cue.
         assert "+$0.40 LOOT" == app.activity_strip.headline
         assert "Rifle +1" in app.activity_strip.detail
-        assert overlay.activity_strip.headline == "+$0.40 loot recorded"
-        assert "Rifle +1" in overlay.activity_strip.detail
         assert any("arrival" in app.skills_tree.item(iid, "tags") for iid in app.skills_tree.get_children())
         assert any("arrival" in app.events_tree.item(iid, "tags") for iid in app.events_tree.get_children())
         app.reduced_motion.set(True)
@@ -93,7 +92,6 @@ def test_live_feedback_and_reduced_motion_do_not_change_records(tmp_path, monkey
         assert app.hero_loot.get() == "$0.40"
         assert overlay.vars["loot"].get() == "$0.40"
         assert not app.activity_strip.animator.jobs
-        assert not overlay.activity_strip.animator.jobs
         assert app._loot_chart_phase == 1
         assert overlay._chart_phase == 1
         assert cues == ["loot"]
@@ -126,3 +124,27 @@ def test_opening_historical_loot_does_not_celebrate(tmp_path):
         assert not any("arrival" in app.events_tree.item(iid, "tags") for iid in app.events_tree.get_children())
     finally:
         app.destroy()
+
+
+def test_fractional_skill_xp_and_loot_still_reach_recorded_main_view_snapshot(tmp_path):
+    app = object.__new__(PedHunterApp)
+    app.store = Store(tmp_path / "fractional-feedback.sqlite3")
+    app.catalog = Catalog.load()
+    app._activity_cache = None
+    sid = app.store.start_session("hunt")
+    lines = [
+        "2026-01-01 10:00:00 [System] [] You have gained 0.0001 experience in your Handgun skill",
+        "2026-01-01 10:00:01 [System] [] You have gained 0.0100 experience in your Handgun skill",
+        "2026-01-01 10:00:02 [System] [] You received Shrapnel x (6) Value: 0.0006 PED",
+    ]
+    app._process_lines(lines, sid, None)
+    before = app.store.get_session(sid)
+    gain, = app.store.skill_gains_for_session(sid)
+    assert gain.skill == "Handgun"
+    assert gain.xp == pytest.approx(.0101)
+    assert gain.procs == 2
+    snapshot = app._activity_snapshot(before)
+    assert snapshot.skills == {"Handgun": 2}
+    assert snapshot.loot == pytest.approx(.0006)
+    assert snapshot.events == 3
+    assert app.store.get_session(sid) == before

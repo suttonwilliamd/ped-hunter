@@ -21,7 +21,7 @@ def hud(tmp_path):
 
 def positions(window):
     widgets = [window.hero, window.net_label, window.return_label, window.stats,
-               *window.stat_cells, window.activity_strip, window.kill_chart,
+               *window.stat_cells, window.kill_chart,
                window.durability_bar, window.loadout_label, window.resize_handle]
     return tuple((w.winfo_rootx(), w.winfo_rooty(), w.winfo_width(), w.winfo_height()) for w in widgets)
 
@@ -42,7 +42,7 @@ def fonts(window, exclude=()):
 
 
 @pytest.mark.parametrize('size', [(360, 330), (260, 240), (540, 400)])
-def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(hud, size):
+def test_live_digit_thresholds_keep_layout_still(hud, size):
     app, window = hud
     window.geometry(f'{round(size[0] * window.ui_scale)}x{round(size[1] * window.ui_scale)}')
     app.update()
@@ -56,28 +56,8 @@ def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(h
         window.vars['kill_trend_badge'].set(
             f'K{9 if i % 2 else 1000} · Profit -0.05 PED · ↓ -0.10 vs prev\n'
             'Cost 0.12 · Cumulative avg cost 0.13 PED')
-        strip = window.activity_strip
-        strip.headline = '+0.05 PED loot recorded' if i % 2 else 'Waiting for new events'
-        strip.detail = ('Very long synthetic skill name +1 · ' * 8 if i % 2 else 'Loot and skill gains appear here')
-        strip._draw()
         app.update()
         assert (positions(window), fonts(window)) == before
-    window.activity_strip._quiet()
-    app.update()
-    assert (positions(window), fonts(window)) == before
-
-
-def test_activity_strip_has_two_reserved_lines_even_for_long_text(hud):
-    app, window = hud
-    strip = window.activity_strip
-    height = strip.winfo_height(), strip.winfo_reqheight()
-    full = 'A long synthetic skill name +123 · ' * 15
-    for detail in ('Short', full, 'Loot and skill gains appear here', full):
-        strip.detail = detail
-        strip._draw()
-        app.update()
-        assert (strip.winfo_height(), strip.winfo_reqheight()) == height
-        assert strip.detail == detail  # Only presentation may ellipsize; retain the original.
 
 
 def test_number_animation_does_not_relayout_between_frames(hud):
@@ -144,3 +124,25 @@ def test_manufacturing_attempt_text_changes_do_not_relayout(hud):
         app.update()
         assert (positions(window), fonts(window)) == before
         assert f'{attempt}/1000' in window.vars['input'].get()
+
+
+@pytest.mark.parametrize('size', [(360, 330), (260, 240)])
+@pytest.mark.parametrize('crafting', [False, True])
+def test_chart_or_crafting_inputs_follow_metrics_without_an_event_feed_gap(hud, size, crafting):
+    app, window = hud
+    sid = app.store.start_session('hunt')
+    app.session_id, app.running = sid, True
+    if crafting:
+        app.store.add_event(sid, {'kind': 'manufacturing_offset', 'raw_message': 'private plan',
+                                 'payload': {'attempts_total': 9, 'cost_per_attempt': .03025,
+                                             'total_cost': .27225, 'blueprint': 'Private blueprint'}})
+    window.update_from_session(app.store.get_session(sid))
+    window.geometry(f'{round(size[0] * window.ui_scale)}x{round(size[1] * window.ui_scale)}')
+    app.update()
+    following = window.input_slot if crafting else window.trend
+    gap = following.winfo_rooty() - window.stats.winfo_rooty() - window.stats.winfo_height()
+    assert 0 <= gap <= round(5 * window._content_scale) + 1
+    for widget in (following, window.kill_chart, window.footer):
+        assert widget.winfo_ismapped()
+        assert widget.winfo_rooty() >= window.winfo_rooty()
+        assert widget.winfo_rooty() + widget.winfo_height() <= window.winfo_rooty() + window.winfo_height()

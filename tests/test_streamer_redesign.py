@@ -4,7 +4,6 @@ from types import SimpleNamespace
 import pytest
 
 from ped_hunter import app as appmod
-from ped_hunter.feedback import Snapshot
 from ped_hunter.storage import Store
 
 
@@ -42,7 +41,6 @@ def test_retained_session_state_and_demo_never_claim_false_tracking(hud):
     app.store.end_session(sid)
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['state'].get() == 'DEMO · STOPPED'
-    assert 'not real money' in overlay.activity_strip.detail
     app.running = True
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['state'].get() == 'DEMO · STOPPED'
@@ -80,21 +78,6 @@ def test_query_failure_is_distinct_from_no_kills_and_recovers(hud, monkeypatch):
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '0'
     assert overlay.vars['kill_trend_badge'].get() == 'No kill points yet'
-
-
-def test_activity_expires_without_changing_persistent_tracking(hud):
-    app, overlay = hud
-    strip = overlay.activity_strip
-    strip.set_context('TRACKING')
-    strip.update_snapshot(Snapshot('run', loot=1, events=1), True)
-    strip.update_snapshot(Snapshot('run', loot=3, events=2, skills={'Rifle': 1}), True)
-    assert 'loot recorded' in strip.headline
-    assert strip._reset_job is not None
-    assert not strip.animator.jobs  # Reduced motion also retains timed text reset.
-    strip.after_cancel(strip._reset_job)
-    strip._quiet()
-    assert strip.headline == 'Waiting for new events'
-    assert strip.detail == 'Loot and skill gains appear here'
 
 
 def test_enlarging_does_not_ratchet_minimum_and_can_shrink_again(hud):

@@ -3,6 +3,16 @@
 Design by **BobRoss.bot**, Paperclip task **WIL-15**, 24 October 2026.
 Implementation by Aaron / Pi Coding Assistant.
 
+## v0.3.52 streamer event-feed removal
+
+The streamer no longer constructs or refreshes its separate two-line activity
+canvas. The dashboard's activity feed, quiet sounds, recorded loot and exact
+skill XP/proc summaries remain unchanged. Metrics lead directly into the chart,
+or the conditional crafting-input row, without a placeholder or reserved gap.
+The existing packed-child height calculation reclaims the removed panel's space;
+window defaults/minimums, user resize, setup slots, fans and local scales remain.
+This supersedes the historical streamer activity-area requirements below.
+
 ## v0.3.37 crafting-cost attribution
 
 The owner's live log records crafting as received product, returned materials,

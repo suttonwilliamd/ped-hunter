@@ -2270,7 +2270,6 @@ class StreamerWindow(tk.Toplevel):
         self.after_idle(self._schedule_fit_to_contents)
 
     def _build(self) -> None:
-        from .overlay_feedback import OverlayActivityStrip
         bg, surface, primary, secondary = "#0B1220", "#131E2E", "#F1F5F9", "#B8C5D6"
         self.content_width = int((STREAMER_DEFAULT_WIDTH - 18) * self.ui_scale)
         self._fonts = {}
@@ -2360,9 +2359,6 @@ class StreamerWindow(tk.Toplevel):
             setattr(self, {"loot": "loot_title", "cost": "cost_title", "kills": "count_title"}[key], title_label)
             fixed_text(cell, key, size=12, bold=True, fg=primary).pack(fill="both", expand=True)
             self.stat_cells.append(cell)
-        self.activity_strip = OverlayActivityStrip(self.outer, reduced_motion=self.app.reduced_motion,
-                                                    money=self.app._money, width=self.content_width)
-        self.activity_strip.pack(fill="x", pady=(4, 0))
         self.input_slot = tk.Frame(self.outer, bg=bg)
         self.input_slot.pack_propagate(False)
         self.input_label = fixed_text(self.input_slot, "input")
@@ -2544,7 +2540,6 @@ class StreamerWindow(tk.Toplevel):
         self.stats.configure(padx=round(6 * scale), pady=round(3 * scale))
         self.kill_chart.configure(height=max(24, round(54 * scale)))
         self.durability_bar.configure(height=max(3, round(4 * scale)))
-        self.activity_strip.set_scale(scale)
 
     def _layout_values(self) -> None:
         width = self.winfo_width() if self.winfo_width() > 1 else round(STREAMER_DEFAULT_WIDTH * self.ui_scale)
@@ -2775,11 +2770,9 @@ class StreamerWindow(tk.Toplevel):
         live = state == "TRACKING"
         self.vars["state"].set(f"{'DEMO · ' if self.demo else ''}{state}")
         self.state_label.configure(fg="#5EEAD4" if live else "#B8C5D6")
-        self.activity_strip.set_context(state, self.demo, crafting=craft_active)
         context = (session.session_id if session else None, self.app.currency_mode.get(), live)
         animate = context == self._feedback_context and live and not self.app.reduced_motion.get()
         self._feedback_context = context
-        self.activity_strip.update_snapshot(self.app._activity_snapshot(session), live)
         for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
             self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
         if not session or incomplete_cost or pending_return:
@@ -2804,7 +2797,7 @@ class StreamerWindow(tk.Toplevel):
             else:
                 self.vars["input"].set("Craft inputs unknown — add blueprint + attempts")
             if not self.input_slot.winfo_manager():
-                self.input_slot.pack(after=self.activity_strip, fill="x", pady=(4, 0))
+                self.input_slot.pack(after=self.stats, fill="x", pady=(4, 0))
                 self.input_label.pack(fill="both", expand=True)
                 self._schedule_fit_to_contents()
         else:

@@ -117,7 +117,7 @@ def test_real_ingestion_prices_full_craft_group_and_keeps_session_total(hud):
 def test_craft_progress_updates_stay_in_the_existing_fixed_layout(hud):
     app, window, sid = hud
     arm_from_real_controls(app, attempts=100)
-    widgets = (window.hero, window.stats, window.activity_strip, window.kill_chart, window.footer)
+    widgets = (window.hero, window.stats, window.kill_chart, window.footer)
     def shape():
         return tuple((w.winfo_rootx(), w.winfo_rooty(), w.winfo_width(), w.winfo_height()) for w in widgets)
     before = shape()
