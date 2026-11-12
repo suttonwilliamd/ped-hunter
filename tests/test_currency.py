@@ -131,6 +131,9 @@ def test_manufacturing_preview_refreshes_small_input_prices_without_rebooking(tm
         app.crafting_blueprint.set("Muscle Oil Compound B Blueprint")
         app._refresh_crafting_preview()  # Initial blueprint/attempt edit only.
         app._add_crafting_cost_to_session()
+        app.manufacturing_tab.master.select(app.manufacturing_tab)
+        app.geometry(f"{round(760 * app.display_scale)}x{round(500 * app.display_scale)}")
+        app.update()
         before = asdict(store.get_session(sid))
         assert before["hunting_cost"] == pytest.approx(0.27225)
         with store.connect() as conn:
@@ -159,6 +162,14 @@ def test_manufacturing_preview_refreshes_small_input_prices_without_rebooking(tm
             preview = app.crafting_preview.get()
             assert f"{per_attempt}/attempt" in preview
             assert f"9 attempts = {total} input" in preview
+            app.update()
+            label = app.crafting_preview_label
+            reference = ttk.Label(app, text=preview, style="Panel.TLabel", font=label.cget("font"),
+                                  wraplength=max(1, label.winfo_width() - 2))
+            try:
+                assert label.winfo_height() >= reference.winfo_reqheight()
+            finally:
+                reference.destroy()
             assert app.crafting_blueprint.get() == "Muscle Oil Compound B Blueprint"
             assert app.crafting_attempts.get() == "9"
             assert asdict(store.get_session(sid)) == before

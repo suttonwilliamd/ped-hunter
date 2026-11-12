@@ -809,7 +809,11 @@ class PedHunterApp(tk.Tk):
         blueprint_combo.grid(row=0, column=1, sticky="ew", pady=5)
         ttk.Label(form, text="Attempts", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=5)
         attempts_spin.grid(row=1, column=1, sticky="w", pady=5)
-        ttk.Label(form, textvariable=self.crafting_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold"), wraplength=620).grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 8))
+        self.crafting_preview_label = ttk.Label(form, textvariable=self.crafting_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold"), width=1, wraplength=620)
+        self.crafting_preview_label.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 8))
+        self.crafting_preview_label.bind("<Configure>", lambda event: (
+            self.crafting_preview_label.configure(wraplength=max(1, event.width - round(4 * self.display_scale)))
+        ))
         ttk.Button(form, text="Add material cost to active session", command=self._add_crafting_cost_to_session, style="Accent.TButton").grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
         help_panel = self._panel(tab, "How manufacturing offsets loot", 0, 1)
