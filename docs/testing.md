@@ -58,52 +58,13 @@ actual imports and assertions, not from which source filename happened to change
 
 | Changed source/contract | Start with | Dependency guidance grounded in existing tests |
 |---|---|---|
-| `activity_trend`, `team_encounters`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft/team grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
+| `activity_trend`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
 | `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
 | Native widgets/layout/DPI, `scrolling.py`, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | `test_default_layout` exercises real setup/Help widgets, persistent actions, focused-control reveal, smaller geometry, native font bounds and simulated application DPI; `test_setup_editor` is controller/data evidence, not rendered acceptance. Includes streamer rendering/resize/toggle/placement/stability/crafting and GUI ingestion/fan cases. Add catalog/loadouts and persistence for setup controls/activation. A large `app.py` edit alone is not a full-suite gate. |
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
-
-Recent-cost reconsideration adds headless `test_hunt_attribution_reconsideration`
-and real-SQLite `test_hunt_attribution_revision_storage` coverage: delayed and
-interleaved receipts, independent later support, whole-pool retention,
-away-and-back context batches, hard finalization, and atomic decision/fan
-rollback/reload. Portable v1 fixtures preserve the actual synthetic PED-006
-observations. Their captured UTC offset is explicit, original timestamp text is
-retained separately, and equivalent UTC replay is tested without changing system
-timezones. The numerical historical-window fixture is deidentified. These
-checks do not establish native orange-line/fan appearance or installed delivery.
-`test_hunt_attribution_neighbors` covers before/after raw-neighbor support,
-insufficient evidence, equipment boundaries, conservation and reload, including
-a deidentified exact K995/event304816 interval copy. Native evidence must
-separately identify the actual process/source/profile, distinguish a null
-endpoint from overlapping cost/average strokes, and verify settled resize
-dimensions rather than accepting a clipped capture of an earlier frame.
-
-`test_team_encounters` exercises the captured 44-marker English Sacred Idol
-sequence and controlled ambiguity/boundary cases: own recorded input versus
-incoming/other-player activity, pending versus supported personal return,
-weighted conservation without a boss multiplier, no-price/unallocated receipts,
-unsupported/delayed linkage, source-progress/run-end receipt-batch closure,
-repeated event IDs versus distinct notices, whole-encounter retention,
-global booked-input averages and atomic genuine-fan transfer/reload—even when
-the transferred endpoint has not moved. SQLite write failure must retain the
-original source observations for a retry, not publish a cache-only new identity.
-The portable fixture is deidentified, preserves recorded prices, lists omitted unrelated rows,
-and pins the private source-prefix hash/range; it is not invented dungeon identity.
-Real SQLite feed tests cover the shared live/Resume query and attribution stage,
-not just direct builder input. `test_team_encounters_ui` uses isolated Store/log
-paths and actual native pending/return/fan canvases at ordinary and compact sizes.
-`test_log_ingestion` also feeds identical same-second Team notice occurrences
-through the actual file worker/parser/SQLite path, alongside a duplicate paid
-receipt: both nonfinancial observations survive, the receipt is booked once,
-and a marker with no own use remains unknown rather than acquiring fake cost.
-Private full captures and before/after native/performance evidence belong in the
-coordinator results, not the repository or live database. Headless passes alone
-do not establish rendered readability, current-session restoration or deployment.
-
 
 Select the changed component **plus affected dependencies**. Groups are useful
 starting points, not proof that every acceptance case is covered. Preserve named

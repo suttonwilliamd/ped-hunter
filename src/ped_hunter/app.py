@@ -34,7 +34,6 @@ from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item
 from .scrolling import ScrollPane
 from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
 from .storage import LifetimeTotals, LoadoutRecord, SessionResumeState, SessionSummary, SkillGainSummary, Store
-from .team_encounters import is_team_no_loot_notice, project_team_encounters, visible_chart_points
 
 
 POLL_MS = 250
@@ -1585,9 +1584,7 @@ class PedHunterApp(tk.Tk):
         if active_loadout:
             active_loadout = with_repair_estimates(self.catalog, active_loadout)
         elif handoff is None:
-            session = self.store.get_session(session_id)
-            if session:
-                active_loadout = self._restore_session_loadout(session)
+            active_loadout = self._restore_session_loadout(session_state)
         for raw in lines:
             if _is_duplicate_log_line(last_ingested_log_line, raw):
                 continue
@@ -2267,9 +2264,14 @@ class StreamerWindow(tk.Toplevel):
             self.bind(f"<Shift-{key}>", self._keyboard_geometry)
         self.bind("<Escape>", lambda _event: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self.destroy)
-        self.after_idle(self._schedule_fit_to_contents)
+        # Opening must not depend on the event loop becoming idle. Live log
+        # traffic (or a busy desktop/game) can delay idle callbacks indefinitely,
+        # leaving an otherwise valid overlay withdrawn and invisible.
+        self._fit_to_contents()
+        self.lift()
 
     def _build(self) -> None:
+        from .overlay_feedback import OverlayActivityStrip
         bg, surface, primary, secondary = "#0B1220", "#131E2E", "#F1F5F9", "#B8C5D6"
         self.content_width = int((STREAMER_DEFAULT_WIDTH - 18) * self.ui_scale)
         self._fonts = {}
@@ -2359,6 +2361,9 @@ class StreamerWindow(tk.Toplevel):
             setattr(self, {"loot": "loot_title", "cost": "cost_title", "kills": "count_title"}[key], title_label)
             fixed_text(cell, key, size=12, bold=True, fg=primary).pack(fill="both", expand=True)
             self.stat_cells.append(cell)
+        self.activity_strip = OverlayActivityStrip(self.outer, reduced_motion=self.app.reduced_motion,
+                                                    money=self.app._money, width=self.content_width)
+        self.activity_strip.pack(fill="x", pady=(4, 0))
         self.input_slot = tk.Frame(self.outer, bg=bg)
         self.input_slot.pack_propagate(False)
         self.input_label = fixed_text(self.input_slot, "input")
@@ -2540,6 +2545,7 @@ class StreamerWindow(tk.Toplevel):
         self.stats.configure(padx=round(6 * scale), pady=round(3 * scale))
         self.kill_chart.configure(height=max(24, round(54 * scale)))
         self.durability_bar.configure(height=max(3, round(4 * scale)))
+        self.activity_strip.set_scale(scale)
 
     def _layout_values(self) -> None:
         width = self.winfo_width() if self.winfo_width() > 1 else round(STREAMER_DEFAULT_WIDTH * self.ui_scale)
@@ -2696,18 +2702,10 @@ class StreamerWindow(tk.Toplevel):
             # dependency. A failed write must not masquerade as a saved estimate.
             self._attribution_error = True
         try:
-            kill_points = project_team_encounters(kill_points, session_closed=bool(session and session.ended_at))
-            self._encounter_error = False
-        except Exception:
-            logging.exception("Team encounter projection failed; raw accounting unchanged")
-            self._encounter_error = True
-        kill_count = len(kill_points)
-        try:
             self.kill_trail_histories = self._trail_recorder.update(
                 session.session_id if session else None, kill_points,
                 live_chart and not self._attribution_error,
-                revised_event_ids=(set(getattr(kill_points, "attribution_changed_ids", ())) |
-                                   set(getattr(kill_points, "encounter_changed_ids", ()))),
+                revised_event_ids=getattr(kill_points, "attribution_changed_ids", ()),
             )
             self._trail_error = False
         except Exception:
@@ -2722,17 +2720,10 @@ class StreamerWindow(tk.Toplevel):
         incomplete_cost = bool(unpriced_groups and (
             (craft_active and (plan.per_attempt is None or plan.observed > plan.attempts)) or
             (not plan and kill_points and kill_points[-1].get("kind") == "craft")))
-        team_view = bool(kill_points and kill_points[-1].get("kind") in {"encounter", "encounter_receipt"})
-        pending_return = team_view and kill_points[-1].get("encounter_return_pending", False)
-        if team_view:
-            incomplete_cost |= any(
-                point.get("kind") == "encounter" and point.get("recorded_own_input") is None
-                for point in visible_chart_points(kill_points))
         self._has_crafting = has_crafting
-        self.net_caption.configure(text="NET · COST UNKNOWN" if incomplete_cost else "NET · RETURN PENDING" if pending_return
-                                   else "BOOKED SESSION NET" if has_crafting or team_view else "NET PROFIT")
+        self.net_caption.configure(text="NET · COST UNKNOWN" if incomplete_cost else "BOOKED SESSION NET" if has_crafting else "NET PROFIT")
         self.loot_title.configure(text="Returns" if has_crafting else "Loot")
-        self.cost_title.configure(text="Known cost" if incomplete_cost else "Booked cost" if has_crafting or team_view else "Cost")
+        self.cost_title.configure(text="Known cost" if incomplete_cost else "Booked cost" if has_crafting else "Cost")
         self.count_title.configure(text="Groups*")
         self.chart_note.configure(text="* Prior groups · PED" if craft_active and not plan.observed and kill_points else
                                   "* Observed groups · PED" if has_crafting else "* Inferred clusters · PED")
@@ -2748,44 +2739,32 @@ class StreamerWindow(tk.Toplevel):
                 point.get("cost_basis") == "neighbors" for point in kill_points[-16:]
             ) else "* Estimated/shared · PED") +
                 (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
-        if getattr(kill_points, "encounter_note", "") and not self._attribution_error:
-            visible = visible_chart_points(kill_points)
-            visible_team = [point for point in visible if point.get("kind") == "encounter"]
-            unresolved = {point["event_id"] for point in visible}.intersection(
-                getattr(kill_points, "encounter_unresolved_ids", ()))
-            if visible_team or unresolved:
-                self.chart_note.configure(text=(
-                    f"* Team estimates · {visible_team[-1]['encounter_markers']} markers · PED"
-                    if visible_team else "* Team linkage unresolved · PED") +
-                    (" · trails unavailable" if self._trail_error else
-                     " · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
-        if self._encounter_error:
-            self.chart_note.configure(text="* Team projection unavailable · totals unchanged")
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
-        color = "#B8C5D6" if incomplete_cost or pending_return else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
+        color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
         state = ("STOPPED" if session and session.ended_at else
                  "TRACKING" if session and self.app.running else
                  "PAUSED" if session else "WAITING FOR RUN" if self.app.running else "IDLE")
         live = state == "TRACKING"
         self.vars["state"].set(f"{'DEMO · ' if self.demo else ''}{state}")
         self.state_label.configure(fg="#5EEAD4" if live else "#B8C5D6")
+        self.activity_strip.set_context(state, self.demo, crafting=craft_active)
         context = (session.session_id if session else None, self.app.currency_mode.get(), live)
         animate = context == self._feedback_context and live and not self.app.reduced_motion.get()
         self._feedback_context = context
+        self.activity_strip.update_snapshot(self.app._activity_snapshot(session), live)
         for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
             self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
-        if not session or incomplete_cost or pending_return:
+        if not session or incomplete_cost:
             self.animator.cancel("net_big")
             self.vars["net_big"].set("—")
-        if session and float(metrics["cost"]) > 0 and not incomplete_cost and not pending_return:
-            self.return_caption.configure(text="BOOKED RETURN" if has_crafting or team_view else "RETURN")
+        if session and float(metrics["cost"]) > 0 and not incomplete_cost:
+            self.return_caption.configure(text="BOOKED RETURN" if has_crafting else "RETURN")
             self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}%"), animate)
         else:
             self.animator.cancel("return")
             self.vars["return"].set("—")
-            self.return_caption.configure(text="RETURN · UNKNOWN" if incomplete_cost else "RETURN PENDING" if pending_return
-                                          else "RETURN · NO COST YET" if session else "RETURN")
+            self.return_caption.configure(text="RETURN · UNKNOWN" if incomplete_cost else "RETURN · NO COST YET" if session else "RETURN")
         self._fit_hero_captions()
         self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
         if has_crafting:
@@ -2797,7 +2776,7 @@ class StreamerWindow(tk.Toplevel):
             else:
                 self.vars["input"].set("Craft inputs unknown — add blueprint + attempts")
             if not self.input_slot.winfo_manager():
-                self.input_slot.pack(after=self.stats, fill="x", pady=(4, 0))
+                self.input_slot.pack(after=self.activity_strip, fill="x", pady=(4, 0))
                 self.input_label.pack(fill="both", expand=True)
                 self._schedule_fit_to_contents()
         else:
@@ -2861,23 +2840,6 @@ class StreamerWindow(tk.Toplevel):
             "1024 charged shots and 4096 source-event IDs; old/frozen allocations are retained. "
             "Fans also retain previously observed estimates when recent allocations change."
         )
-        if getattr(kill_points, "encounter_note", ""):
-            self._footer_detail += (
-                "\nTeam view: empty-speaker no-loot notices are markers, not confirmed personal kills "
-                "or proof of a dungeon. Inputs are this log's recorded own uses between markers; "
-                "missing prices or no own use leave cost unknown, not free. Profit stays pending "
-                "until a nearby logged Sacred Idol opening and personal receipts support an inferred "
-                "container association, then subsequent source activity closes its receipt window "
-                "(or the recorded run ends). This is not a confirmed dungeon-completion event. "
-                "Personal subtotals are shared by recorded own-input weight, not boss identity or "
-                "a multiplier; later supported receipts revise the shares. The blue average retains "
-                "the original hunting-input budget, including unassigned input, but uses the derived "
-                "group count so one dungeon does not inflate later averages. Retained fans include "
-                "earlier grouping/attribution assumptions; unknown enemy costs are not zero. "
-                "Original receipts and booked totals are unchanged. The whole latest bounded encounter "
-                "is retained: at most 256 markers, two hours and 65536 source-event IDs. These safety "
-                "limits are not dungeon boundaries. Missing historical development is never invented."
-            )
         attribution_note = getattr(kill_points, "attribution_note", "")
         if attribution_note:
             self._footer_detail += "\n" + attribution_note
@@ -2932,7 +2894,7 @@ class StreamerWindow(tk.Toplevel):
         width = max(canvas.winfo_width(), 1)
         height = max(canvas.winfo_height(), 1)
         points = getattr(self, "kill_trend_points", [])
-        display_points = visible_chart_points(points)
+        display_points = points[-16:]
         canvas.delete("all")
         canvas.create_rectangle(0, 0, width, height, fill="#131E2E", outline="")
         if not display_points:
@@ -2980,8 +2942,7 @@ class StreamerWindow(tk.Toplevel):
             if index == len(display_points) - 1 and index and scales.connected(index - 1, index):
                 previous = display_points[index - 1]
                 if (previous[key] is not None and previous.get("kind") == current.get("kind") and
-                        previous.get("plan_event_id") == current.get("plan_event_id") and
-                        previous.get("encounter_id") == current.get("encounter_id")):
+                        previous.get("plan_event_id") == current.get("plan_event_id")):
                     return float(previous[key]) + (value - float(previous[key])) * self._chart_phase
             return value
 
@@ -3059,8 +3020,7 @@ class StreamerWindow(tk.Toplevel):
                 x, y = x_for(index), y_for(index, value)
                 if key == "loot":
                     cost = value_for(index, "cost")
-                    pending_profit = point.get("kind") == "encounter" and point.get("profit") is None
-                    fill = "#B8C5D6" if cost is None or pending_profit else "#86EFAC" if value >= cost else "#FDA4AF"
+                    fill = "#B8C5D6" if cost is None else "#86EFAC" if value >= cost else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
                     estimated = bool(point.get("cost_status"))
                     tags = (key, "estimate", f"estimate:{point['event_id']}") if estimated else (key,)
@@ -3083,15 +3043,13 @@ class StreamerWindow(tk.Toplevel):
         histories = getattr(self, "kill_trail_histories", {})
         for index, point in enumerate(points):
             event_id = point.get("event_id")
-            pending_profit = point.get("kind") == "encounter" and point.get("profit") is None
             samples = histories.get(event_id, ())
             if len(samples) < 2:
                 continue
             previous = points[index - 1] if index else None
             same_scope = bool(previous and scales.connected(index - 1, index) and
                               previous.get("kind") == point.get("kind") and
-                              previous.get("plan_event_id") == point.get("plan_event_id") and
-                              previous.get("encounter_id") == point.get("encounter_id"))
+                              previous.get("plan_event_id") == point.get("plan_event_id"))
             x = x_for(index)
             for column, key, shade, ghost in (
                 (0, "cost", "#3C342E", "#8C7355"),
@@ -3115,8 +3073,7 @@ class StreamerWindow(tk.Toplevel):
                     return y_for(index, value)
 
                 if key == "loot":
-                    outcomes = ({None} if pending_profit else
-                                {None if s[0] is None or s[2] is None else s[2] >= s[0] for s in samples})
+                    outcomes = {None if s[0] is None else s[2] >= s[0] for s in samples}
                     shade = ("#233B32" if outcomes == {True} else "#402D38" if outcomes == {False}
                              else "#293642")
                 if anchor is not None:
@@ -3136,7 +3093,7 @@ class StreamerWindow(tk.Toplevel):
                     sample = samples[sample_index]
                     color, outcome = ghost, "neutral"
                     if key == "loot":
-                        outcome = "unknown" if sample[0] is None or pending_profit else "profit" if sample[2] >= sample[0] else "loss"
+                        outcome = "unknown" if sample[0] is None else "profit" if sample[2] >= sample[0] else "loss"
                         color = {"unknown": "#69788C", "profit": "#4A956C", "loss": "#A36579"}[outcome]
                     y = projected(float(sample[column]))
                     if start is not None:
@@ -3700,13 +3657,7 @@ def _event_consumes_shot(event: ParsedEvent) -> bool:
 
 def _is_duplicate_log_line(previous_line: str | None, raw_line: str) -> bool:
     normalized = raw_line.strip()
-    if not normalized or normalized != previous_line:
-        return False
-    # Identical physical Team notice lines can describe distinct observations
-    # in one timestamp second. Record the occurrences, not invented kill IDs;
-    # they charge nothing. Keep the existing paid/combat duplicate safeguard.
-    event = parse_line(normalized)
-    return not (event and event.kind == "chat" and is_team_no_loot_notice(event.payload))
+    return bool(normalized) and normalized == previous_line
 
 
 def _typeahead_match(values: tuple[str, ...] | list[str], prefix: str) -> str | None:
@@ -3812,12 +3763,10 @@ def _kill_trend_points(store: Store, session_id: str | None, limit: int = 16, bu
                 """
                 SELECT id, timestamp, kind, payload
                 FROM events
-                WHERE session_id = ? AND id > ? AND (
-                    kind IN ('combat', 'loot', 'craft', 'manufacturing_offset', 'weapon', 'repair', 'chat')
-                    OR id = (SELECT MAX(id) FROM events WHERE session_id = ?))
+                WHERE session_id = ? AND id > ? AND kind IN ('combat', 'loot', 'craft', 'manufacturing_offset', 'weapon', 'repair')
                 ORDER BY id
                 """,
-                (session_id, builder.last_event_id, session_id),
+                (session_id, builder.last_event_id),
             )
 
     builder.extend(iter_rows())
@@ -3854,23 +3803,6 @@ def _streamer_trend_detail(points: list[dict[str, object]]) -> str:
     label = latest.get("label", f"K{latest['kill']}")
     pending = float(getattr(points, "attribution_pending", 0.0))
     shared = latest.get("kind") == "hunt" and bool(latest.get("cost_status"))
-    if latest.get("kind") == "encounter_receipt":
-        return (f"{label} · Observed subtotal {float(latest['loot']):.4f} PED\n"
-                "Shares unallocated · profit pending · booked once")
-    if latest.get("kind") == "encounter":
-        recorded = latest["recorded_own_input"]
-        input_text = "unknown" if recorded is None else f"{recorded:.4f} PED"
-        if latest["loot"] is None:
-            if recorded == 0 and latest["cost"] is None:
-                return (f"{label} · Return/profit pending · {latest['encounter_markers']} markers\n"
-                        "Cost unknown · no own use logged")
-            return (f"{label} · Return/profit pending · {latest['encounter_markers']} markers\n"
-                    f"Own input {input_text} · identity unconfirmed")
-        if latest["profit"] is None:
-            return (f"{label} · Profit pending · shares provisional\n"
-                    f"~Input {input_text} · ~Share {float(latest['loot']):.4f} PED")
-        return (f"{label} · Est. profit {float(latest['profit']):+.4f} PED\n"
-                f"~Input {input_text} · ~Share {float(latest['loot']):.4f} PED")
     if shared and (latest["cost"] is None or latest["profit"] is None):
         return (f"{label} · Cost unresolved · Return {float(latest['loot']):.2f} PED\n"
                 f"Shared/unassigned {pending:.4f} PED · booked totals unchanged")

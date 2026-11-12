@@ -89,12 +89,6 @@ untouched. Equipment switching is unavailable while session restoration is still
 being prepared. No shortcut rewrites previous event prices, booked totals or
 observed fan data. Costs still assume the selected setup; the buttons do not
 detect which weapon the game actually uses.
-Setup switches refresh the displayed equipment from committed setup metadata
-without re-summing unchanged event history. Financial totals continue through
-normal ingestion refreshes; a missing display context uses the normal full
-summary instead. Activation remains synchronous so rapid switches retain the
-latest choice, without a delayed activation worker overwriting it.
-
 The compact metric columns reserve ordinary signed money and percentage widths
 before live updates, keeping typical digit changes steady. Exceptionally large
 values still shrink within their own field rather than moving other controls.
@@ -340,11 +334,10 @@ speculative fixes.
 
 ## Live visual feedback
 
-The dashboard shows bundled loot arrivals and actual skill-gain activity; new
-loot/skill rows briefly highlight. The Streamer HUD omits the event-feed panel
-and uses that space for its chart and financial context instead. Both retain
-rolling totals and chart transitions. Historical sessions and resumed tracking
-establish a quiet dashboard baseline, never replaying old loot as new arrivals.
+The dashboard and Streamer UI show bundled loot arrivals, actual skill-gain activity,
+rolling monetary totals, and short chart transitions. New loot/skill rows briefly
+highlight. Historical sessions and resumed tracking establish a quiet baseline;
+opening a saved run never replays its loot as new arrivals.
 
 Use **Reduced motion** in **Help** to settle totals immediately and disable motion
 and flashes. Quiet loot/skill sounds can be enabled in **Help** on Windows; they are
@@ -370,7 +363,7 @@ Closing and reopening the Streamer UI restores the bottom-right starting positio
 The broadcast HUD uses a side-by-side net/return hero, a persistent tracking state,
 and compact overlay-local typography. Its default size is **360×330** at 100%
 scaling, with a **260×240** minimum. Fonts and spacing adapt when you resize,
-not on live-data or animation ticks. The hero, metrics, chart summary,
+not on live-data or animation ticks. The hero, metrics, activity, chart summary,
 and footer keep stable slots inside the chosen rectangle without changing the
 main window's scaling. Large monetary totals fit their own field's font without
 moving other sections or losing precision. No-session and zero-cost
@@ -393,9 +386,8 @@ lines. A single observation is not a fan; missing intermediate positions while
 the HUD is closed, paused, or between refreshes cannot be reconstructed. Each
 group stores at most **24** raw-PED observations, preserving first/latest positions
 and per-series/profit extrema; at most four faint traces per series keep it
-readable. The latest 16 ordinary groups are drawn/cached; a latest supported team
-encounter instead retains its whole bounded marker sequence. The first visible
-group's endpoint range is shown without inventing an off-chart anchor.
+readable. Only the latest 16 groups are drawn/cached. The first visible group's
+endpoint range is shown without inventing an off-chart anchor.
 
 Samples persist in the same session SQLite database, separately from accounting
 events, and reload with their original group IDs. They remain stored while their
@@ -404,66 +396,6 @@ window. Resize, monitor-scale changes, and automatic chart range changes reproje
 the raw data together with the current lines, including retained extrema.
 Session totals, recent arrivals, and the cost/average/return series remain
 available; revised per-group costs are explicitly marked as estimates.
-
-### Team no-loot encounters
-
-An empty-speaker `[Team] [] This creature didn't carry any loot` message creates
-a **team marker**, labelled `T1.1`, `T1.2`, and so on. It does not prove a personal
-kill, a dungeon, a particular enemy or boss. The orange input is the user's
-recorded, priced uses between markers—not other players' attacks or damage-based
-guessing. No own use or missing prices leave the corresponding enemy cost
-unknown. Return and profit remain **pending**, not zero; the hero uses `—`
-while the current batch is unresolved, with recorded Cost/Loot cards still visible.
-
-Five captured English-log sequences each contain 44 such notices followed by
-an empty-speaker Force message ending `opened a Sacred Idol` and personal System
-receipts. The HUD supports this narrow **inferred container association**:
-the opening must follow the last marker within 60 seconds, and linked personal
-receipts must fall within the ordinary 0.75-second receipt window. Their observed
-subtotal is shared in proportion to recorded own input; subsequent linked
-receipts revise the estimates. Profit stays pending until later recorded source
-activity closes that receipt window, or the recorded run ends. This closes an
-**inferred receipt batch**, not a fabricated dungeon-completion event. A last
-interval gets a larger share only if its supported input warrants it—there is
-no boss name or arbitrary multiplier. An unmarked final own-input interval is
-still inferred, not an invented kill notice. Team/Force announcements of other
-players' loot are not personal returns.
-
-Amber estimate markers distinguish inferred shares from actual receipts.
-Pending/unknown profit is neutral. The blue average retains the original
-hunting-input budget, including shared/unassigned input, but uses the derived
-hunting-group count, so replacing one dungeon with many markers cannot inflate
-later averages. A known booked average is not an exact creature cost.
-Missing prices prevent weighted allocation; known personal subtotals remain
-separately visible once, with profit unresolved. Unsupported or delayed linkage
-retains the ordinary receipt projection rather than guessing a completion.
-Conflicting legacy component/recorded budgets and existing cross-receipt pools
-are not truncated or borrowed merely to make a team view fit. Repairs/crafting
-and team disbanding can interrupt support; other booked charges stay in the
-session ledger rather than being assigned to an invented enemy.
-
-The latest encounter stays visible as a whole while it overlaps the normal
-16-group window. Safety limits are **256 markers, two hours and 65,536 source-event
-IDs**, not declarations of dungeon boundaries. Interrupted/no-payout encounters
-remain pending. Distinct recorded notices stay distinct markers even when their
-text and timestamp match; replaying the same event ID adds nothing. The normal
-writer retains separate physical occurrences of this nonfinancial server notice,
-while existing paid/combat duplicate safeguards remain unchanged. Such occurrences
-are not unique server kill IDs: an apparent duplicate without another own use
-keeps its cost unknown and adds no charge. Older notices omitted by the previous
-writer are not backfilled. Marker count is not confirmed kill count.
-Only genuine live input/average observations
-transfer into a marker's fan. Previously saved aggregate fans remain stored,
-but cannot truthfully be split among new markers; their prior return positions
-are not relabelled as observed enemy loot. Retained samples may reflect earlier
-grouping/attribution assumptions. No missing development is fabricated.
-All raw events, booked prices, personal loot and session totals remain unchanged,
-and the derived view rebuilds on reload. Current recognition uses the evidenced
-English server notices; unsupported/localized forms keep the parser's existing
-ordinary/ignored behavior rather than becoming inferred dungeon events.
-
-
-### Event-local chart scales
 
 A narrow **vertical local-scale section stays at its chronological event
 position** when its envelope is separated by at least **3×** and lies beyond
@@ -502,36 +434,14 @@ coordinate from raw PED. These are views of observed/inferred events, not foreca
 Recent hunting input can be shared across several receipts when creatures are
 killed before looting. An unusually expensive interval followed by little or no
 new input triggers a **bounded reconsideration**, not proof of a particular kill
-allocation. A robust reference needs at least five clean, completed, same-context
-raw intervals from the latest 32, before **or after** the suspected cluster.
-Candidate and previously shared intervals cannot supply their own reference.
-The robust path requires a high/low signal and a compatible complete input budget,
-not merely a lower high-input threshold. If strict stability fails, a visibly
-marked **neighbor estimate** may instead share the observed pool input. It uses
-at most five independent completed raw intervals before and five after the gap,
-with at least three samples, in the same uninterrupted equipment/price context.
-The proposed pool average must fit their observed middle-half cost band; that
-band cannot span more than fourfold, nor may early/late neighboring medians
-shift more than twofold. These are conservative approximation safeguards, not
-claims that the loadout identifies a creature or that costs are exact.
-An ordinary-cost paid anchor followed by little/no new input can qualify without
-being an exceptional spike. No supporting budget, too few samples, strongly mixed
-regimes or an incompatible context still leave the gap unknown. Allocated
-estimates never become supporting samples, and no additional expenditure is
-created. Each neighbor estimate persists its supporting raw interval IDs and
-observed band; later evidence can revise it within the same bounded policy.
+allocation. A robust reference needs at least five clean, completed, same-setup
+intervals from the latest 32. Variable/mixed costs or insufficient evidence stay
+ambiguous rather than falling back to invented equal shares.
 
-A pool accepts at most **12 receipt groups**. Closing it to new members does not
-make its derived estimates permanent: the latest **16 observed loot groups**
-remain eligible for supported automatic reconsideration. A whole pool is retained
-while its last member is eligible, including older anchors/budgets (at most 27
-retained members), rather than truncating its budget at a display-cache edge.
-Reconsideration also stops at **5 minutes, 1024 observed uses from the pool's
-start, a 4096 event-ID span**, or a context boundary. Intervening uses enter a
-pool once; ongoing input without a receipt stays separate. Paid ordinary
-intervals after an unsupported pool remain independent evidence, not additional
-ambiguous members. Supported groups get provisional typical-cost estimates;
-excess input stays **shared/unassigned** until observed
+The mutable window is limited to **12 receipt groups, 5 minutes, 1024 charged
+shots, and a 4096 event-ID span**. Intervening shots enter its input pool once;
+ongoing shots without a receipt remain separate. Supported groups get provisional
+typical-cost estimates; excess input stays **shared/unassigned** until observed
 evidence supports its allocation. It is already included in session expenditure,
 not another charge or a prediction of more loot. Estimates plus unassigned input
 conserve the original recorded hunting cost. The blue **booked average** still
@@ -540,28 +450,17 @@ includes all raw input, including unassigned cost.
 Amber-ring chart points and `~` costs identify estimates; unknown costs/profits
 are gray, not free wins. Recent revisions append new endpoints only to fans with
 previously observed history, retaining their earlier provisional positions.
-Neighbor-based values additionally say `~Neighbor cost`; coincident orange costs
-and dashed blue averages use distinct stroke widths at their unchanged values,
-so agreement does not visually erase the cost line.
-Pricing, equipped-weapon, repair and crafting boundaries, or the evidence horizon,
-**hard-finalize** earlier decisions and unresolved input. Returning to an old
-setup name after another context does not reopen that cohort. Within the horizon,
-closed unresolved pools and earlier standalone points can benefit from independent
-later evidence; all affected decisions and extensions of existing fan histories
-commit atomically. Reload cannot expose a revised cost with an older saved fan.
-Whole retained pools can be replaced by a larger supported recent cluster, but
-never by taking only a visible suffix or borrowing a hard-finalized budget.
-Every selected raw interval is excluded from its own independent reference.
-The log contains neither creature IDs nor confirmed kill markers, so these are
-receipt-group estimates, never exact per-creature costs or predictions.
+Pricing, equipped-weapon, repair and crafting boundaries, or window limits, freeze
+the earlier estimates and any unresolved remainder. Future evidence does not
+rewrite those frozen decisions. The log contains neither creature IDs nor
+confirmed kill markers, so these are receipt-group estimates, never exact
+per-creature costs or predictions.
 
 Allocation state and per-group overrides persist in separate SQLite tables keyed
 to the original session/events; raw events, totals and loadouts are not rewritten.
-Saved estimates reload when the HUD reopens or the session resumes. A one-time
-state upgrade can reconsider complete recent legacy frozen pools only while their
-original context and bounds still hold. Ended/nonlive views and hard-finalized
-history are unchanged. Groups before the feature's first live activation retain
-their original interval costs; there is no raw-event backfill. Estimation runs on HUD refreshes, while
+Saved estimates reload when the HUD reopens or the session resumes. Existing
+groups before the feature's first live activation retain their original interval
+costs; there is no historical backfill. Estimation runs on HUD refreshes, while
 fan samples still require live observation: closed/paused gaps cannot fabricate
 missing visual traces. Optional projection/storage failures leave recorded totals
 available and identify the unavailable allocation.
@@ -574,11 +473,11 @@ never raises the minimum. Focus the brand or resize handle with
 Tab, then use arrow keys to move by 10 pixels or Shift+arrows to resize. The close
 button supports Space/Enter, and Escape dismisses only the overlay. Enlargement gives the chart more room; shrinking adapts fonts, spacing, and
 field allocations instead of imposing a minimum based on previously enlarged content.
-The Streamer HUD has no waiting/event-feed or skill-arrival section. Its chart
-follows the metrics directly, with the conditional crafting-input row between
-them when needed; no empty feed placeholder remains. Dashboard activity and
-quiet sounds are unchanged. Preview keeps a persistent **DEMO** state and uses
-the same layout/placement as the production overlay.
+Activity uses two fixed single-line slots; long messages ellipsize visually
+without changing the strip's height. Arrival messages settle back to quiet copy
+after four seconds without moving the HUD, including with
+reduced motion. Preview keeps a persistent **DEMO** state and synthetic-money
+warning and uses the same layout/placement as the production overlay.
 
 ### Crafting inputs in the streamer
 
@@ -668,12 +567,6 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
-- Remove the streamer-only waiting/loot/skill event-feed panel and its update timers; reclaim compact chart space while preserving dashboard feedback, all parsed skill XP/loot, financial history, setup buttons and chart fans (0.3.52).
-- Show bounded team no-loot marker timelines with pending profits and source-supported, cost-weighted Sacred Idol receipt estimates; retain whole encounters, genuine fans and immutable booked totals, without claiming dungeon/boss identity (0.3.51).
-- Preserve same-second physical Team no-loot occurrences through the real log worker without duplicating paid receipts or inventing enemy cost; previously omitted history remains untouched (0.3.51).
-- Integrate prompt setup/HUD refresh with bounded recent derived-cost reconsideration and visibly identified, conserved neighbor estimates; keep orange cost visible when it overlaps the average (0.3.50). Imagery and healing remain excluded.
-- Reconsider supported recent delayed-loot costs, including stable two-receipt cases and later-learned references; retain complete closed pools, hard-finalize at explicit evidence/context bounds, and atomically persist derived revisions with existing fan endpoints without changing recorded expenditure or returns (0.3.49).
-- Refresh setup changes promptly without reaggregating unchanged session events; preserve selection/activation semantics, queued financial updates, recorded prices and latest-choice ordering (0.3.47).
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
 - Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.

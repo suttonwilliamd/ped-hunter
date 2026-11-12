@@ -36,9 +36,14 @@ def test_streamer_button_toggles_open_closed_and_reopens(app):
     assert app.streamer_window is None
     for _ in range(3):
         button.invoke()
-        app.update_idletasks()
         window = app.streamer_window
+        # A successful toggle must show the overlay without waiting for idle
+        # work, which can be delayed while tracking a busy live log.
         assert window is not None and window.winfo_exists()
+        assert window.state() == "normal"
+        assert not window._initial_position_pending
+        app.update_idletasks()
+        assert window.winfo_ismapped()
         assert live_overlays(app) == [window]
 
         button.invoke()
