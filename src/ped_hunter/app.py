@@ -438,6 +438,7 @@ class PedHunterApp(tk.Tk):
     def _on_currency_changed(self, *_args) -> None:
         """Refresh rendered money for selector and programmatic mode writes."""
         self._refresh_all()
+        self._refresh_crafting_preview()
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         try:
@@ -1745,7 +1746,11 @@ class PedHunterApp(tk.Tk):
             self.crafting_preview.set(f"Blueprint needs attention: {exc}")
             return
         total = per_attempt * attempts
-        self.crafting_preview.set(f"Material TT: {self._money(per_attempt)}/attempt • {attempts:,} attempts = {self._money(total)} input")
+        mode = self.currency_mode.get()
+        self.crafting_preview.set(
+            f"Material TT: {format_chart_money(per_attempt, mode)}/attempt • "
+            f"{attempts:,} attempts = {format_chart_money(total, mode)} input"
+        )
 
     def _add_crafting_cost_to_session(self) -> None:
         current = self.store.get_current_session()

@@ -36,7 +36,8 @@ The main window starts at 900×600 logical pixels, with a 760×500 minimum; Wind
 
 The **Display** USD/PED selector and programmatic currency-mode changes refresh
 run, lifetime, history, event and HUD money immediately, including Streamer chart
-axes, local ranges, summaries and monetary hover text. Display conversion never
+axes, local ranges, summaries, monetary hover text and the Manufacturing material
+preview. The preview retains per-attempt and batch precision; display conversion never
 reprices stored PED amounts or fan samples: **10 PED = 1 USD**. The selected
 healing tool is unchanged; its catalog per-use reference remains TT PED.
 
@@ -657,6 +658,7 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Refresh Manufacturing material previews on USD/PED writes, preserving small per-attempt and batch values without repricing or rebooking input (0.03025 PED × 9 = 0.27225 PED).
 - Add paged persisted loot history with reversible receipt exclusion, unchanged original payloads, atomic totals/attribution/fan reconciliation, revision-aware refresh and exclusion-set fan archives.
 - Make Streamer chart axes, local ranges, details, recipe/batch figures and monetary hover text follow USD/PED, converting only at display boundaries and retaining raw PED.
 

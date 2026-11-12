@@ -103,3 +103,70 @@ def test_currency_changes_refresh_rendered_money_without_repricing(tmp_path, mon
         app._stop_log_worker()
         app.animator.cancel_all()
         app.destroy()
+
+
+@pytest.mark.parametrize("change_path", ["variable", "selector"])
+def test_manufacturing_preview_refreshes_small_input_prices_without_rebooking(tmp_path, monkeypatch, change_path):
+    from dataclasses import asdict
+    import json
+    from tkinter import ttk
+
+    from ped_hunter import app as appmod
+    from ped_hunter.storage import Store
+
+    chat = tmp_path / "synthetic-chat.log"
+    chat.write_text("")
+    monkeypatch.setattr(appmod, "_default_chat_log_path", lambda: chat)
+    store = Store(tmp_path / "manufacturing-currency.sqlite3")
+    sid = store.start_session("craft")
+    app = appmod.PedHunterApp(store=store)
+    app.title("PED Hunter isolated Compound B currency regression")
+    errors = []
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        app.reduced_motion.set(True)
+        app.session_id = sid
+        app.currency_mode.set("USD")
+        app.crafting_attempts.set("9")
+        app.crafting_blueprint.set("Muscle Oil Compound B Blueprint")
+        app._refresh_crafting_preview()  # Initial blueprint/attempt edit only.
+        app._add_crafting_cost_to_session()
+        before = asdict(store.get_session(sid))
+        assert before["hunting_cost"] == pytest.approx(0.27225)
+        with store.connect() as conn:
+            original_rows = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
+            booked = json.loads(conn.execute("SELECT payload FROM events WHERE kind='manufacturing_offset'").fetchone()[0])
+        assert booked["attempts_total"] == 9
+        assert booked["cost_per_attempt"] == pytest.approx(0.03025)
+        assert booked["total_cost"] == pytest.approx(0.27225)
+        picker = next(widget for section in app.root_frame.winfo_children()
+                      for widget in section.winfo_children()
+                      if isinstance(widget, ttk.Combobox)
+                      and str(widget.cget("textvariable")) == str(app.currency_mode))
+        for mode, per_attempt, total in (
+            ("USD", "$0.003025", "$0.027225"),
+            ("PED", "0.03025 PED", "0.27225 PED"),
+            ("USD", "$0.003025", "$0.027225"),
+            ("PED", "0.03025 PED", "0.27225 PED"),
+            ("USD", "$0.003025", "$0.027225"),
+        ):
+            if change_path == "variable":
+                app.currency_mode.set(mode)
+            else:
+                picker.current(0 if mode == "USD" else 1)
+                picker.event_generate("<<ComboboxSelected>>")
+            # No preview refresh, blueprint/attempt edit, ingestion or second toggle.
+            preview = app.crafting_preview.get()
+            assert f"{per_attempt}/attempt" in preview
+            assert f"9 attempts = {total} input" in preview
+            assert app.crafting_blueprint.get() == "Muscle Oil Compound B Blueprint"
+            assert app.crafting_attempts.get() == "9"
+            assert asdict(store.get_session(sid)) == before
+            with store.connect() as conn:
+                assert [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")] == original_rows
+            assert app._log_worker is None
+            assert not errors
+    finally:
+        app._stop_log_worker()
+        app.animator.cancel_all()
+        app.destroy()
