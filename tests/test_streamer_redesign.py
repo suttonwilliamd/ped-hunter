@@ -153,6 +153,7 @@ def test_header_keyboard_move_resize_and_drag_release(hud, monkeypatch):
 
 def test_conditional_manufacturing_row_fits_then_disappears(hud):
     app, overlay = hud
+    app.currency_mode.set('PED')
     sid = app.store.start_session('craft')
     session = replace(app.store.get_session(sid), manufacturing_attempt=3,
                       manufacturing_attempts_total=10, last_input_cost=1.2)
@@ -183,7 +184,7 @@ def test_durability_estimates_have_readable_empty_state(hud, shots, expected):
     assert overlay.vars['durability'].get() == 'Durability —'
 
 
-def test_chart_is_ped_even_in_usd_and_counts_more_than_sixteen(hud):
+def test_total_group_count_is_not_limited_to_sixteen_rendered_groups(hud):
     app, overlay = hud
     sid = app.store.start_session('hunt')
     app.currency_mode.set('USD')
@@ -193,6 +194,5 @@ def test_chart_is_ped_even_in_usd_and_counts_more_than_sixteen(hud):
                                  'payload': {'value': 1, 'item_name': 'Shrapnel'}})
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '20'
-    assert 'PED' in overlay.vars['kill_trend_badge'].get()
     assert '$' in overlay.vars['loot'].get()
     assert overlay.return_label.cget('fg') == '#F1F5F9'

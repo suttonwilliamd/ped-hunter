@@ -38,6 +38,7 @@ class SessionSummary:
     healing_cost: float = 0.0
     estimated_healing_uses: int = 0
     unpriced_heal_events: int = 0
+    accounting_revision: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +173,42 @@ class Store:
                     payload TEXT NOT NULL,
                     FOREIGN KEY(session_id) REFERENCES sessions(id)
                 );
+                CREATE TABLE IF NOT EXISTS event_exclusions (
+                    event_id INTEGER PRIMARY KEY,
+                    excluded_at TEXT NOT NULL,
+                    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS event_accounting (
+                    session_id TEXT PRIMARY KEY,
+                    revision INTEGER NOT NULL CHECK(revision >= 0),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                );
+                CREATE VIEW IF NOT EXISTS accounted_events AS
+                    SELECT e.* FROM events e
+                    WHERE NOT EXISTS (SELECT 1 FROM event_exclusions x WHERE x.event_id = e.id);
+                CREATE TABLE IF NOT EXISTS chart_trail_versions (
+                    session_id TEXT NOT NULL,
+                    exclusion_key TEXT NOT NULL,
+                    event_id INTEGER NOT NULL,
+                    samples TEXT NOT NULL,
+                    PRIMARY KEY(session_id, exclusion_key, event_id),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+                );
+                CREATE TRIGGER IF NOT EXISTS delete_event_exclusion_history
+                AFTER DELETE ON events
+                BEGIN
+                    DELETE FROM event_exclusions WHERE event_id = OLD.id;
+                    DELETE FROM chart_trail_versions WHERE event_id = OLD.id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS delete_session_exclusion_history
+                AFTER DELETE ON sessions
+                BEGIN
+                    DELETE FROM event_exclusions WHERE event_id IN
+                        (SELECT id FROM events WHERE session_id = OLD.id);
+                    DELETE FROM event_accounting WHERE session_id = OLD.id;
+                    DELETE FROM chart_trail_versions WHERE session_id = OLD.id;
+                END;
                 CREATE TABLE IF NOT EXISTS chart_trails (
                     session_id TEXT NOT NULL,
                     event_id INTEGER NOT NULL,
@@ -292,6 +329,48 @@ class Store:
             return True
         return False
 
+    @staticmethod
+    def _accounting_revision(conn: sqlite3.Connection, session_id: str) -> int:
+        row = conn.execute("SELECT revision FROM event_accounting WHERE session_id = ?", (session_id,)).fetchone()
+        return int(row[0]) if row else 0
+
+    def get_accounting_revision(self, session_id: str) -> int:
+        with self.connect() as conn:
+            return self._accounting_revision(conn, session_id)
+
+    def list_event_history_sessions(self) -> list[dict]:
+        """Browse every stored run without aggregating its event history."""
+        with self.connect() as conn:
+            return [dict(row) for row in conn.execute(
+                "SELECT id, started_at, ended_at, loadout_snapshot FROM sessions ORDER BY started_at DESC, id DESC")]
+
+    def loot_event_history(
+        self, session_id: str, *, before_id: int | None = None,
+        event_id: int | None = None, excluded: bool | None = None, limit: int = 101,
+    ) -> list[dict]:
+        """Keyset-paged original receipts, including their reversible status."""
+        conditions = ["e.session_id = ?", "e.kind = 'loot'"]
+        params: list[object] = [session_id]
+        if before_id is not None:
+            conditions.append("e.id < ?")
+            params.append(before_id)
+        if event_id is not None:
+            conditions.append("e.id = ?")
+            params.append(event_id)
+        if excluded is not None:
+            conditions.append("x.event_id IS NOT NULL" if excluded else "x.event_id IS NULL")
+        params.append(max(1, min(int(limit), 501)))
+        with self.connect() as conn:
+            return [dict(row) for row in conn.execute(
+                "SELECT e.*, x.excluded_at, x.event_id IS NOT NULL AS excluded "
+                "FROM events e LEFT JOIN event_exclusions x ON x.event_id = e.id "
+                "WHERE " + " AND ".join(conditions) + " ORDER BY e.id DESC LIMIT ?", params)]
+
+    def set_loot_excluded(self, session_id: str, event_id: int, excluded: bool) -> bool:
+        """Rebuild one run atomically without deleting or repricing originals."""
+        from .event_exclusion import change_loot_exclusion
+        return change_loot_exclusion(self, session_id, event_id, excluded)
+
     def load_chart_trails(self, session_id: str, event_ids: Sequence[int]) -> dict[int, tuple[Sample, ...]]:
         """Load only requested, still-owned event histories; ignore corrupt rows."""
         ids = list(dict.fromkeys(
@@ -326,7 +405,9 @@ class Store:
                         trails[int(row["event_id"])] = history
         return trails
 
-    def save_chart_trails(self, session_id: str, trails: Mapping[int, Sequence[Sample]]) -> None:
+    def save_chart_trails(
+        self, session_id: str, trails: Mapping[int, Sequence[Sample]], *, accounting_revision: int = 0,
+    ) -> None:
         """Upsert bounded observations without changing sessions or events.
 
         Stale/foreign IDs are ignored. Invalid endpoint values for a retained
@@ -342,13 +423,15 @@ class Store:
             # Ownership must remain valid until the upsert, even if another
             # connection deletes a session while the HUD is refreshing.
             conn.execute("BEGIN IMMEDIATE")
+            if accounting_revision != self._accounting_revision(conn, session_id):
+                raise ValueError("Event accounting changed; rebuild chart trails before saving")
             owned: set[int] = set()
             for start in range(0, len(ids), 900):
                 chunk = ids[start:start + 900]
                 placeholders = ",".join("?" for _ in chunk)
                 owned.update(int(row["id"]) for row in conn.execute(
                     f"""
-                    SELECT e.id FROM events e JOIN sessions s ON s.id = e.session_id
+                    SELECT e.id FROM accounted_events e JOIN sessions s ON s.id = e.session_id
                     WHERE e.session_id = ? AND e.id IN ({placeholders})
                     """,
                     (session_id, *chunk),
@@ -378,6 +461,7 @@ class Store:
         decisions exist. Reject the whole projection rather than lose input.
         """
         with self.connect() as conn:
+            conn.execute("BEGIN")
             row = conn.execute(
                 """SELECT h.state FROM hunt_attribution_state h
                    JOIN sessions s ON s.id = h.session_id WHERE h.session_id = ?""",
@@ -388,6 +472,8 @@ class Store:
             try:
                 state = json.loads(row['state'])
                 ids = _validate_state(state)
+                if state.get('accounting_revision', 0) != self._accounting_revision(conn, session_id):
+                    return None, {}
                 decisions = {}
                 for record in conn.execute(
                     "SELECT event_id, decision FROM hunt_attribution_decisions WHERE session_id = ?",
@@ -504,6 +590,8 @@ class Store:
             raise ValueError("Invalid attribution record") from exc
         with self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if state.get('accounting_revision', 0) != self._accounting_revision(conn, session_id):
+                raise ValueError("Event accounting changed; rebuild attribution before saving")
             previous_row = conn.execute(
                 "SELECT state FROM hunt_attribution_state WHERE session_id = ?", (session_id,),
             ).fetchone()
@@ -1156,7 +1244,7 @@ class Store:
 
 _SESSION_SUMMARY_SQL = """
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
-           s.repair_shots, s.repair_decay,
+           s.repair_shots, s.repair_decay, COALESCE(a.revision, 0) AS accounting_revision,
            COUNT(e.id) AS events,
            COALESCE(SUM(CASE
                WHEN e.kind = 'loot'
@@ -1187,12 +1275,13 @@ _SESSION_SUMMARY_SQL = """
                 WHEN e.kind IN ('craft', 'manufacturing_offset') AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                 ELSE 0
             END), 0) AS hunting_cost,
-           COALESCE((SELECT json_extract(e2.payload, '$.input_cost') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.input_cost') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS last_input_cost,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempt_number') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempt_number') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempt,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempts_total') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_total') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_total,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempts_remaining') FROM events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_remaining') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_remaining
+           COALESCE((SELECT json_extract(e2.payload, '$.input_cost') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.input_cost') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS last_input_cost,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempt_number') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempt_number') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempt,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempts_total') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_total') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_total,
+           COALESCE((SELECT json_extract(e2.payload, '$.attempts_remaining') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_remaining') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_remaining
     FROM sessions s
-    LEFT JOIN events e ON e.session_id = s.id
+    LEFT JOIN event_accounting a ON a.session_id = s.id
+    LEFT JOIN accounted_events e ON e.session_id = s.id
 """
 
 
@@ -1241,6 +1330,7 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         healing_cost=float(row["healing_cost"] or 0),
         estimated_healing_uses=int(row["estimated_healing_uses"] or 0),
         unpriced_heal_events=int(row["unpriced_heal_events"] or 0),
+        accounting_revision=int(row["accounting_revision"]),
     )
 
 

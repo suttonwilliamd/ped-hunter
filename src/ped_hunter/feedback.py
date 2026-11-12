@@ -13,6 +13,7 @@ class Snapshot:
     loot: float = 0.0
     events: int = 0
     skills: dict[str, int] = field(default_factory=dict)
+    accounting_revision: int = 0
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,9 @@ class ArrivalTracker:
     def observe(self, snapshot: Snapshot, live: bool) -> Arrival:
         previous = self.previous
         self.previous = snapshot
-        animate = live and self.was_live and previous is not None and previous.session_id == snapshot.session_id
+        animate = (live and self.was_live and previous is not None and
+                   previous.session_id == snapshot.session_id and
+                   previous.accounting_revision == snapshot.accounting_revision)
         self.was_live = live
         if not animate or not snapshot.session_id:
             return Arrival()

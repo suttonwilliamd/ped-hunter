@@ -37,6 +37,7 @@ class ActivityPoints(list):
         self.unknown_craft_groups = 0
         self.last_event_id = 0
         self.attribution_boundary_id = 0
+        self.accounting_revision = 0
 
 
 @dataclass
@@ -85,6 +86,11 @@ class ActivityTrendBuilder:
     """
     def __init__(self, cluster_window: float = 0.75):
         self.cluster_window = cluster_window
+        self.reset()
+
+    def reset(self, accounting_revision: int = 0) -> None:
+        """History membership changed; an append cursor cannot repair old groups."""
+        self.accounting_revision = accounting_revision
         self.points = ActivityPoints()
         self.plan = None
         self.crafting = False
@@ -267,6 +273,7 @@ class ActivityTrendBuilder:
         result.manufacturing = replace(self.plan) if self.plan else None
         result.last_event_id = self.last_event_id
         result.attribution_boundary_id = self._attribution_boundary_id
+        result.accounting_revision = self.accounting_revision
         if self.group:
             result.append(self._point(self.group))
             if self.group.kind == 'craft' and self.group.cost is None:

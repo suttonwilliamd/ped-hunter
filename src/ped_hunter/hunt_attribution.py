@@ -73,6 +73,9 @@ def _validate_state(state):
     """Validate the bounded engine record and return every referenced event ID."""
     if not isinstance(state, dict) or state.get('version') not in {1, 2}:
         raise ValueError("Unsupported attribution state")
+    revision = state.get('accounting_revision', 0)
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise ValueError("Invalid event accounting revision")
     ids = set()
     for key in ('activation_event_id', 'watermark'):
         value = _identifier(state[key], zero=True)
@@ -593,10 +596,34 @@ class HuntAttribution:
                 return
         raise ValueError("Recent input allocation did not converge within its bounded evidence window")
 
+    def _advance(self, state, raw_points, decisions, changes):
+        if state['version'] == 1:
+            self._upgrade(state, raw_points, decisions, changes)
+        for point in raw_points[max(0, state['processed_count'] - 1):]:
+            self._consume(state, decisions, changes, point)
+        self._reconsider_stable(state, raw_points, decisions, changes)
+        state['processed_count'] = len(raw_points)
+        state['watermark'] = max(state['watermark'], int(getattr(raw_points, 'last_event_id', 0)))
+        state['accounting_revision'] = getattr(raw_points, 'accounting_revision', 0)
+
+    def rebuild(self, raw_points, activation_event_id):
+        """Replay corrected membership, preserving the original activation boundary."""
+        state = {'version': 2, 'activation_event_id': activation_event_id,
+                 'watermark': activation_event_id, 'processed_count': 0, 'tail': [],
+                 'active': None, 'closed_pools': [], 'frozen_pending': 0.0}
+        return self.extend_rebuild(raw_points, state, {})
+
+    def extend_rebuild(self, raw_points, state, decisions):
+        """Incorporate appended input into a private rebuild; never write Store."""
+        changes = {}
+        self._advance(state, raw_points, decisions, changes)
+        return state, decisions, self._project(raw_points, state, decisions, changes, False)
+
     def update(self, session_id, raw_points, live: bool):
-        if session_id != self._session_id:
+        cache_key = (session_id, getattr(raw_points, 'accounting_revision', 0))
+        if cache_key != self._session_id:
             saved, decisions = self.store.load_hunt_attribution(session_id)
-            self._session_id, self._state, self._decisions = session_id, saved, decisions
+            self._session_id, self._state, self._decisions = cache_key, saved, decisions
             self._endpoints = {}
         state = deepcopy(self._state)
         decisions = ChainMap({}, self._decisions)
@@ -606,15 +633,11 @@ class HuntAttribution:
             if state is None:
                 state = {'version': 2, 'activation_event_id': watermark, 'watermark': watermark,
                          'processed_count': len(raw_points), 'tail': [], 'active': None,
-                         'closed_pools': [], 'frozen_pending': 0.0}
+                         'closed_pools': [], 'frozen_pending': 0.0,
+                         'accounting_revision': getattr(raw_points, 'accounting_revision', 0)}
                 state['tail'] = [_member(point) for point in raw_points if point.get('kind') == 'hunt' and point.get('loot_events', 0)][-REFERENCE_LOOKBACK:]
             else:
-                if state['version'] == 1:
-                    self._upgrade(state, raw_points, decisions, changes)
-                for point in raw_points[max(0, state['processed_count'] - 1):]:
-                    self._consume(state, decisions, changes, point)
-                self._reconsider_stable(state, raw_points, decisions, changes)
-                state['processed_count'] = len(raw_points)
+                self._advance(state, raw_points, decisions, changes)
             if state != self._state or changes:
                 state['watermark'] = max(state['watermark'], watermark)
                 # Do not publish any state, revisions or endpoints until the atomic save succeeds.
@@ -625,6 +648,9 @@ class HuntAttribution:
                 self.store.save_hunt_attribution(session_id, state, changes, observations=observations)
                 self._state = state
                 self._decisions.update(changes)
+        return self._project(raw_points, state, decisions, changes, live)
+
+    def _project(self, raw_points, state, decisions, changes, live):
         result = ActivityPoints()
         result.__dict__.update(getattr(raw_points, '__dict__', {}))
         changed_ids = set(changes)

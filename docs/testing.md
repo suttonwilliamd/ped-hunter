@@ -61,9 +61,10 @@ actual imports and assertions, not from which source filename happened to change
 | `activity_trend`, `chart_scales`, `chart_trails`, `hunt_attribution`, chart projection in `app.py` | `chart-accounting` | Includes cost/repair consumers in `test_loadouts`, incremental input, persistent attribution, real fan canvas, craft grouping and live refresh budget. Add `desktop-ui` for geometry/range/animation changes; `persistence-lifecycle` for stored samples/decisions. |
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
 | `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
+| `event_exclusion.py`, `event_history.py`, `accounted_events`, accounting revisions | `chart-accounting ingestion persistence-lifecycle desktop-ui` | `test_event_exclusion` exercises real Store transactions, immutable originals, full replay/delta ingestion, stale-writer rejection, rollback, fan archives, restart and healing separation. `test_event_exclusion_ui` drives older-history lookup/paging and real exclude/restore controls without starting/resuming tracking. Shared schema and aggregate changes require full discovery after focused checks. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
 | `healing.py`, `healing_tools.json`, healing preference and expense payloads | `ingestion catalog-loadouts persistence-lifecycle` | `test_healing` covers parser/source units, refresh importers, unknown/periodic tools, replay/restart, selection changes, resumed runs, actual file ingestion and unpriced legacy handoff gaps. Add `desktop-ui` for the real selector, known/missing startup preferences, minimum layout and HUD totals. Both healing files overlap `chart-accounting`: healing is run-only expense, never creature/fan input. Shared Store/schema/summary changes warrant full discovery after focused checks. |
-| Currency-mode writes in `app.py`, `currency.py` | `catalog-loadouts desktop-ui` | `test_currency` includes real Tk/SQLite programmatic writes and normal combobox selection events, repeated USD/PED changes, main/lifetime/history/event/HUD money, idle/history transitions and unchanged stored PED/healing/fan values. Use fresh-process native execution on Windows. The write trace fixes stale rendering after a mode write; it does not establish the user's original startup trigger. |
+| Currency-mode writes in `app.py`, `currency.py` | `catalog-loadouts chart-accounting desktop-ui` | `test_currency` covers main/lifetime/history/event/HUD money and unchanged stored PED/healing/fan values. `test_streamer_currency` adds real canvas ordinary/local labels, details, crafting/hover figures, repeated variable and combobox changes, 10:1 conversion, tiny ranges and exclusion/restore interactions. Use fresh-process native execution on Windows. The write trace fixes stale rendering after a mode write; it does not establish the user's original startup trigger. |
 | Native widgets/layout/DPI, `scrolling.py`, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | `test_default_layout` exercises real setup/Help widgets, persistent actions, focused-control reveal, smaller geometry, native font bounds and simulated application DPI; `test_setup_editor` is controller/data evidence, not rendered acceptance. Includes streamer rendering/resize/toggle/placement/stability/crafting and GUI ingestion/fan cases. Add catalog/loadouts and persistence for setup controls/activation. A large `app.py` edit alone is not a full-suite gate. |
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
@@ -100,12 +101,26 @@ chart/accounting and desktop UI. Reordering must conserve every original field
 and all historical rows; activation may change only subsequent cost context.
 Native captures must distinguish actual Windows DPI from simulated HUD scale.
 
-`test_healing` also uses a disposable synthetic copied database to model a
-deliberate receipt removal **and explicit saved fan-endpoint correction**. It
-reopens fresh resume/history/totals/trails, prices subsequent healing independently,
-and proves the source fixture and weapon-only fan costs remain unchanged. This
-is compatibility coverage, not a general event-exclusion feature: deletion
-alone does not reconcile retained fan observations or existing in-memory caches.
+`test_healing` retains its disposable synthetic copied-database model of a
+deliberate receipt removal **and explicit saved fan-endpoint correction**. Those
+manual-removal fixtures are compatibility coverage, not the reversible feature;
+deletion alone does not reconcile saved fan observations or in-memory caches.
+
+`test_event_exclusion` instead uses the real reversible API on synthetic/private
+databases. It checks original-row conservation; run, history, lifetime and HUD
+totals; saved fans and estimation state; restart and idempotence; multiple edits;
+concurrent ingestion/edits; failed-transaction rollback; and continued file ingestion.
+Healing remains separately priced and never enters creature/fan allocation.
+`test_event_exclusion_ui` checks exact lookup and keyset paging beyond the live
+stream and 100-row page, confirmations, responsive asynchronous replay, restart,
+minimum dialog geometry and unchanged tracking/cursor state.
+
+`test_streamer_currency` checks actual monetary canvas labels, local-scale spikes,
+chart summaries, recipe/batch and hover text under repeated USD/PED changes.
+Raw event rows, point values, saved fan samples and costs must remain PED; changing
+currency must not apply another conversion or restore an excluded spike. Physically
+deleted receipts cannot be restored by this editor. Keep historical manual proofs
+and private data out of test fixtures, repository files and candidate artifacts.
 
 
 For setup or Help layout changes, run controller/data checks **and** authorized

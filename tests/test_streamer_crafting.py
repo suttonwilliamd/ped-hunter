@@ -57,6 +57,7 @@ def test_partial_material_returns_are_one_priced_craft_not_four_free_kills(tmp_p
 def hud(tmp_path):
     app = PedHunterApp(store=Store(tmp_path / 'gui.sqlite3'))
     app.reduced_motion.set(True)
+    app.currency_mode.set('PED')
     sid = app.store.start_session('hunt')
     app.session_id, app.running = sid, True
     app._open_streamer_window()

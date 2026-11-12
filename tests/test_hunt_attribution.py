@@ -20,7 +20,7 @@ class MemoryStore:
     def load_hunt_attribution(self, session_id):
         return deepcopy(self.sessions.get(session_id, (None, {})))
 
-    def save_hunt_attribution(self, session_id, state, decisions):
+    def save_hunt_attribution(self, session_id, state, decisions, *, observations=None):
         if self.fail_save:
             raise OSError('temporary attribution persistence failure')
         _, previous = self.sessions.get(session_id, (None, {}))

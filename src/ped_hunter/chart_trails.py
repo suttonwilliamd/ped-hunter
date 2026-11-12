@@ -17,7 +17,9 @@ Sample = tuple[float | None, float | None, float]
 class _TrailStore(Protocol):
     def load_chart_trails(self, session_id: str, event_ids: Sequence[int]) -> dict[int, tuple[Sample, ...]]: ...
 
-    def save_chart_trails(self, session_id: str, trails: Mapping[int, Sequence[Sample]]) -> None: ...
+    def save_chart_trails(
+        self, session_id: str, trails: Mapping[int, Sequence[Sample]], *, accounting_revision: int = 0,
+    ) -> None: ...
 
 
 def _sample(values: Sequence[object]) -> Sample:
@@ -101,6 +103,7 @@ class TrailRecorder:
     def __init__(self, store: _TrailStore) -> None:
         self._store = store
         self._session_id: str | None = None
+        self._accounting_revision = 0
         self._histories: dict[int, tuple[Sample, ...]] = {}
         self._loaded: set[int] = set()
         self._active_id: int | None = None
@@ -109,8 +112,10 @@ class TrailRecorder:
         self, session_id: str | None, points: Sequence[dict], live: bool,
         revised_event_ids: Collection[int] = (),
     ) -> dict[int, tuple[Sample, ...]]:
-        if session_id != self._session_id:
+        revision = getattr(points, "accounting_revision", 0)
+        if session_id != self._session_id or revision != self._accounting_revision:
             self._session_id = session_id
+            self._accounting_revision = revision
             self._histories.clear()
             self._loaded.clear()
             self._active_id = None
@@ -164,7 +169,7 @@ class TrailRecorder:
         if changed:
             # Commit before changing cached observations, so storage errors can
             # be retried without silently losing an observed endpoint.
-            self._store.save_chart_trails(session_id, changed)
+            self._store.save_chart_trails(session_id, changed, accounting_revision=revision)
             self._histories.update(changed)
         self._active_id = latest_id
         return dict(self._histories)

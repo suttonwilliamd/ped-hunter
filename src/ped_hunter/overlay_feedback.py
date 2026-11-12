@@ -50,7 +50,8 @@ class OverlayActivityStrip(ActivityStrip):
         previous = self.tracker.previous
         was_live = self.tracker.was_live
         arrival = super().update_snapshot(snapshot, live)
-        baseline = previous is None or previous.session_id != snapshot.session_id or not live or not was_live
+        baseline = (previous is None or previous.session_id != snapshot.session_id or not live or not was_live or
+                    previous.accounting_revision != snapshot.accounting_revision)
         if baseline or arrival.loot > 0 or arrival.skills:
             if self._reset_job is not None:
                 self.after_cancel(self._reset_job)

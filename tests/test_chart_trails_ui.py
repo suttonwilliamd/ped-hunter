@@ -309,7 +309,9 @@ def test_local_value_labels_identify_signed_observations_and_fit_own_adjacent_se
             section = next(item for item in items if canvas.type(item) == 'rectangle')
             label = next(item for item in items
                          if canvas.type(item) == 'text' and float(canvas.itemcget(item, 'angle')) == 90)
-            assert float(canvas.itemcget(label, 'text')) == pytest.approx(value)
+            text = canvas.itemcget(label, 'text')
+            assert text.endswith(' PED')  # This fixture explicitly selects PED.
+            assert float(text.removesuffix(' PED')) == pytest.approx(value)
             left, top, right, bottom = canvas.coords(section)
             x0, y0, x1, y1 = canvas.bbox(label)
             assert left <= x0 < x1 <= right

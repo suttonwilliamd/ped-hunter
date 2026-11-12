@@ -26,7 +26,7 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 - dashboard summary cards for live loot, combat damage, event count, stored sessions, and tracking state
 - clear start/stop controls with visible chat-log status
 - recent session history backed by SQLite
-- live event stream for parsed chat lines
+- live event stream plus a paged, persisted loot-receipt history with reversible exclude/restore controls
 - LootNanny-style session skill-gain summary with total XP, procs, and proc share by skill
 - loadout builder inspired by LootNanny's Config flow so hunt costs are based on weapon, amp, scope/sights, and enhancers
 - catalog search with weapon cost/shot details and aliases
@@ -35,9 +35,10 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 The main window starts at 900×600 logical pixels, with a 760×500 minimum; Windows monitor DPI scales those dimensions. Resizing does not reset the window to its default. Main-window text uses the same readable point-equivalent sizes rendered in native-DPI pixels rather than inheriting another monitor's process-wide Tk point scaling. The profit headline is slightly quieter so it does not dominate the editor. There is no separate Compact mode. Lifetime totals live in **Statistics**, leaving **Dashboard** focused on run history. Saved runs do not populate the live summary until you explicitly start or resume a run.
 
 The **Display** USD/PED selector and programmatic currency-mode changes refresh
-run, lifetime, history, event and HUD money immediately. Display conversion never
-reprices stored PED amounts or changes the selected healing tool; healing's
-catalog per-use reference remains TT PED.
+run, lifetime, history, event and HUD money immediately, including Streamer chart
+axes, local ranges, summaries and monetary hover text. Display conversion never
+reprices stored PED amounts or fan samples: **10 PED = 1 USD**. The selected
+healing tool is unchanged; its catalog per-use reference remains TT PED.
 
 The goal is to keep the useful parts of LootNanny's workflow while avoiding clutter and making room for richer modern catalog sources.
 
@@ -66,7 +67,8 @@ it. Read-only explanatory text remains selectable. No system display-scaling
 change or new user-geometry persistence is required.
 The summary wraps to its actual column width and stacks its two headline values
 when narrow. The main event stream yields space to its chart rather than
-flattening it at the smaller minimum; all events remain available by scrolling.
+flattening it at the smaller minimum. That stream shows recent events; use the
+persisted-loot action in its heading to find receipts beyond the stream limit.
 Chart text uses native-DPI font measurements for axis padding and a separate
 caption lane so values, event numbers and descriptions do not cover each other.
 
@@ -143,6 +145,34 @@ It is **not** assigned to inferred creatures, loot groups, fans, shared weapon
 costs or the blue weapon/recipe-input average. Healing does not identify which
 creature benefited. The selector's **?** explains these limits; the run also
 shows estimated uses and unpriced-message counts.
+
+## Reversible loot-receipt accounting
+
+In **Events**, choose **Browse stored loot / exclude / restore…**. The separate
+editor lists every stored run, not just recent history. It pages 100 receipts at
+a time, supports an exact event-ID lookup, and filters included/excluded receipts.
+Inspect the original timestamp, TT value, message and payload before confirming
+**Exclude** or **Restore**. Browsing or editing a run does not start/resume it,
+move the log cursor, change equipment, or stop the current run.
+
+Exclusion retains the original event and pricing; a separate accounting flag
+removes that receipt from run/history/lifetime totals and chart inputs. Restoring
+reuses the original payload, never today's tool selection or prices. Only loot
+receipts are editable: damage, healing, repair and booked manufacturing inputs
+are not excluded or repriced. Healing remains a run-only expense, never fan input.
+
+Accounting edits rebuild attribution and current fan endpoints together, retaining
+the original estimation-activation boundary. Observations are archived by the
+exact excluded-event set: returning to that set can recover its saved fan history;
+a new set receives corrected endpoints for previously observed groups, not invented
+past samples. Archives grow with distinct exclusion sets. Rebuilds run off the UI
+thread, incorporate arrivals during preparation, and commit accounting, estimates
+and fans atomically. A competing edit requires a refresh rather than a stale write.
+
+This is not data recovery: an event physically deleted by an earlier manual
+correction cannot be found or restored here. Importing retained originals from a
+backup requires separate, coordinated reconciliation; no backup is read or
+reapplied automatically.
 
 ## Responsive session Resume — 0.3.43
 
@@ -418,8 +448,9 @@ not on live-data or animation ticks. The hero, metrics, activity, chart summary,
 and footer keep stable slots inside the chosen rectangle without changing the
 main window's scaling. Large monetary totals fit their own field's font without
 moving other sections or losing precision. No-session and zero-cost
-returns show `—`, not a misleading return percentage. The chart is always labelled
-**PED**, even when the monetary cards use USD; **Groups*** are inferred event
+returns show `—`, not a misleading return percentage. Chart money follows the
+main **USD/PED** selection, including ordinary ticks, local ranges and details;
+internal values and saved fans remain PED. **Groups*** are inferred event
 clusters, not independently confirmed kills. Query failures are distinguished
 from an empty chart. Unknown durability is a neutral empty track, not an alarm.
 
@@ -431,14 +462,18 @@ profit, pink for loss, and gray when input cost is unknown. Hover the chart or
 focus the footer for the interpretation. Groups and TT costs are inferred or
 estimated from recorded inputs; the fans describe observations, **not predictions**.
 
-Fans are sampled only when the open HUD refreshes during tracking, never from
-animation frames or by replaying old events. Pre-feature groups remain ordinary
-lines. A single observation is not a fan; missing intermediate positions while
+During ordinary tracking, fans are sampled only when the open HUD refreshes,
+never from animation frames or by replaying old events. Pre-feature groups remain
+ordinary lines. A single observation is not a fan; missing intermediate positions while
 the HUD is closed, paused, or between refreshes cannot be reconstructed. Each
 group stores at most **24** raw-PED observations, preserving first/latest positions
 and per-series/profit extrema; at most four faint traces per series keep it
 readable. Only the latest 16 groups are drawn/cached. The first visible group's
 endpoint range is shown without inventing an off-chart anchor.
+
+Explicit receipt accounting edits are different from live observation: they
+recompute corrected endpoints and select the archived history for that exclusion
+set, without retaining a contaminated endpoint or fabricating missing observations.
 
 Samples persist in the same session SQLite database, separately from accounting
 events, and reload with their original group IDs. They remain stored while their
@@ -457,9 +492,10 @@ cohort can share the ordinary axis without letting a separate 600-PED jackpot
 flatten it. There is no fixed count of sections that disables the feature.
 
 The amber boundary and `local` heading distinguish the independent linear
-scale. Its value-only label shows the largest-magnitude observation with its
-sign; PED units remain in the chart context. A sparse 1.11-PED return among
-0.05-PED costs still qualifies. Multiple/adjacent exceptional events keep
+scale. Its label shows the largest-magnitude observation with its sign and the
+selected currency. A sparse 1.11-PED TT return among 0.05-PED TT costs still
+qualifies; display conversion does not alter scale classification.
+Multiple/adjacent exceptional events keep
 their own sections. Three lower peers are required where available; short
 startup windows retain the gap rule until four visible events exist.
 
@@ -469,7 +505,8 @@ local cohorts remain local down to **1×IQR** and a **2×** gap. New/mixed cohor
 use the initial fence. This limits small-update chatter without smoothing,
 clipping or rewriting PED values. Distribution tests use normalized magnitudes
 to avoid overflow and remain unit-invariant. Classification is not persisted
-as new event history; reopening starts from the current visible distribution.
+as new event history; reopening or an accounting revision starts from the current
+distribution.
 Common retained fan extrema can enlarge the ordinary axis even after current
 endpoints fall: those observations are retained, not erased or fabricated.
 
@@ -477,7 +514,8 @@ Lines, grid lines, fan polygons and animation never bridge a local-scale boundar
 An event at a boundary shows its retained sample range and up to four endpoint
 whiskers per series instead of inventing an incoming segment on a different axis.
 Ordinary fans remain shaded shapes. Equal screen heights across separate sections
-do **not** mean equal PED. No values, event order, time range, accounting totals or
+do **not** mean equal amounts in the selected currency. No values, event order,
+time range, accounting totals or
 stored traces are changed; resize and later scale changes recalculate every
 coordinate from raw PED. These are views of observed/inferred events, not forecasts.
 
@@ -512,9 +550,10 @@ to the original session/events; raw events, totals and loadouts are not rewritte
 Saved estimates reload when the HUD reopens or the session resumes. Existing
 groups before the feature's first live activation retain their original interval
 costs; there is no historical backfill. Estimation runs on HUD refreshes, while
-fan samples still require live observation: closed/paused gaps cannot fabricate
-missing visual traces. Optional projection/storage failures leave recorded totals
-available and identify the unavailable allocation.
+ordinary fan samples still require live observation: closed/paused gaps cannot
+fabricate missing visual traces. Explicit receipt edits rebuild corrected endpoints
+and retain the original activation boundary. Optional projection/storage failures
+leave recorded totals available and identify the unavailable allocation.
 
 
 The header and background can be dragged. Resize from **any edge or corner**,
@@ -538,7 +577,7 @@ The streamer immediately shows the saved blueprint, TT input per attempt and
 `observed/planned` groups, even before the first result arrives. While crafting,
 it also shows batch returns, booked input and net against that booked input.
 The top cards are explicitly **booked whole-session** totals, including hunting;
-chart values and input/batch figures remain **PED** when the cards use USD.
+chart, input, batch and monetary hover figures follow the same USD/PED selection.
 
 Real crafting logs often contain only `You received ...` lines, not an explicit
 success/failure notice. Product, returned ingredients, residue and shrapnel in
@@ -618,9 +657,12 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Add paged persisted loot history with reversible receipt exclusion, unchanged original payloads, atomic totals/attribution/fan reconciliation, revision-aware refresh and exclusion-set fan archives.
+- Make Streamer chart axes, local ranges, details, recipe/batch figures and monetary hover text follow USD/PED, converting only at display boundaries and retaining raw PED.
+
 - Adapt event-local scales to the visible per-event distribution, including retained fans; recognize prevalent elevated cohorts while retaining separate exceptional spikes, with event-ID-bound display hysteresis and unchanged raw accounting (0.3.46).
 
-- Simplify event-local outlier labels to the signed observed spike value, keeping PED units in the chart context and preserving scale boundaries, event positions, fans and accounting.
+- Simplify event-local outlier labels to the signed observed spike value, with selected-currency units beside the value and preserved scale boundaries, event positions, fans and accounting.
 
 - Keep a permanent New setup entry, reject accidental same-name replacement, preserve plain-save activation and make unsaved Save/Discard/Cancel transitions explicit.
 - Put setup actions outside a scrollable form; scroll all Help controls, reduce default/minimum logical geometry and keep main fonts aligned with native monitor DPI without changing system scaling.
@@ -628,7 +670,7 @@ For convenience, PED Hunter also accepts the shorthand:
 
 - Add opt-in focused pytest groups, real-collection inventory/dry runs, unmapped-test protection, complete discovery and explicit isolated-process execution; document dependency selection, honest evidence/CI reuse and durable cadence without changing runtime or CI.
 
-- Keep ordinary streamer-chart variation readable while exceptional events remain visible, using separately labeled vertical event-local PED scales and honest line/fan breaks; preserve all raw values, chronological positions and totals.
+- Keep ordinary streamer-chart variation readable while exceptional events remain visible, using separately labeled vertical event-local scales in the selected currency and honest line/fan breaks; preserve all raw values, chronological positions and totals.
 
 - Improve bounded recent hunting receipt-cost estimates for delayed/batched looting and intervening shots, with conserved unassigned input, explicit ambiguity, persistent frozen decisions, and consistent per-event fan revisions.
 
