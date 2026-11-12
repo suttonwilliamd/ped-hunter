@@ -63,6 +63,7 @@ def test_real_catalog_refresh_keeps_exact_type_m_once_and_preserves_type_a(tmp_p
         spec.loader.exec_module(sync)
         monkeypatch.setattr(sync, "__file__", str(tmp_path / "tools/sync_legacy_data.py"))
         monkeypatch.setattr(sync, "download", lambda name: legacy[name])
+        monkeypatch.setattr(sync, "fetch_healing_catalog", lambda: {"items": []})
         assert sync.main() == 0
         rows = json.loads((tmp_path / "data/catalog/weapons.json").read_text())["items"]
     matches = [item for item in rows if item["name"].strip().casefold() == NAME.casefold()]
