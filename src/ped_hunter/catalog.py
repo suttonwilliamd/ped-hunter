@@ -37,6 +37,30 @@ class AttachmentRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class HealingToolRecord:
+    """Unmodified tool TT inputs; unknown source values are not free."""
+    name: str
+    decay: float | None
+    ammo: int | None = 0
+    ammo_name: str | None = None
+    ammo_unit_value: float | None = None
+    category: str = "MedicalTool"
+    tracking_limit: str | None = None
+    source_name: str = "Entropia Nexus API"
+    source_url: str = ""
+
+    @property
+    def cost_per_use(self) -> float | None:
+        if self.decay is None or self.ammo is None:
+            return None
+        if self.ammo == 0:
+            return self.decay
+        if self.ammo_unit_value is None:
+            return None
+        return self.decay + self.ammo * self.ammo_unit_value
+
+
+@dataclass(frozen=True, slots=True)
 class ResourceRecord:
     name: str
     tt_value: float
@@ -59,12 +83,14 @@ class Catalog:
         resources: dict[str, ResourceRecord],
         blueprints: dict[str, BlueprintRecord],
         aliases: dict[str, str],
+        healing_tools: dict[str, HealingToolRecord] | None = None,
     ) -> None:
         self.weapons = weapons
         self.attachments = attachments
         self.resources = resources
         self.blueprints = blueprints
         self.aliases = aliases
+        self.healing_tools = healing_tools if healing_tools is not None else {}
 
     @classmethod
     def load(cls, root: Path | None = None) -> "Catalog":
@@ -73,6 +99,7 @@ class Catalog:
         attachments = _load_attachment_records(root / "attachments.json")
         resources = _load_resource_records(root / "resources.json")
         blueprints = _load_blueprint_records(root / "crafting.json")
+        healing_tools = _load_healing_records(root / "healing_tools.json")
         _merge_aliases(aliases, root / "aliases.json")
         return cls(
             weapons=weapons,
@@ -80,6 +107,7 @@ class Catalog:
             resources=resources,
             blueprints=blueprints,
             aliases=aliases,
+            healing_tools=healing_tools,
         )
 
     def resolve_weapon_name(self, query: str) -> str | None:
@@ -166,6 +194,21 @@ def _load_attachment_records(path: Path) -> dict[str, AttachmentRecord]:
         )
         attachments[record.name] = record
     return attachments
+
+
+def _load_healing_records(path: Path) -> dict[str, HealingToolRecord]:
+    raw = _load_json(path) or {"items": []}
+    return {item["name"]: HealingToolRecord(
+        name=item["name"],
+        decay=float(item["decay"]) if item.get("decay") is not None else None,
+        ammo=int(item["ammo"]) if item.get("ammo") is not None else None,
+        ammo_name=item.get("ammo_name"),
+        ammo_unit_value=float(item["ammo_unit_value"]) if item.get("ammo_unit_value") is not None else None,
+        category=item["category"],
+        tracking_limit=item.get("tracking_limit", "Activation metadata is missing."),
+        source_name=item.get("source_name", "Entropia Nexus API"),
+        source_url=item["source_url"],
+    ) for item in raw.get("items", [])}
 
 
 def _load_resource_records(path: Path) -> dict[str, ResourceRecord]:

@@ -62,6 +62,7 @@ actual imports and assertions, not from which source filename happened to change
 | `parser`, `log_tail`, `log_watcher`, app worker/drain/path handling | `ingestion` | `test_log_ingestion` exercises real appends, UTF-8/partial writes, rotation/truncation, EOF resume, ended sessions and GUI consumers. `test_loadouts` checks parsed attacks through Store and displayed costs. Add chart/persistence groups when payload/accounting meaning changes; trading for chat/listing semantics. |
 | `catalog.py`, catalog data, CLI seed/import mapping, `tools/sync_legacy_data.py`, setup editor/cost helpers, currency | `catalog-loadouts` | Ammo/decay/markup, repairs, setup snapshots and resume are shared consumers. `test_setup_editor` runs real SQLite controller transitions without a native window: new versus existing identity, duplicate protection, unsaved choices, activation, original-event conservation and plain-save behavior. Price/setup activation changes also need chart/accounting and persistence consumers. Catalog tests overlap diagnostics through CLI import/version metadata. |
 | `storage.py`, session start/end/resume/context, stored caches and projections | `persistence-lifecycle` | Includes original-event preservation, estimate/fan round trips, loadout snapshots, live ingestion, startup summaries and single-instance ownership. Broad Store/schema/migration changes justify an early full run, not just this group. |
+| `healing.py`, `healing_tools.json`, healing preference and expense payloads | `ingestion catalog-loadouts persistence-lifecycle` | `test_healing` covers parser/source units, refresh importers, unknown/periodic tools, replay/restart, selection changes, resumed runs, actual file ingestion and unpriced legacy handoff gaps. Add `desktop-ui` for the real selector, known/missing startup preferences, minimum layout and HUD totals. Both healing files overlap `chart-accounting`: healing is run-only expense, never creature/fan input. Shared Store/schema/summary changes warrant full discovery after focused checks. |
 | Native widgets/layout/DPI, `scrolling.py`, `feedback.py`, `sounds.py`, streamer behavior | `desktop-ui` | `test_default_layout` exercises real setup/Help widgets, persistent actions, focused-control reveal, smaller geometry, native font bounds and simulated application DPI; `test_setup_editor` is controller/data evidence, not rendered acceptance. Includes streamer rendering/resize/toggle/placement/stability/crafting and GUI ingestion/fan cases. Add catalog/loadouts and persistence for setup controls/activation. A large `app.py` edit alone is not a full-suite gate. |
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
@@ -97,6 +98,13 @@ a HUD activation. It overlaps catalog/loadouts, persistence, ingestion,
 chart/accounting and desktop UI. Reordering must conserve every original field
 and all historical rows; activation may change only subsequent cost context.
 Native captures must distinguish actual Windows DPI from simulated HUD scale.
+
+`test_healing` also uses a disposable synthetic copied database to model a
+deliberate receipt removal **and explicit saved fan-endpoint correction**. It
+reopens fresh resume/history/totals/trails, prices subsequent healing independently,
+and proves the source fixture and weapon-only fan costs remain unchanged. This
+is compatibility coverage, not a general event-exclusion feature: deletion
+alone does not reconcile retained fan observations or existing in-memory caches.
 
 
 For setup or Help layout changes, run controller/data checks **and** authorized

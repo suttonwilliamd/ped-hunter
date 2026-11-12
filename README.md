@@ -14,9 +14,10 @@ Free, local-first Entropia Universe profit intelligence.
 
 - tracks Entropia chat logs for loot, combat, crafting, and skill events
 - stores sessions in SQLite
-- seeds item/resource/crafting catalogs from the legacy LootNanny data files
+- seeds weapon/resource/crafting catalogs from legacy LootNanny data and a separate healing catalog from Entropia Nexus
 - resolves community shorthand like `Frontier Rifle` to the actual starter weapon `Frontier Hunting Rifle`
 - computes derived values like cost per shot from the item catalog
+- persists an independent healing-tool choice and records selected-tool TT estimates for supported outgoing healing
 
 ## Interface direction
 
@@ -92,6 +93,51 @@ detect which weapon the game actually uses.
 The compact metric columns reserve ordinary signed money and percentage widths
 before live updates, keeping typical digit changes steady. Exceptionally large
 values still shrink within their own field rather than moving other controls.
+
+## Healing tool and TT costs
+
+The gray run summary's **Healing tool** selector, above Loot/Cost/Events, is
+independent of weapon setups. Choose your catalog tool or **None** to clear it.
+The program-wide choice survives runs, setup changes and application restarts.
+Only subsequent ingested messages use it; existing event prices never change.
+There is no custom-cost input and no automatic equipment detection.
+
+Direct System messages `You healed yourself N points` and
+`You healed <avatar> with N points` assume one use of the selected supported
+instant tool. A partial positive heal incurs the whole per-use cost. Received
+healing, quoted chat, failure/not-wounded messages and unrecognized periodic
+forms are not tool uses. Missing selection/timestamps, unknown source costs and
+unsupported periodic/area activations stay **unpriced**, not free uses.
+An older cutover handoff stores weapon context only: healing in its historical
+gap stays unpriced rather than inheriting a newly selected tool. Ordinary future
+input after the handoff uses the current choice.
+
+TT cost is `decay_PEC / 100 + consumed_units * TT_PED_per_unit`:
+
+| Selected tool | Decay (PEC/use) | Consumption | Total (PED/use) |
+|---|---:|---|---:|
+| [Frontier First Aid Pack, Adjusted](https://api.entropianexus.com/medicaltools/253) | 2 | None | 0.02000 |
+| [Regeneration Chip 8](https://api.entropianexus.com/medicalchips/25) | 2.8 | 420 Mind Essence × 0.0001 PED/unit | 0.07000 |
+
+The bundled catalog uses the Nexus [medical-tools](https://api.entropianexus.com/medicaltools)
+and [medical-chips](https://api.entropianexus.com/medicalchips) APIs, preserving
+nullable costs and known activation limits. Both catalog-refresh commands update
+this separate source; the dashboard uses local data, not online price fetching.
+Estimates assume unmodified equipment at TT, with no markup, enhancer or
+unknown implant adjustment.
+
+**Selected-equipment estimation is not activation detection.** Unmarked
+concurrent HoT/lifesteal can look identical to an instant heal: clear selection
+while healing is ambiguous. Exact same-run timestamp/message replays retain an
+audit row but are not charged again while that history remains, including after
+restart. Identical same-second activations cannot be proved distinct; different
+timestamps remain separate. Silent/failed uses cannot be reconstructed.
+
+Healing expense enters run, lifetime, history and HUD cost/net/return totals.
+It is **not** assigned to inferred creatures, loot groups, fans, shared weapon
+costs or the blue weapon/recipe-input average. Healing does not identify which
+creature benefited. The selector's **?** explains these limits; the run also
+shows estimated uses and unpriced-message counts.
 
 ## Responsive session Resume — 0.3.43
 
