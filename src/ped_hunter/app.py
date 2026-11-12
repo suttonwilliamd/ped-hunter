@@ -173,6 +173,8 @@ class PedHunterApp(tk.Tk):
         self._configure_theme()
         self._build_layout()
         self._restore_default_context()
+        # Widgets and restored context must exist before a currency refresh.
+        self.currency_mode.trace_add("write", self._on_currency_changed)
         self._refresh_all()
 
     def _ui_font(self, points: int = 10, *, family: str = "Segoe UI", weight: str = "normal") -> tkfont.Font:
@@ -321,7 +323,6 @@ class PedHunterApp(tk.Tk):
         ttk.Label(header, text="Display", style="Muted.TLabel").grid(row=0, column=2, sticky="e", padx=(6, 4))
         currency_picker = ttk.Combobox(header, textvariable=self.currency_mode, values=("USD", "PED"), state="readonly", width=6)
         currency_picker.grid(row=0, column=3, sticky="e", padx=(0, 8))
-        currency_picker.bind("<<ComboboxSelected>>", lambda _event: self._refresh_all())
         ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
         ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
         # Display preferences live with help/settings rather than competing
@@ -433,6 +434,10 @@ class PedHunterApp(tk.Tk):
         self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money, compact=True)
         self.activity_strip.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         left.bind("<Configure>", self._on_hero_resize)
+
+    def _on_currency_changed(self, *_args) -> None:
+        """Refresh rendered money for selector and programmatic mode writes."""
+        self._refresh_all()
 
     def _money(self, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         try:

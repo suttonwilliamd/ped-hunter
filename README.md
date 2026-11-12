@@ -34,6 +34,11 @@ PED Hunter borrows LootNanny's best basic idea — a run-centric Entropia tracke
 
 The main window starts at 900×600 logical pixels, with a 760×500 minimum; Windows monitor DPI scales those dimensions. Resizing does not reset the window to its default. Main-window text uses the same readable point-equivalent sizes rendered in native-DPI pixels rather than inheriting another monitor's process-wide Tk point scaling. The profit headline is slightly quieter so it does not dominate the editor. There is no separate Compact mode. Lifetime totals live in **Statistics**, leaving **Dashboard** focused on run history. Saved runs do not populate the live summary until you explicitly start or resume a run.
 
+The **Display** USD/PED selector and programmatic currency-mode changes refresh
+run, lifetime, history, event and HUD money immediately. Display conversion never
+reprices stored PED amounts or changes the selected healing tool; healing's
+catalog per-use reference remains TT PED.
+
 The goal is to keep the useful parts of LootNanny's workflow while avoiding clutter and making room for richer modern catalog sources.
 
 ### Setups and Help in smaller windows
