@@ -4,7 +4,6 @@ from types import SimpleNamespace
 import pytest
 
 from ped_hunter import app as appmod
-from ped_hunter.feedback import Snapshot
 from ped_hunter.storage import Store
 
 
@@ -42,7 +41,7 @@ def test_retained_session_state_and_demo_never_claim_false_tracking(hud):
     app.store.end_session(sid)
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['state'].get() == 'DEMO · STOPPED'
-    assert 'not real money' in overlay.activity_strip.detail
+    assert overlay.state_label.cget('text') == 'DEMO · STOPPED'
     app.running = True
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['state'].get() == 'DEMO · STOPPED'
@@ -82,19 +81,20 @@ def test_query_failure_is_distinct_from_no_kills_and_recovers(hud, monkeypatch):
     assert overlay.vars['kill_trend_badge'].get() == 'No kill points yet'
 
 
-def test_activity_expires_without_changing_persistent_tracking(hud):
+def test_tracking_header_remains_visible_after_loot_and_identical_snapshots(hud):
     app, overlay = hud
-    strip = overlay.activity_strip
-    strip.set_context('TRACKING')
-    strip.update_snapshot(Snapshot('run', loot=1, events=1), True)
-    strip.update_snapshot(Snapshot('run', loot=3, events=2, skills={'Rifle': 1}), True)
-    assert 'loot recorded' in strip.headline
-    assert strip._reset_job is not None
-    assert not strip.animator.jobs  # Reduced motion also retains timed text reset.
-    strip.after_cancel(strip._reset_job)
-    strip._quiet()
-    assert strip.headline == 'Waiting for new events'
-    assert strip.detail == 'Loot and skill gains appear here'
+    sid = app.store.start_session('hunt')
+    app.session_id, app.running = sid, True
+    app._refresh_all()
+    assert overlay.state_label.cget('text') == 'TRACKING'
+    app.store.add_event(sid, {'kind': 'loot', 'raw_message': 'Synthetic arrival',
+                             'payload': {'item_name': 'Shrapnel', 'value': 4}})
+    for _ in range(2):
+        app._refresh_all()
+        app.update()
+        assert overlay.state_label.winfo_viewable()
+        assert overlay.state_label.cget('text') == 'TRACKING'
+        assert overlay.vars['loot'].get() == '$0.40'
 
 
 def test_enlarging_does_not_ratchet_minimum_and_can_shrink_again(hud):

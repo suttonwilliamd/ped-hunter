@@ -69,6 +69,16 @@ actual imports and assertions, not from which source filename happened to change
 | CLI/doctor/startup lock, `__init__`, spec/installer, frozen diagnostic helper, test runner | `packaging-diagnostics` | Covers doctor isolation/redaction, helper failure behavior, packaging metadata, single-instance lock, catalog release checks, sound CLI flags and selection tooling. Tooling-only changes can use the direct tooling test module plus collection/CLI smoke instead of unrelated diagnostics or native GUI execution. |
 | WTB extraction and `app._wtb_listings` | `trading` | `test_wtb` crosses parser, stored chat rows and displayed channel/quantity/price filtering; parser tests overlap ingestion. Add persistence coverage if queries/schema change. |
 
+Live-feed presentation changes use `ingestion desktop-ui trading` with the
+affected consumer files. `test_log_ingestion` covers a 120-message player/trade
+chat burst beyond the 80-row display limit, preserved raw rows/log bytes,
+exclude/restore, restart and continued ingestion. `test_streamer_stability`
+measures metrics-to-input/chart adjacency in empty/populated hunt/crafting
+states, rather than reserving space for a removed status widget. Existing
+feedback, tracking-header, currency, crafting, resize and exclusion consumers
+remain required; removing a UI section is not permission to weaken accounting
+or retained-feedback coverage.
+
 Select the changed component **plus affected dependencies**. Groups are useful
 starting points, not proof that every acceptance case is covered. Preserve named
 bug/feature sequences and required visual checks. A carefully justified direct

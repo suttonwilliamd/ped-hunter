@@ -84,8 +84,7 @@ def test_live_feedback_and_reduced_motion_do_not_change_records(tmp_path, monkey
         assert cues == ["loot"]  # The overlay does not duplicate the dashboard's cue.
         assert "+$0.40 LOOT" == app.activity_strip.headline
         assert "Rifle +1" in app.activity_strip.detail
-        assert overlay.activity_strip.headline == "+$0.40 loot recorded"
-        assert "Rifle +1" in overlay.activity_strip.detail
+        assert overlay.state_label.cget("text") == "TRACKING"
         assert any("arrival" in app.skills_tree.item(iid, "tags") for iid in app.skills_tree.get_children())
         assert any("arrival" in app.events_tree.item(iid, "tags") for iid in app.events_tree.get_children())
         app.reduced_motion.set(True)
@@ -93,7 +92,7 @@ def test_live_feedback_and_reduced_motion_do_not_change_records(tmp_path, monkey
         assert app.hero_loot.get() == "$0.40"
         assert overlay.vars["loot"].get() == "$0.40"
         assert not app.activity_strip.animator.jobs
-        assert not overlay.activity_strip.animator.jobs
+        assert not overlay.animator.jobs
         assert app._loot_chart_phase == 1
         assert overlay._chart_phase == 1
         assert cues == ["loot"]

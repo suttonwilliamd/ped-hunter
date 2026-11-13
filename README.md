@@ -70,6 +70,10 @@ The summary wraps to its actual column width and stacks its two headline values
 when narrow. The main event stream yields space to its chart rather than
 flattening it at the smaller minimum. That stream shows recent events; use the
 persisted-loot action in its heading to find receipts beyond the stream limit.
+Ordinary player/trade chat is filtered out of the live stream before its row
+limit, so a chat burst cannot displace older loot or skill gains. Chat remains
+in the raw log and stored event history, including WTB listing inputs; this is
+presentation filtering, not deletion or an accounting change.
 Chart text uses native-DPI font measurements for axis padding and a separate
 caption lane so values, event numbers and descriptions do not cover each other.
 
@@ -101,6 +105,11 @@ detect which weapon the game actually uses.
 The compact metric columns reserve ordinary signed money and percentage widths
 before live updates, keeping typical digit changes steady. Exceptionally large
 values still shrink within their own field rather than moving other controls.
+
+The Streamer HUD has no dedicated waiting/activity section or reserved empty
+status space. Crafting TT Input follows the metrics row directly; otherwise the
+chart follows it. Tracking and demo state remain in the existing header, while
+loot/skill feedback and optional cues remain in the main window.
 
 ## Healing tool and TT costs
 
@@ -658,6 +667,8 @@ For convenience, PED Hunter also accepts the shorthand:
 ## Changelog
 
 ### Unreleased
+- Filter ordinary player/trade chat from the live event presentation while retaining raw logs, stored rows and WTB inputs.
+- Remove the entire dedicated Streamer waiting/activity section and reclaim its space in empty and populated states; retain header status and main-window feedback.
 - Refresh Manufacturing material previews on USD/PED writes, preserving small per-attempt and batch values without repricing or rebooking input (0.03025 PED × 9 = 0.27225 PED).
 - Add paged persisted loot history with reversible receipt exclusion, unchanged original payloads, atomic totals/attribution/fan reconciliation, revision-aware refresh and exclusion-set fan archives.
 - Make Streamer chart axes, local ranges, details, recipe/batch figures and monetary hover text follow USD/PED, converting only at display boundaries and retaining raw PED.

@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from ped_hunter.app import PedHunterApp
+from ped_hunter.app import PedHunterApp, _recent_events
 from ped_hunter.catalog import Catalog
 from ped_hunter.storage import LoadoutRecord, Store
 
@@ -238,3 +238,63 @@ def test_display_exception_does_not_permanently_stop_queue_drain():
     app._log_queue.put(('parsed', 2))
     app._drain_log_queue()
     assert app._refresh_live_views.call_count == 2
+
+
+def test_chat_burst_stays_in_raw_history_without_displacing_live_loot_and_skills(worker):
+    source, sid, path = worker
+    chat = b''.join(
+        (f'2026-10-24 04:37:{i % 60:02d} '
+         f'[{"Trade" if i % 2 else "Local"}] [Synthetic Player] '
+         f'{"WTB Animal Muscle Oil" if i % 2 else "Hello"} {i}\r\n').encode()
+        for i in range(120)
+    )
+    content = SHOT + LOOT + SKILL + chat
+    baseline = run_polls(worker, [lambda: append(path, content)])
+    assert baseline.events == 123
+    with source.store.connect() as conn:
+        originals = [tuple(row) for row in conn.execute('SELECT * FROM events ORDER BY id')]
+        kinds = dict(conn.execute('SELECT kind,COUNT(*) FROM events GROUP BY kind'))
+        visible = {row[0] for row in conn.execute("SELECT id FROM events WHERE kind != 'chat'")}
+        loot_id = conn.execute("SELECT id FROM events WHERE kind='loot'").fetchone()[0]
+    assert kinds == {'combat': 1, 'loot': 1, 'skill': 1, 'chat': 120}
+    assert path.read_bytes() == content
+    app = PedHunterApp(store=source.store)
+    try:
+        app.reduced_motion.set(True)
+        app.currency_mode.set('PED')
+        app.chat_path.set(str(path))
+        app.session_id, app.running = sid, True
+        app.events_tab.master.select(app.events_tab)
+        for excluded in (True, True, False, False):
+            source.store.set_loot_excluded(sid, loot_id, excluded)
+            app._refresh_all()
+            app.update()
+            expected = visible - {loot_id} if excluded else visible
+            assert {int(iid) for iid in app.events_tree.get_children()} == expected
+            assert {row['id'] for row in _recent_events(source.store, sid, 80)} == expected
+            current = source.store.get_session(sid)
+            assert current.loot_value == pytest.approx(0 if excluded else baseline.loot_value)
+            assert current.hunting_cost == baseline.hunting_cost
+            assert current.events == baseline.events - int(excluded)
+            with source.store.connect() as conn:
+                assert [tuple(row) for row in conn.execute('SELECT * FROM events ORDER BY id')] == originals
+            assert path.read_bytes() == content
+        later = b'2026-10-24 04:39:00 [System] [] You received Shrapnel x (1000) Value: 0.1000 PED\r\n'
+        continued = run_polls(worker, [lambda: append(path, later)], start_size=len(content))
+        app._refresh_all()
+        app.update()
+        assert continued.events == baseline.events + 1
+        assert continued.loot_value == pytest.approx(baseline.loot_value + .1)
+        assert continued.hunting_cost == baseline.hunting_cost
+        with source.store.connect() as conn:
+            new_id = conn.execute('SELECT MAX(id) FROM events').fetchone()[0]
+            assert [tuple(row) for row in conn.execute(
+                'SELECT * FROM events WHERE id<=? ORDER BY id', (originals[-1][0],)
+            )] == originals
+        assert {int(iid) for iid in app.events_tree.get_children()} == visible | {new_id}
+        assert path.read_bytes() == content + later
+    finally:
+        app.destroy()
+    restarted = Store(source.store.db_path)
+    assert {row['id'] for row in _recent_events(restarted, sid, 80)} == visible | {new_id}
+    assert restarted.get_session(sid).loot_value == pytest.approx(baseline.loot_value + .1)

@@ -21,7 +21,7 @@ def hud(tmp_path):
 
 def positions(window):
     widgets = [window.hero, window.net_label, window.return_label, window.stats,
-               *window.stat_cells, window.activity_strip, window.kill_chart,
+               *window.stat_cells, window.kill_chart,
                window.durability_bar, window.loadout_label, window.resize_handle]
     return tuple((w.winfo_rootx(), w.winfo_rooty(), w.winfo_width(), w.winfo_height()) for w in widgets)
 
@@ -42,7 +42,7 @@ def fonts(window, exclude=()):
 
 
 @pytest.mark.parametrize('size', [(360, 330), (260, 240), (540, 400)])
-def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(hud, size):
+def test_live_digit_thresholds_and_tracking_status_keep_layout_still(hud, size):
     app, window = hud
     window.geometry(f'{round(size[0] * window.ui_scale)}x{round(size[1] * window.ui_scale)}')
     app.update()
@@ -56,28 +56,36 @@ def test_live_digit_thresholds_long_activity_and_quiet_reset_keep_layout_still(h
         window.vars['kill_trend_badge'].set(
             f'K{9 if i % 2 else 1000} · Profit -0.05 PED · ↓ -0.10 vs prev\n'
             'Cost 0.12 · Cumulative avg cost 0.13 PED')
-        strip = window.activity_strip
-        strip.headline = '+0.05 PED loot recorded' if i % 2 else 'Waiting for new events'
-        strip.detail = ('Very long synthetic skill name +1 · ' * 8 if i % 2 else 'Loot and skill gains appear here')
-        strip._draw()
+        window.vars['state'].set('TRACKING' if i % 2 else 'WAITING FOR RUN')
         app.update()
         assert (positions(window), fonts(window)) == before
-    window.activity_strip._quiet()
+    window.vars['state'].set('TRACKING')
     app.update()
     assert (positions(window), fonts(window)) == before
 
 
-def test_activity_strip_has_two_reserved_lines_even_for_long_text(hud):
+@pytest.mark.parametrize('crafting', [False, True])
+@pytest.mark.parametrize('populated', [False, True])
+def test_metrics_are_adjacent_to_input_or_chart_without_reserved_status_space(hud, crafting, populated):
     app, window = hud
-    strip = window.activity_strip
-    height = strip.winfo_height(), strip.winfo_reqheight()
-    full = 'A long synthetic skill name +123 · ' * 15
-    for detail in ('Short', full, 'Loot and skill gains appear here', full):
-        strip.detail = detail
-        strip._draw()
-        app.update()
-        assert (strip.winfo_height(), strip.winfo_reqheight()) == height
-        assert strip.detail == detail  # Only presentation may ellipsize; retain the original.
+    sid = app.store.start_session('craft' if crafting else 'hunt')
+    app.session_id, app.running = sid, True
+    if crafting:
+        app.crafting_blueprint.set('Muscle Oil Compound B Blueprint')
+        app.crafting_attempts.set('9')
+        app._add_crafting_cost_to_session()
+    if populated:
+        app.store.add_event(sid, {'kind': 'loot', 'raw_message': 'Synthetic Compound B output',
+                                 'payload': {'item_name': 'Muscle Oil Compound B', 'value': .36}})
+        app.store.add_event(sid, {'kind': 'skill', 'raw_message': 'Synthetic skill gain',
+                                 'payload': {'skill': 'Engineering', 'xp': .01}})
+    app._refresh_all()
+    app.update()
+    following = window.input_slot if crafting else window.trend
+    gap = following.winfo_rooty() - (window.stats.winfo_rooty() + window.stats.winfo_height())
+    assert 0 <= gap <= max(6, round(6 * window._content_scale))
+    assert window.state_label.cget('text') == 'TRACKING'
+    assert len(app.events_tree.get_children()) == (1 if crafting else 0) + (2 if populated else 0)
 
 
 def test_number_animation_does_not_relayout_between_frames(hud):
