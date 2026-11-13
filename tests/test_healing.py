@@ -53,7 +53,7 @@ def test_self_and_other_heals_add_cost_without_shots_or_weapon_repair_decay(work
     app.store.set_selected_healing_tool(FAP)
     ingest(worker, line(0, "You inflicted 6.0 points of damage"))
     weapon = asdict(app.store.get_active_loadout())
-    ingest(worker, line(1), line(4, "You healed Test Avatar with 0.2 points"))
+    ingest(worker, line(1), line(4, "You healed Test Avatar with 23.0 points"))
     summary = app.store.get_session(sid)
     assert summary.hunting_cost == pytest.approx(0.00651 + 0.02 + 0.02)
     assert summary.healing_cost == pytest.approx(0.04)
@@ -76,7 +76,7 @@ def test_self_and_other_heals_add_cost_without_shots_or_weapon_repair_decay(work
 def test_chip_counts_actual_essence_units_and_pec_decay_in_ped(worker):
     app, sid = worker
     app.store.set_selected_healing_tool(CHIP)
-    ingest(worker, line(1))
+    ingest(worker, line(1, "You healed yourself 55.0 points"))
     payload = rows(worker)[0]["payload"]
     assert payload["healing_decay_cost"] == pytest.approx(2.8 / 100)
     assert payload["healing_ammo_cost"] == pytest.approx(420 * 0.0001)
@@ -144,7 +144,8 @@ def test_unrelated_failures_received_and_unrecognized_periodic_forms_are_not_use
     app.store.set_selected_healing_tool(FAP)
     ingest(worker, line(1, message))
     summary = app.store.get_session(sid)
-    assert (summary.events, summary.healing_cost, summary.estimated_healing_uses) == (0, 0, 0)
+    assert (summary.events, summary.healing_cost, summary.estimated_healing_uses) == (
+        1 if message == "Healing is diminished while moving" else 0, 0, 0)
 
 
 def test_chat_quoting_system_healing_is_not_personal_healing(worker):
@@ -169,7 +170,7 @@ def test_duplicate_replay_interleaved_after_store_reopen_and_old_tail_is_not_rec
         conn.commit()
     app.store = Store(app.store.db_path)
     app.store.set_selected_healing_tool("Vivo T1")
-    ingest(worker, original, line(5))
+    ingest(worker, original, line(5, "You healed yourself 9.0 points"))
     summary = app.store.get_session(sid)
     assert summary.healing_cost == pytest.approx(0.02 + 0.00903)
     assert (summary.estimated_healing_uses, summary.unpriced_heal_events) == (2, 0)
@@ -205,7 +206,7 @@ def test_selection_persists_across_runs_weapon_changes_resume_and_new_store_with
     app.store = Store(app.store.db_path)
     assert app.store.get_selected_healing_tool() == "Vivo T1"
     app.store.resume_session(original)
-    ingest(worker, line(7))
+    ingest(worker, line(7, "You healed yourself 9.0 points"))
     assert app.store.get_session(original).healing_cost == pytest.approx(0.02903)
     assert app.store.get_session(later).healing_cost == pytest.approx(0.02)
     assert rows(worker)[0] == first
@@ -231,7 +232,7 @@ def test_legacy_heals_keep_original_payload_and_are_not_retroactively_priced_eve
     assert "healing_cost" not in rows(worker)[1]["payload"]
 
 
-def test_heals_are_run_cost_not_phantom_creature_points_or_crafting_attempts(worker):
+def test_future_heals_use_previous_loot_without_phantom_groups_or_backfilling_other_targets(worker):
     app, sid = worker
     app.store.set_selected_healing_tool(FAP)
     ingest(worker, line(0, "You inflicted 6.0 points of damage"),
@@ -239,9 +240,13 @@ def test_heals_are_run_cost_not_phantom_creature_points_or_crafting_attempts(wor
     before = _kill_trend_points(app.store, sid)
     ingest(worker, line(4), line(7, "You healed Test Avatar with 23.0 points"))
     after = _kill_trend_points(app.store, sid)
-    assert after == before
+    assert len(after) == len(before) == 1
+    assert before[0]["cost"] == pytest.approx(0.00651)
+    assert after[0]["weapon_cost"] == pytest.approx(0.00651)
+    assert after[0]["cost"] == pytest.approx(0.00651 + 0.02)
+    assert after.healing_pending == pytest.approx(0.02)
     summary = app.store.get_session(sid)
-    assert sum(point["cost"] for point in after) + summary.healing_cost == pytest.approx(summary.hunting_cost)
+    assert sum(point["cost"] for point in after) + after.healing_pending == pytest.approx(summary.hunting_cost)
     assert summary.manufacturing_attempt == 0
     assert summary.loot_value == pytest.approx(0.01)
     assert summary.net_value == pytest.approx(0.01 - 0.00651 - 0.04)
@@ -273,7 +278,7 @@ def medical_source(name, decay, *, burn=None, ammo=None, effects=(), rate=24, ch
     economy = {"Decay": decay}
     if chip:
         economy["AmmoBurn"] = burn
-    return {"Name": name, "Properties": {"MaxHeal": 28.6, "UsesPerMinute": rate, "Economy": economy},
+    return {"Name": name, "Properties": {"MinHeal": 21.4, "MaxHeal": 28.6, "UsesPerMinute": rate, "Economy": economy},
             "EffectsOnUse": [{"Name": name} for name in effects], "EffectsOnEquip": [],
             "Ammo": {"Name": ammo} if ammo else None,
             "Links": {"$Url": "/medicalchips/25" if chip else "/medicaltools/253"}}
@@ -346,7 +351,7 @@ def test_real_file_ingestion_prices_only_subsequent_selected_heals(worker, tmp_p
 
     def use_chip():
         app.store.set_selected_healing_tool(CHIP)
-        append(path, (line(4) + "\r\n").encode())
+        append(path, (line(4, "You healed yourself 55.0 points") + "\r\n").encode())
 
     def clear():
         app.store.set_selected_healing_tool(None)
@@ -375,13 +380,20 @@ def test_legacy_cutover_gap_cannot_inherit_new_healing_selection(worker):
     assert "healing_cost" not in rows(worker)[0]["payload"]
 
 
-def test_corrected_synthetic_copy_reopens_without_stale_totals_or_fans_and_keeps_heals_run_only(worker, tmp_path):
-    """Model the frozen proof's explicit data AND endpoint edits, not an exclusion API."""
+def test_corrected_synthetic_copy_reopens_without_stale_totals_or_fans_and_keeps_legacy_heals_unassigned(worker, tmp_path):
+    """Frozen manual proof uses legacy expenses; future heals use new rules."""
     app, sid = worker
     app.store.set_selected_healing_tool(FAP)
     ingest(worker, line(0, "You inflicted 6.0 points of damage"),
            line(1, "You received Strongbox Key x (1) Value: 500 PED"),
-           line(1, "You received Shrapnel x (5) Value: 0.0005 PED"), line(4))
+           line(1, "You received Shrapnel x (5) Value: 0.0005 PED"))
+    legacy = parse_line(line(4)).to_row()
+    legacy["payload"].update({
+        "healing_tool": FAP, "healing_cost": .02, "healing_decay_cost": .02,
+        "healing_ammo_cost": 0.0, "healing_cost_estimated": True,
+        "healing_cost_status": "selected_tool_estimate",
+    })
+    app.store.add_event(sid, legacy)
     points = _kill_trend_points(app.store, sid)
     assert len(points) == 1
     point = points[0]
@@ -408,19 +420,29 @@ def test_corrected_synthetic_copy_reopens_without_stale_totals_or_fans_and_keeps
     assert view.totals.total_loot == pytest.approx(0.0005)
     assert view.totals.total_net == pytest.approx(view.session.net_value)
     assert view.sessions[0] == view.session
-    assert [(p["cost"], p["avg_cost"], p["loot"]) for p in view.points] == pytest.approx([(0.00651, 0.00651, 0.0005)])
+    assert len(view.points) == 1
+    assert (view.points[0]["cost"], view.points[0]["avg_cost"], view.points[0]["loot"]) == pytest.approx((0.00651, 0.00651, 0.0005))
+    assert view.points.healing_pending == pytest.approx(.02)
     histories = TrailRecorder(reopened).update(sid, view.points, live=False)
     assert histories == {point["event_id"]: ((point["cost"], point["avg_cost"], 0.0005),)}
     copy_app = object.__new__(PedHunterApp)
     copy_app.store, copy_app.catalog = reopened, app.catalog
     reopened.set_selected_healing_tool(CHIP)
-    ingest((copy_app, sid), line(7))
+    ingest((copy_app, sid), line(7, "You healed yourself 55.0 points"))
     after = _load_resume_view(reopened, sid)
     assert after.session.healing_cost == pytest.approx(0.09)
     assert after.totals.total_cost == pytest.approx(0.00651 + 0.09)
     assert after.session.net_value == pytest.approx(0.0005 - 0.00651 - 0.09)
-    assert after.points == view.points
+    assert len(after.points) == 1
+    assert after.points[0]["weapon_cost"] == pytest.approx(.00651)
+    assert after.points[0]["healing_cost"] == pytest.approx(.07)
+    assert after.points[0]["cost"] == pytest.approx(.00651 + .07)
+    assert after.points.healing_pending == pytest.approx(.02)
+    assert after.points[0]["cost"] + after.points.healing_pending == pytest.approx(after.session.hunting_cost)
     assert TrailRecorder(reopened).update(sid, after.points, live=False) == histories
+    observed = TrailRecorder(reopened).update(sid, after.points, live=True)[point["event_id"]]
+    assert observed[:-1] == histories[point["event_id"]]
+    assert observed[-1] == pytest.approx((.00651 + .07, .00651 + .07, .0005))
     assert rows(worker) == original_rows
     assert asdict(app.store.get_session(sid)) == original_summary
     assert app.store.load_chart_trails(sid, [point["event_id"]]) == original_trails

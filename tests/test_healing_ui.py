@@ -1,4 +1,4 @@
-"""Actual native healing controls and unchanged loot-fan projection."""
+"""Actual native dual healing controls and conservative primary-cost projection."""
 from copy import deepcopy
 
 import pytest
@@ -15,7 +15,10 @@ def app(tmp_path, monkeypatch, request):
     chat.write_text("")
     monkeypatch.setattr(appmod, "_default_chat_log_path", lambda: chat)
     store = Store(tmp_path / "native-healing.sqlite3")
-    store.set_selected_healing_tool(getattr(request, "param", None))
+    choice = getattr(request, "param", None)
+    heal, hot = choice if isinstance(choice, tuple) else (choice, None)
+    store.set_selected_healing_tool(heal)
+    store.set_selected_hot_tool(hot)
     application = appmod.PedHunterApp(store=store)
     application.title("PED Hunter isolated healing integration")
     application.reduced_motion.set(True)
@@ -36,6 +39,12 @@ def select(app, name):
     app.healing_selector.event_generate("<<ComboboxSelected>>")
     app.update()
 
+def select_hot(app, name):
+    app.hot_selector.set(name)
+    app.hot_selector.event_generate("<<ComboboxSelected>>")
+    app.update()
+
+
 
 def inside(widget, parent):
     assert widget.winfo_ismapped()
@@ -50,7 +59,7 @@ def inside(widget, parent):
 def test_selector_values_warnings_and_run_actions_fit_ordinary_sizes(app, size, name):
     app.geometry(f"{round(size[0] * app.display_scale)}x{round(size[1] * app.display_scale)}")
     select(app, name)
-    for widget in (app.healing_selector, app.healing_detail_label, app.healing_totals_label):
+    for widget in (app.healing_selector, app.hot_selector, app.healing_detail_label, app.healing_totals_label):
         inside(widget, app.hero_healing)
         inside(widget, app)
     for label in (app.healing_detail_label, app.healing_totals_label):
@@ -94,7 +103,7 @@ def test_native_change_clear_and_setup_activation_leave_global_preference_separa
     assert app.store.get_loadout(second).name == "Second synthetic setup"
 
 
-def test_native_heal_updates_run_and_hud_totals_without_rewriting_loot_fans(app):
+def test_native_heals_book_immediately_and_allocate_only_after_supported_loot_without_rebasing_fans(app):
     gear = LoadoutRecord(None, "Synthetic blade", "SET Combat Blade (L)",
                          ammo_burn=65, decay=0.00001, cost_per_shot=0.00651)
     app.store.save_loadout(gear, make_active=True)
@@ -131,6 +140,13 @@ def test_native_heal_updates_run_and_hud_totals_without_rewriting_loot_fans(app)
     assert hud.vars["net_big"].get() == app._money(0.02 - 0.02604 - 0.04, signed=True)
     assert hud.kill_trend_points == before
     assert hud.kill_trail_histories == histories
+    assert hud.kill_trend_points.healing_pending == pytest.approx(.04)
+    ingest(15, "You received Shrapnel x (400) Value: 0.04 PED")
+    assert [point["cost"] for point in hud.kill_trend_points] == pytest.approx([.01302, .03302])
+    assert hud.kill_trend_points.healing_pending == pytest.approx(.02)
+    second = hud.kill_trend_points[-1]["event_id"]
+    assert hud.kill_trail_histories[second][:len(histories[second])] == histories[second]
+    assert hud.kill_trail_histories[second][-1][0] == pytest.approx(.03302)
 
 
 @pytest.mark.parametrize("app", [FAP, "Unavailable future tool"], indirect=True)
@@ -140,7 +156,75 @@ def test_native_startup_restores_known_or_missing_preference_without_repricing(a
     if name == FAP:
         assert "0.02000 PED/use" in app.healing_detail.get()
     else:
-        assert "missing from catalog" in app.healing_detail.get()
+        assert "unpriced" in app.healing_detail.get()
+        assert app.catalog.healing_tools.get(name) is None
     assert app.store.list_all_sessions() == []
     select(app, "None")
     assert Store(app.store.db_path).get_selected_healing_tool() is None
+
+
+def test_native_hot_filter_exact_labels_and_independent_persistent_choices(app):
+    values = tuple(app.hot_selector.cget("values"))
+    assert app.hot_selector.instate(["readonly"])
+    assert FAP not in values and "Regeneration Chip 8" not in values
+    assert "Restoration Chip 3 (L)" in values
+    assert all(app.catalog.healing_tools[name].has_hot for name in values if name != "None")
+    labels = {str(widget.cget("text")) for widget in app.hero_healing.winfo_children()
+              if widget.winfo_class() == "TLabel"}
+    assert {"Heal:", "HoT:"}.issubset(labels)
+    select(app, FAP)
+    select_hot(app, "EMT Kit Ek-2600, Modified")
+    reopened = Store(app.store.db_path)
+    assert reopened.get_selected_healing_tool() == FAP
+    assert reopened.get_selected_hot_tool() == "EMT Kit Ek-2600, Modified"
+    select(app, "None")
+    assert Store(app.store.db_path).get_selected_hot_tool() == "EMT Kit Ek-2600, Modified"
+
+
+@pytest.mark.parametrize("app", [(FAP, "EMT Kit Ek-2600, Modified"), (None, "Unavailable future HoT")], indirect=True)
+def test_native_startup_restores_both_slots_without_substituting_missing_hot(app):
+    assert app.healing_tool.get() == (app.store.get_selected_healing_tool() or "None")
+    assert app.hot_tool.get() == app.store.get_selected_hot_tool()
+    if app.hot_tool.get() == "Unavailable future HoT":
+        assert "unpriced" in app.healing_detail.get()
+    assert app.store.list_all_sessions() == []
+
+
+@pytest.mark.parametrize("path", ["variable", "selector"])
+def test_native_dual_quotes_and_new_primary_cost_follow_repeated_currency_toggles(app, path):
+    from tkinter import ttk
+    select(app, FAP)
+    select_hot(app, "EMT Kit Ek-2600, Modified")
+    gear = LoadoutRecord(None, "Synthetic blade", "SET Combat Blade (L)",
+                         ammo_burn=65, decay=.00001, cost_per_shot=.00651)
+    app.store.save_loadout(gear, make_active=True)
+    sid = app.store.start_session("hunt", gear)
+    app.session_id, app.running = sid, True
+    app._process_lines([
+        "2026-11-08 10:00:00 [System] [] You inflicted 6.0 points of damage",
+        "2026-11-08 10:00:01 [System] [] Received Effect Over Time: Heal",
+        "2026-11-08 10:00:01 [System] [] You healed yourself 54.0 points",
+        "2026-11-08 10:00:02 [System] [] You received Shrapnel x (100) Value: 1.0 PED",
+    ], sid, None)
+    app._refresh_all()
+    app._open_streamer_window()
+    app.update()
+    hud = app.streamer_window
+    picker = next(widget for section in app.root_frame.winfo_children() for widget in section.winfo_children()
+                  if isinstance(widget, ttk.Combobox) and str(widget.cget("textvariable")) == str(app.currency_mode))
+    with app.store.connect() as conn:
+        original = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
+    for mode in ("USD", "PED", "USD", "PED"):
+        if path == "variable":
+            app.currency_mode.set(mode)
+        else:
+            picker.current(0 if mode == "USD" else 1)
+            picker.event_generate("<<ComboboxSelected>>")
+        app.update()
+        hud._chart_frame(1.0)
+        assert ("$0.00420/cast" if mode == "USD" else "0.04200 PED/cast") in app.healing_detail.get()
+        assert hud.kill_trend_points[0]["healing_cost"] == pytest.approx(.042)
+        assert hud.kill_trend_points[0]["cost"] == pytest.approx(.04851)
+        assert mode in hud.chart_note.cget("text")
+        with app.store.connect() as conn:
+            assert [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")] == original

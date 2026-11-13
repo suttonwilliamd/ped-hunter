@@ -17,7 +17,7 @@ Free, local-first Entropia Universe profit intelligence.
 - seeds weapon/resource/crafting catalogs from legacy LootNanny data and a separate healing catalog from Entropia Nexus
 - resolves community shorthand like `Frontier Rifle` to the actual starter weapon `Frontier Hunting Rifle`
 - computes derived values like cost per shot from the item catalog
-- persists an independent healing-tool choice and records selected-tool TT estimates for supported outgoing healing
+- persists independent Heal/HoT choices and records conservative selected-profile TT estimates and allocations
 
 ## Interface direction
 
@@ -39,7 +39,7 @@ run, lifetime, history, event and HUD money immediately, including Streamer char
 axes, local ranges, summaries, monetary hover text and the Manufacturing material
 preview. The preview retains per-attempt and batch precision; display conversion never
 reprices stored PED amounts or fan samples: **10 PED = 1 USD**. The selected
-healing tool is unchanged; its catalog per-use reference remains TT PED.
+healing tools are unchanged; their displayed quotes follow the selected currency while stored TT remains PED.
 
 The goal is to keep the useful parts of LootNanny's workflow while avoiding clutter and making room for richer modern catalog sources.
 
@@ -111,23 +111,33 @@ status space. Crafting TT Input follows the metrics row directly; otherwise the
 chart follows it. Tracking and demo state remain in the existing header, while
 loot/skill feedback and optional cues remain in the main window.
 
-## Healing tool and TT costs
+## Heal, HoT and TT costs
 
-The gray run summary's **Healing tool** selector, above Loot/Cost/Events, is
-independent of weapon setups. Choose your catalog tool or **None** to clear it.
-The program-wide choice survives runs, setup changes and application restarts.
-Only subsequent ingested messages use it; existing event prices never change.
-There is no custom-cost input and no automatic equipment detection.
+The gray run summary above Loot/Cost/Events has independent **Heal:** and **HoT:**
+selectors. Heal lists healing tools; HoT lists only tools with a catalogued
+heal-over-time component. **None** clears a choice. Both survive runs, restarts
+and weapon/setup changes; the 2×2 quick loadouts are unchanged. No custom cost,
+automatic tool selection or reliable caster/tool identity is inferred.
 
-Direct System messages `You healed yourself N points` and
-`You healed <avatar> with N points` assume one use of the selected supported
-instant tool. A partial positive heal incurs the whole per-use cost. Received
-healing, quoted chat, failure/not-wounded messages and unrecognized periodic
-forms are not tool uses. Missing selection/timestamps, unknown source costs and
-unsupported periodic/area activations stay **unpriced**, not free uses.
-An older cutover handoff stores weapon context only: healing in its historical
-gap stays unpriced rather than inheriting a newly selected tool. Ordinary future
-input after the handoff uses the current choice.
+Only new observations receive the current choices. Each supported activation
+keeps its selected profile and TT cost snapshot through later selection/catalog
+changes and restart. Stored prices are never backfilled or repriced.
+
+Supported outgoing System receipts use the selected instant tool's heal range.
+Capped, diminished, missing/unknown-tool or out-of-range receipts stay unpriced.
+`Received Effect Over Time: Heal` is a generic marker, not a tool/caster ID.
+A matching positive initial receipt at the same/adjacent one-second timestamp,
+with verified per-item initial-heal fraction and duration, can support one
+selected-profile cast estimate. This is conservative inference, not detection.
+Later ticks never add a charge, and a missing initial receipt is not priced later.
+
+Mixed/overlapping amounts, external heal evidence, missing markers, passive/equip
+effects and missing behavior/cost metadata stay explicitly unpriced or
+booked-unassigned. A selected HoT can make overlapping unmarked instant receipts
+unpriced too. Clearing a selector does not erase an existing cast's context.
+Known overlapping durations retain the longest window. Unknown/external effect
+lifetimes are never invented: subsequent uncertain healing remains unpriced in
+that run. No tick interval/count or 15-tick calibration is assumed.
 
 TT cost is `decay_PEC / 100 + consumed_units * TT_PED_per_unit`:
 
@@ -136,25 +146,42 @@ TT cost is `decay_PEC / 100 + consumed_units * TT_PED_per_unit`:
 | [Frontier First Aid Pack, Adjusted](https://api.entropianexus.com/medicaltools/253) | 2 | None | 0.02000 |
 | [Regeneration Chip 8](https://api.entropianexus.com/medicalchips/25) | 2.8 | 420 Mind Essence × 0.0001 PED/unit | 0.07000 |
 
-The bundled catalog uses the Nexus [medical-tools](https://api.entropianexus.com/medicaltools)
-and [medical-chips](https://api.entropianexus.com/medicalchips) APIs, preserving
-nullable costs and known activation limits. Both catalog-refresh commands update
-this separate source; the dashboard uses local data, not online price fetching.
-Estimates assume unmodified equipment at TT, with no markup, enhancer or
-unknown implant adjustment.
+The bundled Nexus [medical-tools](https://api.entropianexus.com/medicaltools) and
+[medical-chips](https://api.entropianexus.com/medicalchips) snapshots preserve
+nullable values and their evidence. Refresh imports remain separate from the
+local-only dashboard. Estimates assume unmodified TT equipment; markup,
+enhancers and unknown implants are not detected.
 
-**Selected-equipment estimation is not activation detection.** Unmarked
-concurrent HoT/lifesteal can look identical to an instant heal: clear selection
-while healing is ambiguous. Exact same-run timestamp/message replays retain an
-audit row but are not charged again while that history remains, including after
-restart. Identical same-second activations cannot be proved distinct; different
-timestamps remain separate. Silent/failed uses cannot be reconstructed.
+**Restoration Chip 3 (L) remains unpriced.** Its maximum TT is user-confirmed at
+6.40 PED. [JoinEntropia's item page](https://joinentropia.com/wiki/items/fap/278.html)
+publishes 0.99 PEC decay, 64 Mind Essence and 1.630 PEC total. With the published
+0.0001 PED/ME, that breakdown equals 0.0163 PED/use, but it is corroborating
+community publication, not measured/current-game cost proof. Nexus still
+conflicts (Decay 17, MaxTT 11), and the per-item HoT fraction/duration is unknown.
+`healing_verification.json` and the frozen catalog explicitly disable automatic
+pricing; no live cast/decay experiment is required or authorized.
 
-Healing expense enters run, lifetime, history and HUD cost/net/return totals.
-It is **not** assigned to inferred creatures, loot groups, fans, shared weapon
-costs or the blue weapon/recipe-input average. Healing does not identify which
-creature benefited. The selector's **?** explains these limits; the run also
-shows estimated uses and unpriced-message counts.
+Booked healing enters run, lifetime, history and HUD cost/net/return totals once.
+Supported activation-context expenses enter primary group costs, profit,
+assigned averages and new fan observations: during observed combat toward the
+upcoming receipt, between fights toward the previous receipt. The marker's
+context is used, never a later tick's. Missing combat boundaries, multiple return
+groups without new outgoing inputs, mixed/shared intervals, other-avatar targets
+and secondary healing remain unassigned, with amount/reason in chart details.
+Assigned healing plus pending healing always equals booked healing. Weapon
+pooling and its raw input evidence remain weapon-only; allocation adds no charge.
+
+Legacy expenses without a saved activation context stay unassigned, not
+retroactively attached using today's tools. Existing fan observations remain
+intact; an active reopen can append only the currently displayed corrected
+endpoint to an existing series, never reconstruct missing frames or create
+unobserved older histories. USD/PED changes only display, never stored samples.
+
+Exact same-run timestamp/message replays retain audit rows but never a second
+expense while the original is retained. Same-second identical activations cannot
+be proved distinct. The older schema-1 cutover protocol is not extended: its
+healing gap stays unpriced and cannot complete a pending inference. A handoff
+with unresolved healing context can leave that run's subsequent healing uncertain.
 
 ## Reversible loot-receipt accounting
 
@@ -169,7 +196,7 @@ Exclusion retains the original event and pricing; a separate accounting flag
 removes that receipt from run/history/lifetime totals and chart inputs. Restoring
 reuses the original payload, never today's tool selection or prices. Only loot
 receipts are editable: damage, healing, repair and booked manufacturing inputs
-are not excluded or repriced. Healing remains a run-only expense, never fan input.
+are not excluded or repriced. Allocation is replayed from saved expense/activation context; legacy and uncertain healing remains pending.
 
 Accounting edits rebuild attribution and current fan endpoints together, retaining
 the original estimation-activation boundary. Observations are archived by the

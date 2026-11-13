@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "name": "Restoration Chip 3 (L)",
+      "source_url": "https://api.entropianexus.com/medicalchips/43",
+      "max_tt": 6.40,
+      "max_tt_source": "User-confirmed in-game item maximum TT; numeric decay was not verified.",
+      "cost_verified": false,
+      "note": "User confirms maximum TT 6.40 PED. JoinEntropia publishes 0.99 PEC decay, 64 Mind Essence and 1.630 PEC total; with 0.0001 PED/ME the arithmetic is 0.0163 PED/use. This corroborating publication may share community data and is not measured proof. Nexus still quotes conflicting Decay 17 and MaxTT 11. Automatic cost remains unknown/unpriced; do not enable it solely from these publications. No live cast/decay test is required or authorized.",
+      "published_quote": {
+        "decay_pec": 0.99,
+        "ammo_name": "Mind Essence",
+        "ammo_units": 64,
+        "ammo_unit_value_ped": 0.0001,
+        "total_cost_pec": 1.63,
+        "evidence": "Corroborating published breakdown only; not measured/current-game cost verification."
+      },
+      "sources": [
+        "https://api.entropianexus.com/medicalchips/43",
+        "https://www.entropiacentral.com/wiki/healing-tools/restoration-chip-3-l",
+        "https://joinentropia.com/wiki/categories/fap.html",
+        "https://joinentropia.com/wiki/items/fap/278.html"
+      ]
+    }
+  ]
+}

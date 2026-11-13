@@ -69,17 +69,17 @@ def test_chart_axes_local_ranges_details_and_raw_fans_follow_repeated_currency_c
             assert set(ordinary) == {'+$0.00', '+$0.50', '+$1.00'}
             assert '$50.00' in local
             assert 'Cost $1.00' in hud.vars['kill_trend_badge'].get()
-            assert 'Booked avg $1.00' in hud.vars['kill_trend_badge'].get()
+            assert 'Assigned avg $1.00' in hud.vars['kill_trend_badge'].get()
         else:
             assert set(ordinary) == {'+0.00 PED', '+5.00 PED', '+10.00 PED'}
             assert '500.00 PED' in local
             assert 'Cost 10.00 PED' in hud.vars['kill_trend_badge'].get()
-            assert 'Booked avg 10.00 PED' in hud.vars['kill_trend_badge'].get()
+            assert 'Assigned avg 10.00 PED' in hud.vars['kill_trend_badge'].get()
         assert mode in hud.chart_note.cget('text')
         assert hud.kill_trend_points == points
         assert hud.kill_trail_histories == samples
         assert hud._chart_scales.events[5].high == 500
-        assert sum(point['cost'] or 0 for point in hud.kill_trend_points) == 160  # Healing stays run-only.
+        assert sum(point['cost'] or 0 for point in hud.kill_trend_points) == 160  # Legacy healing has no saved recipient context.
         assert originals(app.store) == before
         with app.store.connect() as conn:
             assert [tuple(row) for row in conn.execute('SELECT * FROM chart_trails ORDER BY event_id')] == persisted

@@ -28,6 +28,17 @@ def app(tmp_path, native_display):
     window.destroy()
 
 
+@pytest.fixture(params=[None, "EMT Kit Ek-2600, Modified", "Restoration Chip 3 (L)"])
+def dual_healing_profile(app, request):
+    if request.param is not None:
+        app.healing_selector.set("Frontier First Aid Pack, Adjusted")
+        app.healing_selector.event_generate("<<ComboboxSelected>>")
+        app.hot_selector.set(request.param)
+        app.hot_selector.event_generate("<<ComboboxSelected>>")
+        app.currency_mode.set("PED")
+        app.update()
+
+
 def descendants(widget):
     for child in widget.winfo_children():
         yield child
@@ -180,7 +191,7 @@ def test_help_lower_controls_are_keyboard_reachable_and_local_settings_work(app,
 
 
 @pytest.mark.parametrize("scale", [1.0, 1.25, 1.5, 2.0])
-def test_main_fonts_and_small_form_ignore_process_startup_point_scaling(app, monkeypatch, scale):
+def test_main_fonts_and_small_form_ignore_process_startup_point_scaling(app, monkeypatch, scale, dual_healing_profile):
     monkeypatch.setattr("ped_hunter.app.window_ui_scale", lambda _window: scale)
     original = float(app.tk.call("tk", "scaling"))
     try:
@@ -214,7 +225,7 @@ def test_main_fonts_and_small_form_ignore_process_startup_point_scaling(app, mon
 
 
 @pytest.mark.parametrize("size,largest", [((760, 500), 0.14), ((900, 600), 600.0)])
-def test_event_chart_text_fits_without_covering_other_labels(app, size, largest):
+def test_event_chart_text_fits_without_covering_other_labels(app, size, largest, dual_healing_profile):
     sid = app.store.start_session("hunt")
     for index, value in enumerate([0.04, 0.09, 0.025, 0.14, 0.06, largest]):
         timestamp = f"2026-11-08T12:{index:02d}:00"

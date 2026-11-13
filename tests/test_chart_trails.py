@@ -96,7 +96,7 @@ def test_between_polls_finalize_only_observed_active_group_and_seed_latest(store
     assert not set(ids[1:-1]) & store.load_chart_trails(sid, ids).keys()
 
 
-def test_no_replay_for_legacy_or_paused_points_and_no_finalization_across_gap(store):
+def test_pause_does_not_replay_frames_and_resume_records_only_current_existing_endpoint(store):
     sid = store.start_session('hunt')
     ids = [add_event(store, sid, second=i * 4, value=i) for i in range(4)]
     points = [point(event_id, loot=index) for index, event_id in enumerate(ids)]
@@ -107,7 +107,8 @@ def test_no_replay_for_legacy_or_paused_points_and_no_finalization_across_gap(st
     paused_points = [points[0], point(ids[1], loot=99), points[2]]
     assert recorder.update(sid, paused_points, live=False) == observed
     resumed = recorder.update(sid, paused_points + [points[3]], live=True)
-    assert resumed[ids[1]] == observed[ids[1]]  # 99 was not observed during tracking.
+    assert resumed[ids[1]] == observed[ids[1]] + (sample(paused_points[1]),)
+    assert len(resumed[ids[1]]) == 2  # Current resume frame only, no invented intermediate observations.
     assert ids[0] not in resumed and ids[2] not in resumed
     assert resumed[ids[3]] == (sample(points[3]),)
 

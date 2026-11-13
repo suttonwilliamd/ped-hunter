@@ -48,10 +48,23 @@ class HealingToolRecord:
     tracking_limit: str | None = None
     source_name: str = "Entropia Nexus API"
     source_url: str = ""
+    heal_min: float | None = None
+    heal_max: float | None = None
+    uses_per_minute: float | None = None
+    cooldown: float | None = None
+    has_hot: bool = False
+    hot_fraction: float | None = None
+    hot_duration: float | None = None
+    hot_trigger: str | None = None
+    behavior_source: str = ""
+    cost_verified: bool = True
+    verification_note: str = ""
+    max_tt: float | None = None
+    secondary_healing: bool = False
 
     @property
     def cost_per_use(self) -> float | None:
-        if self.decay is None or self.ammo is None:
+        if not self.cost_verified or self.decay is None or self.ammo is None:
             return None
         if self.ammo == 0:
             return self.decay
@@ -198,17 +211,37 @@ def _load_attachment_records(path: Path) -> dict[str, AttachmentRecord]:
 
 def _load_healing_records(path: Path) -> dict[str, HealingToolRecord]:
     raw = _load_json(path) or {"items": []}
-    return {item["name"]: HealingToolRecord(
-        name=item["name"],
-        decay=float(item["decay"]) if item.get("decay") is not None else None,
-        ammo=int(item["ammo"]) if item.get("ammo") is not None else None,
-        ammo_name=item.get("ammo_name"),
-        ammo_unit_value=float(item["ammo_unit_value"]) if item.get("ammo_unit_value") is not None else None,
-        category=item["category"],
-        tracking_limit=item.get("tracking_limit", "Activation metadata is missing."),
-        source_name=item.get("source_name", "Entropia Nexus API"),
-        source_url=item["source_url"],
-    ) for item in raw.get("items", [])}
+    verification = _load_json(path.with_name("healing_verification.json")) or {}
+    checks = {(item["source_url"], item["name"]): item for item in verification.get("items", [])}
+    records = {}
+    for item in raw.get("items", []):
+        check = checks.get((item["source_url"], item["name"]), {})
+        record = HealingToolRecord(
+            name=item["name"],
+            decay=float(item["decay"]) if item.get("decay") is not None else None,
+            ammo=int(item["ammo"]) if item.get("ammo") is not None else None,
+            ammo_name=item.get("ammo_name"),
+            ammo_unit_value=float(item["ammo_unit_value"]) if item.get("ammo_unit_value") is not None else None,
+            category=item["category"],
+            tracking_limit=item.get("tracking_limit", "Activation metadata is missing."),
+            source_name=item.get("source_name", "Entropia Nexus API"),
+            source_url=item["source_url"],
+            heal_min=float(item["heal_min"]) if item.get("heal_min") is not None else None,
+            heal_max=float(item["heal_max"]) if item.get("heal_max") is not None else None,
+            uses_per_minute=float(item["uses_per_minute"]) if item.get("uses_per_minute") is not None else None,
+            cooldown=float(item["cooldown"]) if item.get("cooldown") is not None else None,
+            has_hot=bool(item.get("has_hot", False)),
+            hot_fraction=float(item["hot_fraction"]) if item.get("hot_fraction") is not None else None,
+            hot_duration=float(item["hot_duration"]) if item.get("hot_duration") is not None else None,
+            hot_trigger=item.get("hot_trigger"),
+            behavior_source=item.get("behavior_source", ""),
+            cost_verified=bool(check.get("cost_verified", item.get("cost_verified", True))),
+            verification_note=check.get("note", item.get("verification_note", "")),
+            max_tt=float(check.get("max_tt", item.get("max_tt"))) if check.get("max_tt", item.get("max_tt")) is not None else None,
+            secondary_healing=bool(item.get("secondary_healing", False)),
+        )
+        records[record.name] = record
+    return records
 
 
 def _load_resource_records(path: Path) -> dict[str, ResourceRecord]:

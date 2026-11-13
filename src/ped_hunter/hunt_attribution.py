@@ -10,7 +10,7 @@ from copy import deepcopy
 import math
 from statistics import median
 
-from .activity_trend import ActivityPoints
+from .activity_trend import ActivityPoints, compose_healing_costs
 
 MAX_GROUPS = 12
 MAX_SECONDS = 300.0
@@ -163,7 +163,7 @@ def _member(point):
     return {key: point.get(key) for key in (
         'event_id', 'last_event_id', 'shot_count', 'first_event_time',
         'last_event_time', 'first_loot_time', 'context_key', 'context_mixed', 'closed'
-    )} | {'raw_cost': float(point.get('cost') or 0.0)}
+    )} | {'raw_cost': float(point.get('weapon_cost', point.get('cost')) or 0.0)}
 
 
 def _same_context(left, right):
@@ -638,57 +638,50 @@ class HuntAttribution:
                 state['tail'] = [_member(point) for point in raw_points if point.get('kind') == 'hunt' and point.get('loot_events', 0)][-REFERENCE_LOOKBACK:]
             else:
                 self._advance(state, raw_points, decisions, changes)
-            if state != self._state or changes:
-                state['watermark'] = max(state['watermark'], watermark)
-                # Do not publish any state, revisions or endpoints until the atomic save succeeds.
-                observations = {
-                    point['event_id']: (changes[point['event_id']]['cost'], point.get('avg_cost'), point.get('loot'))
-                    for point in raw_points if point['event_id'] in changes
-                }
-                self.store.save_hunt_attribution(session_id, state, changes, observations=observations)
-                self._state = state
-                self._decisions.update(changes)
-        return self._project(raw_points, state, decisions, changes, live)
+        result = self._project(raw_points, state, decisions, changes, live)
+        if live and (state != self._state or changes):
+            state['watermark'] = max(state['watermark'], watermark)
+            # Fan endpoints include assigned healing, but the persisted pool
+            # and its conservation checks still contain weapon inputs only.
+            observations = {
+                point['event_id']: (point['cost'], point['avg_cost'], point['loot'])
+                for point in result if point['event_id'] in changes
+            }
+            healing = {point['event_id']: point['healing_cost']
+                       for point in result if point['event_id'] in changes and point['healing_cost']}
+            self.store.save_hunt_attribution(
+                session_id, state, changes, observations=observations, healing_allocations=healing)
+            self._state = state
+            self._decisions.update(changes)
+        # No cache/state publication before the atomic save above succeeds.
+        self._endpoints = {point['event_id']: self._endpoint(point) for point in result[-16:]}
+        return result
+
+    @staticmethod
+    def _endpoint(point):
+        return tuple(point.get(key) for key in (
+            'cost', 'avg_cost', 'profit', 'delta_profit', 'trend_symbol',
+            'cost_status', 'attribution_revision', 'healing_cost',
+        ))
 
     def _project(self, raw_points, state, decisions, changes, live):
         result = ActivityPoints()
         result.__dict__.update(getattr(raw_points, '__dict__', {}))
-        changed_ids = set(changes)
-        previous_profit = None
-        had_previous = False
-        previous_revised = False
-        visible_ids = {point['event_id'] for point in raw_points[-16:]}
-        endpoints = {}
         for raw in raw_points:
-            if raw.get('kind') != 'hunt':
-                result.append(raw)
-                continue
-            decision = decisions.get(raw['event_id'])
-            point = raw
-            if decision:
-                point = raw | decision
-                point['profit'] = None if decision['cost'] is None else raw['loot'] - decision['cost']
-            profit = point.get('profit')
-            if decision or previous_revised:
-                delta = None if profit is None or (had_previous and previous_profit is None) else profit - previous_profit if had_previous else 0.0
-                symbol = '•' if delta is None or not had_previous else '=' if math.isclose(delta, 0.0, abs_tol=1e-9) else '↑' if delta > 0 else '↓'
-                if point is raw:
-                    point = dict(raw)
-                point['delta_profit'], point['trend_symbol'] = delta, symbol
-            result.append(point)
-            endpoint = (point.get('cost'), point.get('profit'), point.get('delta_profit'),
-                        point.get('trend_symbol'), point.get('cost_status'), point.get('attribution_revision'))
-            if (decision or previous_revised) and raw['event_id'] in self._endpoints and self._endpoints[raw['event_id']] != endpoint:
-                changed_ids.add(raw['event_id'])
-            if raw['event_id'] in visible_ids:
-                endpoints[raw['event_id']] = endpoint
-            previous_profit, had_previous, previous_revised = profit, True, decision is not None
-        self._endpoints = endpoints
+            decision = decisions.get(raw['event_id']) if raw.get('kind') == 'hunt' else None
+            result.append(raw | decision | {'weapon_cost': decision['cost']} if decision else raw)
+        compose_healing_costs(result)
+        changed_ids = set(changes)
+        for point in result:
+            key = point['event_id']
+            if key in self._endpoints and self._endpoints[key] != self._endpoint(point):
+                changed_ids.add(key)
         active_pending = state['active']['pending'] if state and state['active'] else 0.0
         result.attribution_active_pending = active_pending
         closed_pending = math.fsum(pool['pending'] for pool in state.get('closed_pools', [])) if state else 0.0
-        result.attribution_pending = math.fsum((state['frozen_pending'], active_pending, closed_pending)) if state else 0.0
+        weapon_pending = math.fsum((state['frozen_pending'], active_pending, closed_pending)) if state else 0.0
+        result.attribution_pending = math.fsum((weapon_pending, result.healing_pending))
         result.attribution_changed_ids = changed_ids if live else set()
-        result.attribution_note = ('Receipt-interval estimates; unassigned input is not a prediction of future loot.'
+        result.attribution_note = ('Receipt-interval estimates; unassigned inputs remain in booked totals, not a prediction of future loot.'
                                    if decisions or result.attribution_pending else '')
         return result

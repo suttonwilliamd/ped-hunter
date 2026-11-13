@@ -35,7 +35,7 @@ GROUPS = {
     "ingestion": Group("Parser, file watching, resume boundaries and charged-event consumers", (
         "test_parser.py", "test_log_ingestion.py", "test_setup_slots.py", "test_log_watcher.py",
         "test_default_log_path.py", "test_loadouts.py", "test_incremental_trend.py",
-        "test_live_refresh_budget.py", "test_session_lifecycle.py", "test_healing.py",
+        "test_live_refresh_budget.py", "test_session_lifecycle.py", "test_healing.py", "test_healing_inference.py",
         "test_space_mining*.py", "test_resume_handoff.py", "test_resume_responsiveness.py",
         "test_event_exclusion*.py")),
     "catalog-loadouts": Group("Catalog imports, ammo/decay, repair budgets, currency and setup snapshots", (

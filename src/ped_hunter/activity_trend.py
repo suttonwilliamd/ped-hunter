@@ -38,6 +38,14 @@ class ActivityPoints(list):
         self.last_event_id = 0
         self.attribution_boundary_id = 0
         self.accounting_revision = 0
+        self.healing_expenses = ()
+        self.healing_contexts = {}
+        self.healing_invalidated = frozenset()
+        self.healing_booked = 0.0
+        self.healing_allocated = 0.0
+        self.healing_pending = 0.0
+        self.healing_pending_reasons = {}
+        self.unpriced_heals = 0
 
 
 @dataclass
@@ -101,6 +109,11 @@ class ActivityTrendBuilder:
         self._attribution_epoch = 0
         self._last_shot_context: str | None = None
         self._attribution_boundary_id = 0
+        self._healing_expenses = []
+        self._healing_contexts = {}
+        self._healing_invalidated = set()
+        self._incoming_before_outgoing = False
+        self._unpriced_heals = 0
 
     def _point(self, group, closed=False):
         cost = group.cost
@@ -128,6 +141,8 @@ class ActivityTrendBuilder:
             'context_key': group.context_key,
             'context_mixed': group.context_mixed,
             'closed': closed,
+            'input_cost': cost, 'weapon_cost': cost if group.kind == 'hunt' else None,
+            'cost_scope': group.scope,
         }
 
     def _finish(self):
@@ -177,6 +192,37 @@ class ActivityTrendBuilder:
             self.group.context_mixed = True
             self.group.context_key = None
 
+    def _observe_healing(self, event_id, payload):
+        selection = payload.get('healing_selection')
+        if isinstance(selection, dict) and selection.get('version') == 2:
+            group = self.group
+            if self._incoming_before_outgoing:
+                context = (None, 'Incoming combat has no supported outgoing encounter boundary')
+            elif self.crafting or not group or group.kind != 'hunt':
+                context = (None, 'No supported hunting encounter at activation')
+            elif group.context_mixed or self._attribution_boundary_id > group.last_event_id:
+                context = (None, 'Equipment/accounting boundary makes the encounter uncertain')
+            else:
+                context = (group.event_id, 'previous' if group.loot_events else 'upcoming')
+            self._healing_contexts[event_id] = context
+        invalidated = payload.get('healing_invalidates_activation_ids')
+        if isinstance(invalidated, list):
+            self._healing_invalidated.update(key for key in invalidated if type(key) is int and key > 0)
+        cost = _amount(payload.get('healing_cost'))
+        if cost is not None:
+            anchor = payload.get('healing_activation_event_id')
+            if type(anchor) is not int or anchor <= 0:
+                anchor = None
+            self._healing_expenses.append((
+                event_id, anchor, cost,
+                payload.get('healing_allocation_eligible') is True,
+                payload.get('healing_allocation_reason') or 'Legacy healing has no saved allocation context; not backfilled',
+            ))
+        if payload.get('healing_cost_status') in {
+            'not_selected', 'tool_not_found', 'missing_timestamp', 'unresolved_activation', 'unknown_cost',
+        }:
+            self._unpriced_heals += 1
+
     def extend(self, rows: Iterable[Mapping]) -> None:
         for row in rows:
             event_id = int(row['id'])
@@ -189,6 +235,8 @@ class ActivityTrendBuilder:
                 continue
             kind = row['kind']
             when = _time(row['timestamp'])
+            if kind == 'combat' and ('healing_action' in payload or 'healing_cost' in payload):
+                self._observe_healing(event_id, payload)
             if kind in {'weapon', 'repair'}:
                 # Context only: do not alter the established grouping or bill a
                 # repair again. Attribution must not borrow across this boundary.
@@ -222,7 +270,11 @@ class ActivityTrendBuilder:
             elif kind == 'combat':
                 outgoing = ('damage' in payload or bool(payload.get('dodged') or payload.get('outgoing_miss')) or payload.get('shot_cost') is not None or payload.get('ammo_cost') is not None)
                 if not outgoing:
+                    if any(key in payload for key in ('damage_taken', 'miss', 'evaded')):
+                        if not self.group or self.group.loot_events or self.crafting:
+                            self._incoming_before_outgoing = True
                     continue
+                self._incoming_before_outgoing = False
                 if self.crafting:
                     self._attribution_boundary(event_id)
                 if self.crafting or (self.group and self.group.loot_events):
@@ -280,11 +332,96 @@ class ActivityTrendBuilder:
                 result.unknown_craft_groups += 1
             if result.manufacturing and self.group.plan is self.plan:
                 result.manufacturing.returns += self.group.loot
+        result.healing_expenses = tuple(self._healing_expenses)
+        result.healing_contexts = dict(self._healing_contexts)
+        result.healing_invalidated = frozenset(self._healing_invalidated)
+        result.unpriced_heals = self._unpriced_heals
+        compose_healing_costs(result)
+        result.attribution_pending = result.healing_pending
         return result
 
 
 def build_activity_points(rows: Iterable[Mapping], cluster_window: float = 0.75) -> ActivityPoints:
-    """Project a complete history without allocating, backfilling or rebilling."""
+    """Project accounted history from saved cost/context snapshots; never reprice."""
     builder = ActivityTrendBuilder(cluster_window)
     builder.extend(rows)
     return builder.snapshot()
+
+
+def compose_healing_costs(points: ActivityPoints) -> None:
+    """Compose supported healing after weapon allocation, without another charge.
+
+    Context is fixed at the activation's event, never at its later tick. Raw
+    snapshots and prior fan observations are not mutated or retrospectively
+    assigned a recipient.
+    """
+    for index, raw in enumerate(points):
+        point = dict(raw)
+        if point.get('kind') == 'hunt':
+            point['weapon_cost'] = raw.get('weapon_cost', raw.get('input_cost', raw.get('cost')))
+        point['healing_cost'] = 0.0
+        points[index] = point
+    by_id = {point['event_id']: point for point in points}
+    ambiguous_recipients = set()
+    previous_paid = None
+    for point in points:
+        if point.get('kind') != 'hunt':
+            previous_paid = None
+        elif point.get('shot_count'):
+            previous_paid = point['event_id']
+        elif point.get('loot_events') and previous_paid is not None:
+            # A second return without new outgoing inputs can be overlapping
+            # mobs or a delayed receipt. Neither identifies a unique recipient.
+            ambiguous_recipients.add(previous_paid)
+    allocated, pending = {}, {}
+    for _event_id, anchor, cost, eligible, limit in points.healing_expenses:
+        recipient, direction = points.healing_contexts.get(anchor, (None, 'No saved activation context'))
+        point = by_id.get(recipient)
+        reason = limit if not eligible else ''
+        if not reason and anchor in points.healing_invalidated:
+            reason = 'External/overlapping effect evidence makes the activation recipient uncertain'
+        if not reason and point is None:
+            reason = direction
+        if not reason and (point.get('kind') != 'hunt' or not point.get('shot_count')):
+            reason = 'No observed outgoing hunting inputs support this recipient'
+        if not reason and not point.get('loot_events'):
+            reason = 'Awaiting upcoming loot; no recipient is assigned yet'
+        if not reason and (point.get('first_event_time') is None or point.get('first_loot_time') is None):
+            reason = 'Encounter timing is incomplete or out of order'
+        if not reason and (point.get('context_mixed') or 'shared' in str(point.get('cost_status', ''))
+                           or 'ambiguous' in str(point.get('cost_status', '')) or point.get('weapon_cost') is None
+                           or point['event_id'] in ambiguous_recipients):
+            reason = 'Shared/overlapping receipt interval has no unique healing recipient'
+        if reason:
+            pending.setdefault(reason, []).append(cost)
+        else:
+            allocated.setdefault(recipient, []).append(cost)
+    totals, counts, weapon_totals, previous = {}, {}, {}, {}
+    for point in points:
+        if point.get('kind') != 'hunt':
+            continue  # Healing never changes manufacturing group semantics.
+        scope = point.get('cost_scope', (point.get('kind', 'hunt'), 0))
+        cost = point.get('weapon_cost')
+        healing = math.fsum(allocated.get(point['event_id'], ()))
+        point['healing_cost'] = healing
+        point['cost'] = None if cost is None else math.fsum((cost, healing))
+        point['profit'] = None if point['cost'] is None else point['loot'] - point['cost']
+        if cost is not None:
+            counts[scope] = counts.get(scope, 0) + 1
+            weapon_totals[scope] = math.fsum((weapon_totals.get(scope, 0.0), cost))
+            totals[scope] = math.fsum((totals.get(scope, 0.0), point['cost']))
+            point['avg_cost'] = totals[scope] / counts[scope]
+            point['weapon_avg_cost'] = weapon_totals[scope] / counts[scope] if point.get('kind') == 'hunt' else None
+        else:
+            point['avg_cost'], point['weapon_avg_cost'] = None, None
+        first = scope not in previous
+        profit, prior = point['profit'], previous.get(scope)
+        delta = None if profit is None or (not first and prior is None) else 0.0 if first else profit - prior
+        point['delta_profit'] = delta
+        point['first_point'] = first
+        point['trend_symbol'] = '•' if first or delta is None else '=' if math.isclose(delta, 0.0, abs_tol=1e-9) else '↑' if delta > 0 else '↓'
+        previous[scope] = profit
+    points.healing_booked = math.fsum(expense[2] for expense in points.healing_expenses)
+    points.healing_allocated = math.fsum(math.fsum(values) for values in allocated.values())
+    points.healing_pending_reasons = {reason: math.fsum(values) for reason, values in pending.items()}
+    points.healing_pending = math.fsum(points.healing_pending_reasons.values())

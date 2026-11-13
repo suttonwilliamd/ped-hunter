@@ -14,6 +14,7 @@ import uuid
 
 from .chart_trails import Sample, bounded_samples
 from .hunt_attribution import _validate_decision, _validate_state
+from .healing import finalize_healing_event
 
 
 @dataclass(slots=True)
@@ -130,6 +131,22 @@ class Store:
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (name,))
             else:
                 conn.execute("DELETE FROM app_settings WHERE key = 'healing_tool'")
+            conn.commit()
+
+    def get_selected_hot_tool(self) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM app_settings WHERE key = 'hot_tool'").fetchone()
+        return row["value"] if row else None
+
+    def set_selected_hot_tool(self, name: str | None) -> None:
+        name = name.strip() if name else None
+        with self.connect() as conn:
+            if name:
+                conn.execute(
+                    "INSERT INTO app_settings (key, value) VALUES ('hot_tool', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (name,))
+            else:
+                conn.execute("DELETE FROM app_settings WHERE key = 'hot_tool'")
             conn.commit()
 
     def _ensure_schema(self) -> None:
@@ -276,6 +293,15 @@ class Store:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS healing_inference_state (
+                    session_id TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                );
+                CREATE TRIGGER IF NOT EXISTS delete_session_healing_inference
+                AFTER DELETE ON sessions BEGIN
+                    DELETE FROM healing_inference_state WHERE session_id = OLD.id;
+                END;
 
                 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
@@ -558,6 +584,7 @@ class Store:
     def save_hunt_attribution(
         self, session_id: str, state: dict, decisions: Mapping[int, dict], *,
         observations: Mapping[int, Sample] | None = None,
+        healing_allocations: Mapping[int, float] | None = None,
     ) -> None:
         """Commit decisions, bounded state and existing fan observations together.
 
@@ -579,12 +606,20 @@ class Store:
                 for event_id, decision in decisions.items()
             }
             samples = {}
+            healing = {}
+            for event_id, amount in (healing_allocations or {}).items():
+                if event_id not in (observations or {}) or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount < 0:
+                    raise ValueError("Invalid fan healing allocation")
+                healing[event_id] = float(amount)
             for event_id, values in (observations or {}).items():
                 if event_id not in decisions:
                     raise ValueError("Fan observation has no changed decision")
                 sample = bounded_samples([values])[0]
-                if sample[0] != decisions[event_id]['cost']:
-                    raise ValueError("Fan cost disagrees with its decision")
+                weapon_cost = decisions[event_id]['cost']
+                amount = healing.get(event_id, 0.0)
+                expected = None if weapon_cost is None else math.fsum((weapon_cost, amount))
+                if (weapon_cost is None and amount) or sample[0] != expected:
+                    raise ValueError("Fan cost disagrees with weapon decision plus assigned healing")
                 samples[event_id] = sample
         except (KeyError, TypeError, OverflowError) as exc:
             raise ValueError("Invalid attribution record") from exc
@@ -592,6 +627,15 @@ class Store:
             conn.execute("BEGIN IMMEDIATE")
             if state.get('accounting_revision', 0) != self._accounting_revision(conn, session_id):
                 raise ValueError("Event accounting changed; rebuild attribution before saving")
+            if healing:
+                booked = conn.execute(
+                    """SELECT COALESCE(SUM(json_extract(payload, '$.healing_cost')), 0)
+                    FROM accounted_events WHERE session_id = ? AND kind = 'combat'
+                    AND json_valid(payload) AND json_extract(payload, '$.healing_allocation_eligible') = 1""",
+                    (session_id,),
+                ).fetchone()[0]
+                if math.fsum(healing.values()) > float(booked) + 1e-9:
+                    raise ValueError("Fan healing allocation exceeds booked eligible healing")
             previous_row = conn.execute(
                 "SELECT state FROM hunt_attribution_state WHERE session_id = ?", (session_id,),
             ).fetchone()
@@ -821,13 +865,14 @@ class Store:
     def add_event(self, session_id: str, event: dict) -> dict:
         """Book an event and return its stored payload, including replay status."""
         payload = event.get("payload", {})
-        healing = event["kind"] == "combat" and isinstance(payload, dict) and payload.get("healing_action") in {"self", "other"}
+        healing = event["kind"] == "combat" and isinstance(payload, dict) and "healing_action" in payload
         if healing:
             payload = dict(payload)
         timestamp = event.get("timestamp")
         if timestamp is not None and not isinstance(timestamp, str):
             timestamp = str(timestamp)
         with self.connect() as conn:
+            duplicate = None
             if healing:
                 conn.execute("BEGIN IMMEDIATE")
                 # Exact same-run timestamp/message replays retain an audit row
@@ -845,10 +890,14 @@ class Store:
                         payload.pop(key, None)
                     payload["healing_cost_status"] = "duplicate"
                     payload["healing_duplicate_of_event_id"] = duplicate["id"]
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)",
                 (session_id, timestamp, event["kind"], event["raw_message"], json.dumps(payload, ensure_ascii=False)),
             )
+            if healing and not duplicate and isinstance(payload.get("healing_selection"), dict):
+                finalize_healing_event(conn, session_id, int(cursor.lastrowid), timestamp, payload)
+                conn.execute("UPDATE events SET payload = ? WHERE id = ?",
+                             (json.dumps(payload, ensure_ascii=False), cursor.lastrowid))
             if not healing:  # Healing is not a weapon shot or repair reset.
                 self._recompute_session_repair_state(conn, session_id)
             conn.commit()

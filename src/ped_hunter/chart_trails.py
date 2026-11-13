@@ -154,11 +154,13 @@ class TrailRecorder:
             observed.append(self._active_id)
         if latest_id is not None:
             observed.append(latest_id)
-        # Reconsidered allocations are new observations of an earlier endpoint,
-        # not a reconstruction of its missing past. Only extend existing trails.
-        observed.extend(event_id for event_id in by_id
-                        if event_id in revised_event_ids and self._histories.get(event_id)
-                        and event_id not in observed)
+        # Only the current visible endpoint is observed on reopen; no missing
+        # frames are reconstructed and unobserved older groups get no history.
+        observed.extend(
+            event_id for event_id, point in by_id.items()
+            if self._histories.get(event_id) and event_id not in observed
+            and (event_id in revised_event_ids or self._histories[event_id][-1] !=
+                 _sample((point.get("cost"), point.get("avg_cost"), point.get("loot")))))
         changed: dict[int, tuple[Sample, ...]] = {}
         for event_id in observed:
             point = by_id[event_id]

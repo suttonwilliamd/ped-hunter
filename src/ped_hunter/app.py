@@ -122,6 +122,7 @@ class PedHunterApp(tk.Tk):
         self.hero_state = tk.StringVar(value="Idle")
         self.hero_session = tk.StringVar(value="No active session — start a run to begin collecting data")
         self.healing_tool = tk.StringVar(value=self.store.get_selected_healing_tool() or "None")
+        self.hot_tool = tk.StringVar(value=self.store.get_selected_hot_tool() or "None")
         self.healing_detail = tk.StringVar()
         self.healing_totals = tk.StringVar()
         self.skill_total_text = tk.StringVar(value="0.0000 XP")
@@ -403,19 +404,26 @@ class PedHunterApp(tk.Tk):
         self.hero_healing = ttk.Frame(right, style="Hero.TFrame")
         healing = self.hero_healing
         healing.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 4))
-        healing.columnconfigure(1, weight=1)
-        ttk.Label(healing, text="HEALING TOOL", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=2, sticky="e")
+        healing.columnconfigure((1, 3), weight=1, uniform="healing_tools")
+        ttk.Label(healing, text="Heal:", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=4, sticky="e")
         self.healing_selector = ttk.Combobox(
             healing, textvariable=self.healing_tool, state="readonly", width=1,
             values=["None", *sorted(self.catalog.healing_tools, key=str.casefold)])
         self.healing_selector.grid(row=0, column=1, sticky="ew", padx=(0, 6))
         self.healing_selector.bind("<<ComboboxSelected>>", lambda _event: self._healing_tool_changed())
         _install_combobox_typeahead(self.healing_selector, on_change=self._healing_tool_changed)
+        ttk.Label(healing, text="HoT:", style="HeroKicker.TLabel").grid(row=0, column=2, sticky="w", padx=(0, 6))
+        self.hot_selector = ttk.Combobox(
+            healing, textvariable=self.hot_tool, state="readonly", width=1,
+            values=["None", *sorted((name for name, tool in self.catalog.healing_tools.items() if tool.has_hot), key=str.casefold)])
+        self.hot_selector.grid(row=0, column=3, sticky="ew", padx=(0, 6))
+        self.hot_selector.bind("<<ComboboxSelected>>", lambda _event: self._hot_tool_changed())
+        _install_combobox_typeahead(self.hot_selector, on_change=self._hot_tool_changed)
         self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="HeroSetup.TLabel", wraplength=170)
-        self.healing_detail_label.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(2, 0))
+        self.healing_detail_label.grid(row=1, column=0, columnspan=5, sticky="ew", pady=(2, 0))
         self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="HeroSetup.TLabel", wraplength=170)
-        self.healing_totals_label.grid(row=2, column=0, columnspan=3, sticky="ew")
+        self.healing_totals_label.grid(row=2, column=0, columnspan=5, sticky="ew")
         healing.bind("<Configure>", self._on_healing_resize)
 
         self._add_hero_stat(right, 0, self.hero_loot, "LOOT")
@@ -489,38 +497,59 @@ class PedHunterApp(tk.Tk):
         self._refresh_healing_summary(session)
         self.status_text.set("Healing selection saved for future messages; previous costs unchanged")
 
+    def _hot_tool_changed(self) -> None:
+        name = self.hot_tool.get()
+        self.store.set_selected_hot_tool(None if name == "None" else name)
+        session = self.store.get_session(self.session_id) if self.session_id else None
+        self._refresh_healing_summary(session)
+        self.status_text.set("HoT selection saved for future activations; retained cast context and past costs unchanged")
+
     def _refresh_healing_summary(self, session: SessionSummary | None) -> None:
-        name = self.healing_tool.get()
-        tool = self.catalog.healing_tools.get(name)
-        if name == "None":
-            detail = "None — new healing messages are unpriced"
-        elif tool is None:
-            detail = "Unpriced — selected tool missing from catalog"
-        elif tool.tracking_limit:
-            detail = "Unpriced — tool activations cannot be identified"
-        elif tool.cost_per_use is None:
-            detail = "Unpriced — decay or consumption unknown"
-        else:
-            detail = f"{tool.cost_per_use:.5f} PED/use · selected-tool TT estimate"
-        self.healing_detail.set(detail)
+        def detail(label, name):
+            tool = self.catalog.healing_tools.get(name)
+            if name == "None":
+                value = "none"
+            elif tool is None:
+                value = "missing tool; unpriced"
+            elif label == "HoT:" and not tool.has_hot:
+                value = "not a HoT tool; unpriced"
+            elif not tool.cost_verified:
+                value = "cost unverified; unpriced"
+            elif tool.cost_per_use is None:
+                value = "unknown TT; unpriced"
+            elif tool.has_hot and (tool.hot_fraction is None or tool.hot_duration is None):
+                value = "cast pattern unverified; unpriced"
+            elif tool.has_hot:
+                value = f"{self._money(tool.cost_per_use, decimals=5)}/cast est."
+            elif tool.tracking_limit:
+                value = "activation uncertain"
+            else:
+                value = f"{self._money(tool.cost_per_use, decimals=5)}/use est."
+            return f"{label} {value}"
+        self.healing_detail.set(detail("Heal:", self.healing_tool.get()) + " · " + detail("HoT:", self.hot_tool.get()))
         self.healing_totals.set(
-            f"Run-only heals {self._money(session.healing_cost, decimals=5) if session else self._money(0, decimals=5)} · "
+            f"Booked heals {self._money(session.healing_cost if session else 0, decimals=5)} · "
             f"{session.estimated_healing_uses if session else 0} uses est. · {session.unpriced_heal_events if session else 0} unpriced")
 
     def _show_healing_info(self) -> None:
-        name = self.healing_tool.get()
-        tool = self.catalog.healing_tools.get(name)
-        limitation = f"\n{tool.tracking_limit}" if tool and tool.tracking_limit else ""
+        tools = [self.catalog.healing_tools.get(var.get()) for var in (self.healing_tool, self.hot_tool)]
+        notes = "\n".join(f"{tool.name}: {tool.verification_note or tool.tracking_limit or 'selected-profile estimate'}\n{tool.source_url}"
+                          for tool in tools if tool)
         messagebox.showinfo(
             "Healing cost estimates",
-            f"Selected: {name}{limitation}\n\n"
-            "Saved across runs, restarts and weapon setups. None clears. Future messages only; history is not repriced.\n\n"
-            "Positive self/other heals assume this unmodified instant tool. TT decay + known consumption enter "
-            "run/HUD totals, not creature/fan costs.\n\n"
-            "Periodic/area or unknown costs stay unpriced. Unmarked HoT/lifesteal is indistinguishable: clear "
-            "selection while mixed. Exact same-run timestamp/message repeats are not charged twice; "
-            "identical same-second uses remain ambiguous.\n\n"
-            "Missing timestamps or silent uses cannot be reconstructed. No markup, enhancer or implant detection.",
+            f"{notes}\n\n"
+            "Independent persistent choices; no automatic tool/caster detection. Future observations only; "
+            "old prices and retained activation profiles do not follow new selections.\n\n"
+            "A supported HoT marker consumes at most one cast estimate; later ticks never add charges. "
+            "Mixed, capped, missing-marker, external or overlapping evidence stays uncertain/unpriced, "
+            "or explicitly booked but unassigned.\n\n"
+            "Supported activation-context healing enters primary group costs: during combat toward upcoming loot, "
+            "between fights toward previous loot. Unresolved amounts/reasons remain pending, still in run/lifetime totals. "
+            "Existing fan observations are preserved; new observations include assigned healing. No historical healing backfill.\n\n"
+            "A selected HoT can leave overlapping unmarked instant receipts unpriced. Unknown effect duration "
+            "is never invented or cleared by selecting a different tool.\n\n"
+            "Exact timestamp/message replays are not charged twice. Same-second identical activations, silent uses, "
+            "implant/enhancer changes and unmarked passive effects cannot be resolved reliably.",
             parent=self,
         )
 
@@ -1693,6 +1722,8 @@ class PedHunterApp(tk.Tk):
         # Do not assign today's selection to messages from that earlier gap.
         healing_name = self.store.get_selected_healing_tool() if handoff is None else None
         healing_tool = self.catalog.healing_tools.get(healing_name) if healing_name else None
+        hot_name = self.store.get_selected_hot_tool() if handoff is None else None
+        hot_tool = self.catalog.healing_tools.get(hot_name) if hot_name else None
         for raw in lines:
             if _is_duplicate_log_line(last_ingested_log_line, raw):
                 continue
@@ -1700,7 +1731,9 @@ class PedHunterApp(tk.Tk):
             event = parse_line(raw)
             if not event:
                 continue
-            estimate_healing_cost(event, healing_name, healing_tool)
+            estimate_healing_cost(event, healing_name, healing_tool, hot_name, hot_tool)
+            if handoff is not None and "healing_selection" in event.payload:
+                event.payload["healing_selection"]["enabled"] = False
             if event.kind == "craft" and event.payload.get("result") in {"success", "fail"}:
                 allocation = self.store.allocate_manufacturing_attempt(session_id, str(event.payload.get("item") or ""))
                 if allocation:
@@ -2855,6 +2888,9 @@ class StreamerWindow(tk.Toplevel):
                 point.get("cost_basis") == "neighbors" for point in kill_points[-16:]
             ) else f"* Estimated/shared · {unit}") +
                 (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
+        elif any(point.get("healing_cost", 0) for point in kill_points[-16:]):
+            self.chart_note.configure(text=f"* Selected healing estimates · {unit}" +
+                                      (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
         net = float(metrics["net"])
         return_pct = float(metrics["return_pct"])
         color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
@@ -2953,19 +2989,26 @@ class StreamerWindow(tk.Toplevel):
             "same-setup input reference only when supported; ~ and amber-ring points are estimates, "
             "and gray unresolved points are not free profit. "
             "Unassigned input is already in session cost, not a prediction of more loot. "
-            "The blue booked average includes recorded weapon/recipe input, including unassigned cost. "
+            "The blue assigned average follows primary weapon/recipe plus supported healing costs, excluding pending inputs. "
             "Only new groups after activation can be reconsidered: at most 12 groups, 5 minutes, "
             "1024 charged shots and 4096 source-event IDs; old/frozen allocations are retained. "
             "Fans also retain previously observed estimates when recent allocations change."
         )
         self._footer_detail += (
-            "\nHealing is a separate selected-tool TT estimate included in run cost/profit/return totals, "
-            "not apportioned to inferred loot groups, fans or their blue weapon/recipe average: "
-            "healing messages do not identify which creature benefited."
+            "\nHealing uses immutable selected-profile TT estimates, not reliable tool/caster identities. "
+            "Supported activations are assigned to upcoming loot during combat or previous loot between fights; "
+            "later ticks never change the recipient or add charges. Legacy/uncertain costs remain unassigned, "
+            "already included in run totals, not backfilled into old fan samples."
         )
         attribution_note = getattr(kill_points, "attribution_note", "")
         if attribution_note:
             self._footer_detail += "\n" + attribution_note
+        if getattr(kill_points, "attribution_pending", 0):
+            self._footer_detail += f"\nTotal unassigned input {format_chart_money(kill_points.attribution_pending, mode)} (including healing below)."
+        for reason, amount in getattr(kill_points, "healing_pending_reasons", {}).items():
+            self._footer_detail += f"\nUnassigned healing {format_chart_money(amount, mode)}: {reason}."
+        if getattr(kill_points, "unpriced_heals", 0):
+            self._footer_detail += f"\n{kill_points.unpriced_heals} healing observations remain unpriced, not free uses."
         if self._attribution_error:
             self._footer_detail += "\nShared allocation is unavailable; recorded totals and raw interval costs are unchanged."
         if self._trail_error:
@@ -2974,8 +3017,10 @@ class StreamerWindow(tk.Toplevel):
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points, mode))
         summary = ("Trend unavailable · totals still shown" if self._trend_error else
                    "Allocation unavailable · booked totals unchanged\nChart shows raw receipt-interval input, not exact creature cost" if self._attribution_error else
-                   f"Craft setup armed · 0/{plan.attempts} observed\nBatch {format_chart_money(plan.booked_cost, mode)} booked; waiting for receipts" if craft_active and not plan.observed else
-                   _streamer_trend_detail(kill_points, mode) if kill_points else
+                   (f"Craft setup armed · 0/{plan.attempts} observed\nBatch {format_chart_money(plan.booked_cost, mode)} booked"
+                    + (" · " + _healing_status_text(kill_points, mode) if _healing_status_text(kill_points, mode) else "; waiting for receipts"))
+                   if craft_active and not plan.observed else
+                   _streamer_trend_detail(kill_points, mode) if kill_points or getattr(kill_points, "healing_booked", 0) or getattr(kill_points, "unpriced_heals", 0) else
                    "No observed craft groups yet · inputs booked" if has_crafting else "No kill points yet")
         self.vars["kill_trend_badge"].set(summary)
         previous_points = getattr(self, "kill_trend_points", [])
@@ -3146,7 +3191,7 @@ class StreamerWindow(tk.Toplevel):
                     cost = value_for(index, "cost")
                     fill = "#B8C5D6" if cost is None else "#86EFAC" if value >= cost else "#FDA4AF"
                     radius = 3 if index == len(display_points) - 1 else 2
-                    estimated = bool(point.get("cost_status"))
+                    estimated = bool(point.get("cost_status") or point.get("healing_cost", 0))
                     tags = (key, "estimate", f"estimate:{point['event_id']}") if estimated else (key,)
                     canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill=fill,
                                        outline="#FBBF24" if estimated else "", width=1, tags=tags)
@@ -3926,17 +3971,33 @@ def _load_resume_view(store: Store, session_id: str) -> _ResumeView:
     return _ResumeView(revision, session, sessions, store.lifetime_totals(sessions), skills, builder, points)
 
 
+def _healing_status_text(points, mode):
+    parts = []
+    pending = float(getattr(points, "healing_pending", 0.0))
+    if pending:
+        reason = next(iter(getattr(points, "healing_pending_reasons", {})), "recipient unknown")
+        short = reason if len(reason) <= 32 else reason[:31].rstrip() + "…"
+        parts.append(f"Heal unassigned {format_chart_money(pending, mode)}: {short}")
+    unpriced = int(getattr(points, "unpriced_heals", 0))
+    if unpriced:
+        parts.append(f"{unpriced} heal obs. unpriced")
+    return " · ".join(parts)
+
+
 def _streamer_trend_detail(points: list[dict[str, object]], mode: str = "PED") -> str:
+    healing = _healing_status_text(points, mode)
+    if not points:
+        return "No observed groups yet\n" + (healing or "No supported group cost inferred")
     latest = points[-1]
     label = latest.get("label", f"K{latest['kill']}")
     pending = float(getattr(points, "attribution_pending", 0.0))
     shared = latest.get("kind") == "hunt" and bool(latest.get("cost_status"))
     if shared and (latest["cost"] is None or latest["profit"] is None):
         return (f"{label} · Cost unresolved · Return {format_chart_money(float(latest['loot']), mode)}\n"
-                f"Shared/unassigned {format_chart_money(pending, mode)} · booked totals unchanged")
+                + (healing or f"Shared/unassigned {format_chart_money(pending, mode)} · booked totals unchanged"))
     if latest["cost"] is None or latest["profit"] is None:
         return (f"{label} · Cost unknown · Return {format_chart_money(float(latest['loot']), mode)}\n"
-                "Add input setup; no per-group profit inferred")
+                + (healing or "Add input setup; no per-group profit inferred"))
     first = latest.get("first_point", len(points) == 1)
     change = ("first group" if first else "prev unresolved" if latest["delta_profit"] is None else
               "= unchanged" if not latest["delta_profit"] else
@@ -3944,10 +4005,15 @@ def _streamer_trend_detail(points: list[dict[str, object]], mode: str = "PED") -
     if shared:
         basis = "~Neighbor cost" if latest.get("cost_basis") == "neighbors" else "~Cost"
         return (f"{label} · Est. profit {format_chart_money(float(latest['profit']), mode, signed=True)} · {change}\n"
-                f"{basis} {format_chart_money(float(latest['cost']), mode)} · Shared/unassigned {format_chart_money(pending, mode)}")
-    scope = "Batch avg" if latest.get("kind") == "craft" else "Booked avg"
-    detail = (f"{label} · Profit {format_chart_money(float(latest['profit']), mode, signed=True)} · {change}\n"
+                + (f"{basis} {format_chart_money(float(latest['cost']), mode)} · {healing}" if healing else
+                   f"{basis} {format_chart_money(float(latest['cost']), mode)} · Shared/unassigned {format_chart_money(pending, mode)}"))
+    scope = "Batch avg" if latest.get("kind") == "craft" else "Assigned avg"
+    profit_label = "Est. profit" if latest.get("healing_cost", 0) else "Profit"
+    detail = (f"{label} · {profit_label} {format_chart_money(float(latest['profit']), mode, signed=True)} · {change}\n"
               f"Cost {format_chart_money(float(latest['cost']), mode)} · {scope} {format_chart_money(float(latest['avg_cost']), mode)}")
+    if healing:
+        return (detail.split("\n")[0] + f" · {scope} {format_chart_money(float(latest['avg_cost']), mode)}"
+                + f"\nCost {format_chart_money(float(latest['cost']), mode)} · {healing}")
     if pending:
         detail += f" · Unassigned {format_chart_money(pending, mode)}"
     return detail
@@ -3956,9 +4022,9 @@ def _streamer_trend_detail(points: list[dict[str, object]], mode: str = "PED") -
 def _kill_trend_summary(points: list[dict[str, object]], mode: str = "PED") -> str:
     if not points:
         return ("No observed craft groups yet — configured inputs are booked." if getattr(points, "has_crafting", False) else
-                "No completed kills yet — loot a mob to plot cost and returns; the summary shows net profit and delta per kill.")
+                "No completed kills yet — loot a mob to plot cost and returns; the summary shows net profit and delta per kill.") + (" · " + _healing_status_text(points, mode) if _healing_status_text(points, mode) else "")
     latest = points[-1]
-    if latest["cost"] is None or latest["profit"] is None or latest.get("cost_status") or latest["delta_profit"] is None:
+    if latest["cost"] is None or latest["profit"] is None or latest.get("cost_status") or latest["delta_profit"] is None or _healing_status_text(points, mode):
         return _streamer_trend_detail(points, mode)
     profit = float(latest["profit"])
     cost = float(latest["cost"])

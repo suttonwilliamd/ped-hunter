@@ -20,7 +20,7 @@ class MemoryStore:
     def load_hunt_attribution(self, session_id):
         return deepcopy(self.sessions.get(session_id, (None, {})))
 
-    def save_hunt_attribution(self, session_id, state, decisions, *, observations=None):
+    def save_hunt_attribution(self, session_id, state, decisions, *, observations=None, healing_allocations=None):
         if self.fail_save:
             raise OSError('temporary attribution persistence failure')
         _, previous = self.sessions.get(session_id, (None, {}))
@@ -38,9 +38,14 @@ def assert_conserved(raw, projected):
     assert 0 <= projected.attribution_active_pending <= projected.attribution_pending + 1e-10
     assert [p['event_id'] for p in projected] == [p['event_id'] for p in raw]
     assert len({p['event_id'] for p in projected}) == len(projected)
-    for original, revised in zip(raw, projected):
+    for index, (original, revised) in enumerate(zip(raw, projected)):
         assert revised['loot'] == original['loot']
-        assert revised['avg_cost'] == original['avg_cost']
+        if original['kind'] == 'hunt':
+            assigned = [p['cost'] for p in projected[:index + 1] if p['kind'] == 'hunt' and p['cost'] is not None]
+            if revised['cost'] is None:
+                assert revised['avg_cost'] is None
+            else:
+                assert revised['avg_cost'] == pytest.approx(sum(assigned) / len(assigned))
         if original['kind'] == 'craft':
             assert revised == original
         if revised['cost'] is not None:

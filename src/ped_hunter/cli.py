@@ -262,11 +262,13 @@ def _monitor(chat_log: Path, db_path: Path | None, activity: str, once: bool) ->
     def process_new_lines(lines: list[str]) -> None:
         healing_name = store.get_selected_healing_tool()
         healing_tool = catalog.healing_tools.get(healing_name) if healing_name else None
+        hot_name = store.get_selected_hot_tool()
+        hot_tool = catalog.healing_tools.get(hot_name) if hot_name else None
         for raw in lines:
             event = parse_line(raw)
             if not event:
                 continue
-            estimate_healing_cost(event, healing_name, healing_tool)
+            estimate_healing_cost(event, healing_name, healing_tool, hot_name, hot_tool)
             event.payload = store.add_event(session_id, event.to_row())
             _print_event(event, catalog)
 
