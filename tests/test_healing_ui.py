@@ -228,3 +228,45 @@ def test_native_dual_quotes_and_new_primary_cost_follow_repeated_currency_toggle
         assert mode in hud.chart_note.cget("text")
         with app.store.connect() as conn:
             assert [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")] == original
+
+
+@pytest.mark.parametrize('size', [(260, 240), (360, 330), (640, 480)])
+@pytest.mark.parametrize('state', ['empty', 'priced', 'shared'])
+def test_native_legacy_warning_complete_and_fits_existing_summary_after_resize(app, size, state):
+    """Requires authorized native execution; offline models are not rendered proof."""
+    sid = app.store.start_session('hunt')
+    app.store.add_event(sid, {
+        'kind': 'combat', 'raw_message': 'Synthetic retained legacy healing',
+        'payload': {'healing_action': 'self', 'healing_cost': .04, 'healing_cost_status': 'estimated'},
+    })
+    app.session_id = sid
+    app._refresh_all()
+    app._open_streamer_window()
+    hud = app.streamer_window
+    hud.geometry(f'{round(size[0] * hud.ui_scale)}x{round(size[1] * hud.ui_scale)}')
+    points = appmod._kill_trend_points(app.store, sid)
+    points.unpriced_heals = 3
+    if state != 'empty':
+        points.append(dict(kill=1, label='K123', kind='hunt', cost=123.45, profit=234.56,
+                           loot=358.01, avg_cost=123.45, delta_profit=None,
+                           cost_status='shared_ambiguous' if state == 'shared' else None))
+    hud.vars['kill_trend_badge'].set(appmod._streamer_trend_detail(points, 'PED'))
+    app.update()
+    label = hud._fixed_labels['kill_trend_badge']
+    text = hud.vars['kill_trend_badge'].get()
+    assert 'no saved allocation context; not backfilled' in text
+    assert 'already in totals' in text and 'No new charge or lost data.' in text
+    assert '…' not in text
+    assert label.winfo_reqheight() <= label.winfo_height()
+    inside(label, hud)
+    for widget in (hud.durability_section, hud.footer, hud.resize_handle):
+        inside(widget, hud)
+        assert widget.winfo_height() >= widget.winfo_reqheight()
+    import tkinter.font as tkfont
+    size_value = tkfont.Font(hud, font=label.cget('font')).cget('size')
+    # Tk resolves a copied negative-pixel font to positive points on Windows.
+    # Compare rendered pixels, not point and pixel magnitudes as if identical.
+    pixels = -size_value if size_value < 0 else size_value * hud.winfo_fpixels('1p')
+    assert pixels >= 10 * hud._content_scale - 1
+    assert not hud.kill_chart.bind('<Enter>') and not hud.chart_note.bind('<Enter>')
+    assert not hasattr(hud, 'damage_slot')

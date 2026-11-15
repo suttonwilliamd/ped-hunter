@@ -122,7 +122,7 @@ def test_exclusion_restore_resets_same_run_chart_and_currency_does_not_reintrodu
     assert originals(app.store) == before
 
 
-def test_craft_input_footer_hover_and_chart_details_convert_with_mode(tmp_path, monkeypatch):
+def test_craft_input_footer_summary_and_explicit_details_convert_with_mode(tmp_path, monkeypatch):
     chat = tmp_path / 'chat.log'
     chat.write_text('')
     monkeypatch.setattr(appmod, '_default_chat_log_path', lambda: chat)
@@ -148,8 +148,13 @@ def test_craft_input_footer_hover_and_chart_details_convert_with_mode(tmp_path, 
             assert unit_price in hud.vars['kill_trend_badge'].get()
             hud._show_loadout()
             app.update_idletasks()
-            tooltip = '\n'.join(str(widget.cget('text')) for widget in hud._loadout_tip.winfo_children() if isinstance(widget, tk.Label))
-            assert unit_price in tooltip and total in tooltip
+            assert hud._loadout_tip is None  # No automatic popup, even for names.
+            # Monetary detail requires deliberate activation, never chart hover.
+            shown = []
+            monkeypatch.setattr(appmod.messagebox, 'showinfo', lambda title, text, **kw: shown.append(text))
+            assert hud._show_context_details() == 'break'
+            assert len(shown) == 1 and unit_price in shown[0] and total in shown[0]
+            assert len(shown[0]) < 1000
             assert hud.kill_trend_points[0]['cost'] == 10
             assert hud.kill_trend_points[0]['loot'] == 20
             assert originals(store) == rows

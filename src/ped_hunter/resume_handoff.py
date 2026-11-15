@@ -25,8 +25,13 @@ def _paths(db_path: Path) -> tuple[Path, Path]:
     return pending, Path(str(pending) + ".claimed")
 
 
+def _reconciled_archives(db_path: Path):
+    pending, _claimed = _paths(db_path)
+    return pending.parent.glob(pending.name + '.claimed.verified-*')
+
+
 def has_resume_handoff(db_path: Path) -> bool:
-    return any(path.exists() for path in _paths(db_path))
+    return any(path.exists() for path in _paths(db_path)) or any(_reconciled_archives(db_path))
 
 
 def _setup_context(setup: dict | None) -> dict | None:
@@ -83,7 +88,10 @@ def discover_resume_boundary(log_path: Path, committed_lines: list[str], *, max_
         position = start
         ways = [1] + [0] * len(expected)
         unique_end = None
-        for index, raw in enumerate(data.splitlines(keepends=True)):
+        # Match LogTail's LF boundary exactly. VT/FF can be chat content;
+        # bytes.splitlines() would split a committed raw message there.
+        for index, part in enumerate(data.split(b"\n")[:-1]):
+            raw = part + b"\n"
             position += len(raw)
             if (start and index == 0) or not raw.endswith(b"\n"):
                 continue
@@ -128,6 +136,8 @@ def read_resume_handoff(db_path: Path, session_id: str, log_path: Path,
     if claimed.exists():
         raise ValueError("A previous handoff is claimed but not verified complete; reconcile its receipt before Resume")
     if not pending.exists():
+        if any(_reconciled_archives(db_path)):
+            raise ValueError('A reconciled archive exists without a successor cursor; preserve and reconcile it before Resume')
         return None
     try:
         if pending.stat().st_size > 65536:

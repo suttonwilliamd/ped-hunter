@@ -87,7 +87,7 @@ def test_manual_controls_show_inputs_before_any_result_and_book_cost_once(hud):
     assert '0/16' in window.vars['input'].get()
     assert BLUEPRINT in window.vars['loadout'].get()
     assert app.store.get_session(sid).hunting_cost == pytest.approx(11.2)
-    assert window.cost_title.cget('text') == 'Booked cost'
+    assert window.cost_title.cget('text') == 'Cost'
     assert window.count_title.cget('text') == 'Groups*'
 
 
@@ -139,9 +139,11 @@ def test_unpriced_extra_craft_groups_do_not_show_gross_return_as_profit(hud):
     app.update()
     assert window.kill_trend_points[-1]['cost'] is None
     assert window.kill_trend_points[-1]['profit'] is None
-    assert window.vars['net_big'].get() == '—'
-    assert window.vars['return'].get() == '—'
-    assert 'unknown' in window.vars['kill_trend_badge'].get().lower()
+    assert window.vars['cost'].get() == '≈1.40 PED'
+    assert window.vars['net_big'].get().startswith('≈')
+    assert window.vars['return'].get().startswith('≈')
+    assert app.store.get_session(sid).hunting_cost == pytest.approx(.7)
+    assert 'supported excess estimate 0.70 PED' in window._footer_detail
 
 
 def test_new_priced_setup_does_not_hide_booked_totals_for_an_old_attribution_gap(hud):
@@ -153,8 +155,9 @@ def test_new_priced_setup_does_not_hide_booked_totals_for_an_old_attribution_gap
     window.update_from_session(app.store.get_session(sid))
     app.update()
     assert window.vars['net_big'].get() != '—'
-    assert 'BOOKED' in window.net_caption.cget('text')
-    assert window.cost_title.cget('text') == 'Booked cost'
+    assert window.vars['cost'].get() == '≈2.10 PED'
+    assert window.cost_title.cget('text') == 'Cost'
+    assert app.store.get_session(sid).hunting_cost == pytest.approx(1.4)
     assert '1 historical craft groups' in window._footer_detail
 
 

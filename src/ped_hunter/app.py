@@ -23,8 +23,9 @@ import uuid
 from .activity_trend import ActivityTrendBuilder
 from .catalog import Catalog, WeaponRecord
 from .chart_scales import plan_chart_scales
-from .chart_trails import TRAIL_MAX_SAMPLES, TrailRecorder
+from .chart_trails import TrailRecorder
 from .currency import currency_name, format_chart_money, format_money
+from .crafting_display import crafting_cost_display
 from .dpi import enable_high_dpi, window_ui_scale
 from .feedback import ActivityStrip, Animator, Snapshot
 from .hunt_attribution import HuntAttribution
@@ -2480,10 +2481,6 @@ class StreamerWindow(tk.Toplevel):
                 takefocus=True, cursor="hand2", command=lambda index=index: self._activate_setup_slot(index))
             button.grid(row=index // 2, column=index % 2, sticky="nsew", padx=1, pady=1)
             button.bind("<Return>", lambda _event, button=button: (button.invoke(), "break")[1])
-            for event in ("<Enter>", "<FocusIn>"):
-                button.bind(event, lambda _event, index=index: self._show_setup_slot(index))
-            for event in ("<Leave>", "<FocusOut>"):
-                button.bind(event, self._hide_loadout)
             self.setup_buttons.append(button)
         self.refresh_setup_slots(self.app.store.list_loadouts())
         self.net_caption = label(self.hero, text="NET PROFIT", bold=True, width=1, anchor="w")
@@ -2551,24 +2548,16 @@ class StreamerWindow(tk.Toplevel):
         self.resize_handle = label(bottom, text="◢", fg="#5EEAD4", takefocus=True,
                                   cursor=_resize_cursor(str(self.tk.call("tk", "windowingsystem"))))
         self.resize_handle.pack(side="right", ipadx=4, ipady=2)
-        self.damage_slot = tk.Frame(bottom, bg=bg)
-        self.damage_slot.pack(side="right", fill="y", padx=(6, 6))
-        self.damage_slot.pack_propagate(False)
-        fixed_text(self.damage_slot, "damage", anchor="e").pack(fill="both", expand=True)
-        self.loadout_label = label(bottom, text="No active session", anchor="w", width=1, takefocus=True)
+        self.loadout_label = label(bottom, text="No active session", anchor="w", width=1, takefocus=True, cursor="hand2")
         self.loadout_label.pack(side="left", fill="both", expand=True)
         self.resize_handle.bind("<ButtonPress-1>", self._start_resize)
         self.resize_handle.bind("<B1-Motion>", self._resize)
         self.resize_handle.bind("<ButtonRelease-1>", self._stop_resize)
         self._loadout_tip = None
-        self.loadout_label.bind("<Enter>", self._show_loadout)
-        self.loadout_label.bind("<FocusIn>", self._show_loadout)
-        self.loadout_label.bind("<Leave>", self._hide_loadout)
-        self.loadout_label.bind("<FocusOut>", self._hide_loadout)
-        self.chart_note.bind("<Enter>", self._show_loadout)
-        self.chart_note.bind("<Leave>", self._hide_loadout)
-        self.kill_chart.bind("<Enter>", self._show_loadout)
-        self.kill_chart.bind("<Leave>", self._hide_loadout)
+        # Chart motion must never cover gameplay with automatic explanations.
+        # Current context is available deliberately from the footer instead.
+        for event in ("<Button-1>", "<Return>", "<space>"):
+            self.loadout_label.bind(event, self._show_context_details)
         for widget in (self.brand_label, self.loadout_label, self.resize_handle):
             widget.bind("<FocusIn>", lambda event: event.widget.configure(highlightthickness=1, highlightbackground="#5EEAD4"), add="+")
             widget.bind("<FocusOut>", lambda event: event.widget.configure(highlightthickness=0), add="+")
@@ -2660,9 +2649,21 @@ class StreamerWindow(tk.Toplevel):
 
     def _on_metric_change(self, key) -> None:
         if not self._layout_busy:
-            self._fit_fixed_text(key)
+            if key == "kill_trend_badge":
+                if self._summary_lines() != getattr(self, "_summary_layout_lines", 2):
+                    self._layout_geometry_key = None
+                    self._schedule_fit_to_contents()
+            else:
+                self._fit_fixed_text(key)
+
+    def _summary_lines(self) -> int:
+        return max(2, _wrapped_line_count(self.vars["kill_trend_badge"].get(),
+                                         self._fixed_fonts["kill_trend_badge"][0],
+                                         max(1, self.content_width - 4)))
 
     def _fit_fixed_text(self, key, sample: str | None = None) -> None:
+        if key == "kill_trend_badge":
+            return  # Meaningful warnings wrap; never shrink them into unreadable text.
         available = self._fixed_widths.get(key, 0)
         if available <= 0:
             return
@@ -2706,6 +2707,12 @@ class StreamerWindow(tk.Toplevel):
             if required <= height or factor <= 0.55:
                 break
             factor *= (height - 4) / required
+        if required > height:
+            # Never trade away warning meaning or the footer/resize controls.
+            # This is a content minimum, not a remembered user enlargement;
+            # _fit_to_contents resets it before each real layout/width change.
+            self.minsize(round(STREAMER_MIN_WIDTH * self.ui_scale),
+                         max(round(STREAMER_MIN_HEIGHT * self.ui_scale), required))
         for key in self._fixed_labels:
             self._fit_fixed_text(key)
         self._update_loadout_text()
@@ -2735,26 +2742,32 @@ class StreamerWindow(tk.Toplevel):
         if self.input_slot.winfo_manager():
             self.input_slot.pack_configure(pady=(round(4 * scale), 0))
         self.chart_header.configure(height=body_height)
-        self.summary_slot.configure(height=2 * self._font().metrics("linespace") + 2)
+        for key, (font, pixels) in self._fixed_fonts.items():
+            # Warnings retain the default readable body size even at minimum
+            # geometry; whole-overlay fitting must not undo wrapped readability.
+            font_scale = self.ui_scale if key == "kill_trend_badge" else scale
+            minimum = 10 if key == "kill_trend_badge" else 6
+            font.configure(size=-max(minimum, round(pixels * font_scale)))
+        self._summary_layout_lines = self._summary_lines()
+        self._fixed_labels["kill_trend_badge"].configure(
+            wraplength=max(1, width - 4), justify="left", bd=0, highlightthickness=0, padx=0, pady=0)
+        summary_font = self._fixed_fonts["kill_trend_badge"][0]
+        self.summary_slot.configure(height=self._summary_layout_lines * summary_font.metrics("linespace") + 2)
         self.trend.configure(height=body_height + int(self.kill_chart.cget("height")) +
                              int(self.summary_slot.cget("height")) + 2 * round(4 * scale))
         self.durability_text_slot.configure(height=body_height)
         self.durability_section.configure(height=body_height + int(self.durability_bar.cget("height")) + round(4 * scale))
         self.footer.configure(height=body_height + 2 * round(2 * scale))
-        self.damage_slot.configure(width=round(72 * scale))
-        for font, pixels in self._fixed_fonts.values():
-            font.configure(size=-max(6, round(pixels * scale)))
         self._fixed_widths = {key: width - 4 for key in self._fixed_labels}
         metric_width = max(10, width - slot_width - 2 * round(3 * scale))
-        self._fixed_widths.update(net_big=metric_width * 3 // 5 - 4, **{"return": metric_width * 2 // 5 - 4},
-                                 damage=round(72 * scale) - 4)
+        self._fixed_widths.update(net_big=metric_width * 3 // 5 - 4, **{"return": metric_width * 2 // 5 - 4})
         for key in ("loot", "cost", "kills"):
             self._fixed_widths[key] = (width - 2 * round(6 * scale)) // 3 - round(4 * scale) - 4
         # Reserve ordinary signed money/return widths before the first value.
         # The shortcuts narrow these columns; 99→100 must not change typography.
         self._fit_fixed_text("net_big", "+999.99 PED\n-$999.99")
         self._fit_fixed_text("return", "999.99%")
-        self._loadout_width = max(10, width - round(110 * scale))
+        self._loadout_width = max(10, width - round(26 * scale))
         required = 2 * round(6 * scale) + 2  # outer padding and border
         for widget in self.outer.pack_slaves():
             required += int(widget.cget("height"))
@@ -2767,7 +2780,7 @@ class StreamerWindow(tk.Toplevel):
 
     def _update_loadout_text(self) -> None:
         font = self._font()
-        available = getattr(self, "_loadout_width", self.content_width - round(110 * self._content_scale))
+        available = getattr(self, "_loadout_width", self.content_width - round(26 * self._content_scale))
         name = " ".join(self.vars["loadout"].get().split())
         text = name
         while text and font.measure(text + ("…" if text != name else "")) > available:
@@ -2777,14 +2790,14 @@ class StreamerWindow(tk.Toplevel):
             self.loadout_label.configure(text=visible)
 
     def _show_loadout(self, _event=None, *, text: str | None = None) -> None:
+        # Compatibility for old callers: no automatic popup, including names.
+        # Current context is available only by deliberate footer activation.
         self._hide_loadout()
-        tip = self._loadout_tip = tk.Toplevel(self)
-        tip.overrideredirect(True)
-        tip.attributes("-topmost", True)
-        tk.Label(tip, text=text if text is not None else getattr(self, "_footer_detail", self.vars["loadout"].get()), font=self._font(), wraplength=self.content_width,
-                 bg="#131E2E", fg="#F1F5F9", padx=8, pady=5).pack()
-        tip.update_idletasks()
-        tip.geometry(f"+{self.winfo_x()}+{max(0, self.winfo_y() - tip.winfo_reqheight())}")
+
+    def _show_context_details(self, _event=None) -> str:
+        self._hide_loadout()
+        messagebox.showinfo("Current chart context", getattr(self, "_footer_detail", "No active session"), parent=self)
+        return "break"  # Do not also start dragging the overlay.
 
     def _hide_loadout(self, _event=None) -> None:
         if self._loadout_tip is not None:
@@ -2866,13 +2879,13 @@ class StreamerWindow(tk.Toplevel):
                         int(float(metrics.get("manufacturing_attempt", 0))) > 0)
         unpriced_groups = getattr(kill_points, "unknown_craft_groups", 0)
         craft_active = bool(plan and plan.active)
-        incomplete_cost = bool(unpriced_groups and (
-            (craft_active and (plan.per_attempt is None or plan.observed > plan.attempts)) or
-            (not plan and kill_points and kill_points[-1].get("kind") == "craft")))
+        display = self._cost_display = crafting_cost_display(
+            float(metrics['cost']), float(metrics['loot']), kill_points, projection_unavailable=self._trend_error)
+        incomplete_cost = display.incomplete
         self._has_crafting = has_crafting
-        self.net_caption.configure(text="NET · COST UNKNOWN" if incomplete_cost else "BOOKED SESSION NET" if has_crafting else "NET PROFIT")
+        self.net_caption.configure(text="NET" if display.marker else "BOOKED SESSION NET" if has_crafting else "NET PROFIT")
         self.loot_title.configure(text="Returns" if has_crafting else "Loot")
-        self.cost_title.configure(text="Known cost" if incomplete_cost else "Booked cost" if has_crafting else "Cost")
+        self.cost_title.configure(text="Cost")
         self.count_title.configure(text="Groups*")
         self.chart_note.configure(text=f"* Prior groups · {unit}" if craft_active and not plan.observed and kill_points else
                                   f"* Observed groups · {unit}" if has_crafting else f"* Inferred clusters · {unit}")
@@ -2891,9 +2904,9 @@ class StreamerWindow(tk.Toplevel):
         elif any(point.get("healing_cost", 0) for point in kill_points[-16:]):
             self.chart_note.configure(text=f"* Selected healing estimates · {unit}" +
                                       (" · fans" if any(len(s) > 1 for s in self.kill_trail_histories.values()) else ""))
-        net = float(metrics["net"])
-        return_pct = float(metrics["return_pct"])
-        color = "#B8C5D6" if incomplete_cost else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
+        net = display.net
+        return_pct = display.return_pct
+        color = "#B8C5D6" if incomplete_cost or net is None else "#86EFAC" if net > 0 else "#FDA4AF" if net < 0 else "#F1F5F9"
         state = ("STOPPED" if session and session.ended_at else
                  "TRACKING" if session and self.app.running else
                  "PAUSED" if session else "WAITING FOR RUN" if self.app.running else "IDLE")
@@ -2901,23 +2914,30 @@ class StreamerWindow(tk.Toplevel):
         self.vars["state"].set(f"{'DEMO · ' if self.demo else ''}{state}")
         self.state_label.configure(fg="#5EEAD4" if live else "#B8C5D6")
         context = (session.session_id if session else None, self.app.currency_mode.get(), live,
-                   session.accounting_revision if session else 0)
+                   session.accounting_revision if session else 0, display.marker)
         if context != self._feedback_context and self.__dict__.get("_loadout_tip") is not None:
             self._hide_loadout()  # Never leave an open monetary tooltip in an old unit/revision.
         animate = context == self._feedback_context and live and not self.app.reduced_motion.get()
         self._feedback_context = context
-        for key, value, signed in (("net_big", net, True), ("loot", float(metrics['loot']), False), ("cost", float(metrics['cost']), False)):
-            self.animator.number(key, value, lambda amount, key=key, signed=signed: self.vars[key].set(format_money(amount, self.app.currency_mode.get(), signed=signed)), animate)
-        if not session or incomplete_cost:
-            self.animator.cancel("net_big")
-            self.vars["net_big"].set("—")
-        if session and float(metrics["cost"]) > 0 and not incomplete_cost:
-            self.return_caption.configure(text="BOOKED RETURN" if has_crafting else "RETURN")
-            self.animator.number("return", return_pct, lambda value: self.vars["return"].set(f"{value:.2f}%"), animate)
+        for key, value, signed in (("net_big", net if session else None, True),
+                                   ("loot", float(metrics['loot']), False), ("cost", display.cost, False)):
+            if value is None:
+                self.animator.cancel(key)
+                self.vars[key].set("—")
+                continue
+            marker = display.marker if key != "loot" else ""
+            self.animator.number(key, value, lambda amount, key=key, signed=signed, marker=marker:
+                                 self.vars[key].set(("≈" if marker == "≈" else "") +
+                                     format_money(amount, self.app.currency_mode.get(), signed=signed) +
+                                     ("*" if marker == "*" else "")), animate)
+        if session and return_pct is not None:
+            self.return_caption.configure(text="RETURN" if display.marker else "BOOKED RETURN" if has_crafting else "RETURN")
+            self.animator.number("return", return_pct, lambda value: self.vars["return"].set(
+                ("≈" if display.marker else "") + f"{value:.2f}%"), animate)
         else:
             self.animator.cancel("return")
             self.vars["return"].set("—")
-            self.return_caption.configure(text="RETURN · UNKNOWN" if incomplete_cost else "RETURN · NO COST YET" if session else "RETURN")
+            self.return_caption.configure(text="RETURN*" if incomplete_cost else "RETURN · NO COST YET" if session else "RETURN")
         self._fit_hero_captions()
         self.vars["kills"].set("—" if self._trend_error else f"{kill_count}")
         if has_crafting:
@@ -2950,69 +2970,20 @@ class StreamerWindow(tk.Toplevel):
         durability_text = str(durability["streamer_text"])
         if self.durability_known and self.durability_pct <= 0:
             durability_text += " · EMPTY"
-        self._footer_detail = displayed_loadout
-        if plan:
-            price = 'unknown' if plan.per_attempt is None else format_chart_money(plan.per_attempt, mode)
-            self._footer_detail = (f"{plan.blueprint}\n{plan.attempts} planned at {price}/attempt; "
-                                   f"{format_chart_money(plan.booked_cost, mode)} booked once in session cost (TT only, no markup).\n"
-                                   f"Batch returns {format_chart_money(plan.returns, mode)}; net against booked batch cost {format_chart_money(plan.returns - plan.booked_cost, mode, signed=True)}.\n"
-                                   f"{plan.observed} observed groups. Receipts are grouped, not confirmed clicks; silent failures are not observable.\n"
-                                   f"The hero is whole-session totals against entered/booked costs, including hunting. {unpriced_groups} historical craft groups have no attributed input price. "
-                                   "C = craft group; K = hunting cluster. "
-                                   "Chart averages/deltas are within a crafting batch or hunting, not between the two.")
-            if craft_active:
-                self.vars["loadout"].set(f"Crafting: {plan.blueprint}")
-                self.vars["damage"].set(f"{plan.observed}/{plan.attempts}*")
-                durability_text = (f"Batch return {format_chart_money(plan.returns, mode)} · booked {format_chart_money(plan.booked_cost, mode)} · "
-                                   f"net {format_chart_money(plan.returns - plan.booked_cost, mode, signed=True)}")
-                if incomplete_cost:
-                    durability_text = "Cost coverage incomplete · add a new crafting setup"
-                self.durability_known = False
-        self._footer_detail += (
-            f"\nFans display observed developing positions of each inferred group in {unit}; stored samples remain PED. "
-            "orange = cost, blue = average, green/pink return traces = profit/loss at that observation "
-            "(gray = unknown cost). They describe recorded TT estimates, not future loot. "
-            f"Up to {TRAIL_MAX_SAMPLES} samples per group preserve first/latest positions and extrema. "
-            "Live HUD refreshes are sampled; exclusion/restore publishes corrected endpoints for previously observed groups. "
-            "Missing observations are never reconstructed."
-        )
-        self._footer_detail += (
-            f"\nAmber vertical sections use their own labeled {unit} range at that event's x-position. "
-            "Ordinary events share the left-hand scale. No lines or fan triangles connect different scales; "
-            "fans at those boundaries retain their observed endpoint ranges as whiskers. "
-            "Sections require a relative gap and an exceptional visible-event envelope; "
-            "common elevated cohorts share the ordinary axis. Fans count once per event, not per sample. "
-            "Display-only hysteresis reduces boundary chatter; values, event order and totals are unchanged."
-        )
-        self._footer_detail += (
-            "\nHunting receipts have no creature IDs or confirmed kills. Shared costs use a stable recent "
-            "same-setup input reference only when supported; ~ and amber-ring points are estimates, "
-            "and gray unresolved points are not free profit. "
-            "Unassigned input is already in session cost, not a prediction of more loot. "
-            "The blue assigned average follows primary weapon/recipe plus supported healing costs, excluding pending inputs. "
-            "Only new groups after activation can be reconsidered: at most 12 groups, 5 minutes, "
-            "1024 charged shots and 4096 source-event IDs; old/frozen allocations are retained. "
-            "Fans also retain previously observed estimates when recent allocations change."
-        )
-        self._footer_detail += (
-            "\nHealing uses immutable selected-profile TT estimates, not reliable tool/caster identities. "
-            "Supported activations are assigned to upcoming loot during combat or previous loot between fights; "
-            "later ticks never change the recipient or add charges. Legacy/uncertain costs remain unassigned, "
-            "already included in run totals, not backfilled into old fan samples."
-        )
-        attribution_note = getattr(kill_points, "attribution_note", "")
-        if attribution_note:
-            self._footer_detail += "\n" + attribution_note
-        if getattr(kill_points, "attribution_pending", 0):
-            self._footer_detail += f"\nTotal unassigned input {format_chart_money(kill_points.attribution_pending, mode)} (including healing below)."
-        for reason, amount in getattr(kill_points, "healing_pending_reasons", {}).items():
-            self._footer_detail += f"\nUnassigned healing {format_chart_money(amount, mode)}: {reason}."
-        if getattr(kill_points, "unpriced_heals", 0):
-            self._footer_detail += f"\n{kill_points.unpriced_heals} healing observations remain unpriced, not free uses."
-        if self._attribution_error:
-            self._footer_detail += "\nShared allocation is unavailable; recorded totals and raw interval costs are unchanged."
-        if self._trail_error:
-            self._footer_detail += "\nTrail storage is unavailable; totals and ordinary chart series remain visible."
+        if plan and craft_active:
+            self.vars["loadout"].set(f"Crafting: {plan.blueprint}")
+            self.vars["damage"].set(f"{plan.observed}/{plan.attempts}*")
+            batch = crafting_cost_display(plan.booked_cost, plan.returns,
+                                          (p for p in kill_points if p.get('plan_event_id') == plan.event_id),
+                                          unpriced_plans=int(plan.per_attempt is None))
+            batch_cost = "—" if batch.cost is None else format_chart_money(batch.cost, mode)
+            batch_net = "—" if batch.net is None else format_chart_money(batch.net, mode, signed=True)
+            durability_text = (f"Return {format_chart_money(plan.returns, mode)} · "
+                               f"Cost {batch.marker}{batch_cost} · Net {batch.marker}{batch_net}")
+            self.durability_known = False
+        self._footer_detail = _context_details(
+            displayed_loadout, kill_points, mode, plan=plan, unpriced_groups=unpriced_groups,
+            allocation_error=self._attribution_error, trail_error=self._trail_error, cost_display=display)
         self.vars["durability"].set(durability_text)
         self.vars["kill_trend"].set(_kill_trend_summary(kill_points, mode))
         summary = ("Trend unavailable · totals still shown" if self._trend_error else
@@ -3379,9 +3350,15 @@ class StreamerWindow(tk.Toplevel):
             return
         self._layout_busy = True
         try:
-            # Never derive a minimum from labels wrapped to the *current*
-            # width. That turns user enlargement into a permanent size floor.
-            self.minsize(round(STREAMER_MIN_WIDTH * self.ui_scale), round(STREAMER_MIN_HEIGHT * self.ui_scale))
+            # A content floor must survive the Configure event it caused.
+            # Resetting on that height-only event lets Windows restore the
+            # smaller requested rectangle, producing an endless shrink/grow
+            # loop. Width/content changes may legitimately lower the floor.
+            floor_key = (width, bool(self.input_slot.winfo_manager()),
+                         self.vars["kill_trend_badge"].get(), self.ui_scale)
+            if floor_key != getattr(self, "_content_floor_key", None):
+                self.minsize(round(STREAMER_MIN_WIDTH * self.ui_scale), round(STREAMER_MIN_HEIGHT * self.ui_scale))
+                self._content_floor_key = floor_key
             self._layout_values()
             self._layout_geometry_key = key
             if self._initial_position_pending:
@@ -3971,17 +3948,112 @@ def _load_resume_view(store: Store, session_id: str) -> _ResumeView:
     return _ResumeView(revision, session, sessions, store.lifetime_totals(sessions), skills, builder, points)
 
 
+def _automatic_context_summary(name: str, *, details: bool = False) -> str:
+    """Automatic popups are name previews, never chart documentation."""
+    name = " ".join(str(name).split())
+    name = name if len(name) <= 96 else name[:95].rstrip() + "…"
+    return name + ("\nClick / Enter for current details" if details else "")
+
+
+def _wrapped_line_count(text, font, width):
+    """Reserve all wrapped lines without mapping/updating a native window."""
+    lines = 0
+    for paragraph in text.split("\n"):
+        remaining = paragraph
+        lines += 1
+        while remaining and font.measure(remaining) > width:
+            cut = 1
+            while cut < len(remaining) and font.measure(remaining[:cut + 1]) <= width:
+                cut += 1
+            space = remaining.rfind(" ", 0, cut + 1)
+            if space > 0:
+                cut = space
+            remaining = remaining[cut:].lstrip()
+            lines += bool(remaining)
+    return lines
+
+
 def _healing_status_text(points, mode):
     parts = []
     pending = float(getattr(points, "healing_pending", 0.0))
     if pending:
-        reason = next(iter(getattr(points, "healing_pending_reasons", {})), "recipient unknown")
-        short = reason if len(reason) <= 32 else reason[:31].rstrip() + "…"
-        parts.append(f"Heal unassigned {format_chart_money(pending, mode)}: {short}")
+        reasons = getattr(points, "healing_pending_reasons", {})
+        legacy = any("legacy" in reason.casefold() or "no saved allocation context" in reason.casefold()
+                     for reason in reasons)
+        parts.append(f"Heal unassigned {format_chart_money(pending, mode)} — already in totals.")
+        parts.append("Legacy included: no saved allocation context; not backfilled." if legacy else
+                     "Allocation uncertain; not assigned to a loot group.")
+        parts.append("No new charge or lost data.")
     unpriced = int(getattr(points, "unpriced_heals", 0))
     if unpriced:
-        parts.append(f"{unpriced} heal obs. unpriced")
-    return " · ".join(parts)
+        parts.append(f"{unpriced} heal obs. unpriced (cost unknown)")
+    return "\n".join(parts)
+
+
+def _healing_pending_detail(points, mode):
+    """Group current reasons into a short, amount-preserving deliberate detail."""
+    groups = {}
+    for reason, amount in getattr(points, "healing_pending_reasons", {}).items():
+        key = reason.casefold()
+        if "legacy" in key or "no saved allocation context" in key:
+            label = "Legacy context missing (no backfill)"
+        elif "upcoming loot" in key:
+            label = "Awaiting upcoming loot"
+        elif "external" in key or "overlapping effect" in key:
+            label = "External/overlapping effect evidence"
+        elif "timing" in key or "timestamp" in key:
+            label = "Incomplete/out-of-order timing"
+        elif "boundary" in key or "equipment" in key:
+            label = "Setup/accounting boundary"
+        elif "shared" in key or "overlapping receipt" in key:
+            label = "Shared receipt; no unique recipient"
+        elif "hunting" in key or "activation context" in key:
+            label = "No supported hunting recipient"
+        else:
+            label = "Other unresolved activation evidence"
+        groups.setdefault(label, []).append(float(amount))
+    return "\n".join(f"• {label}: {format_chart_money(math.fsum(amounts), mode)}"
+                     for label, amounts in groups.items())
+
+
+def _context_details(loadout, points, mode, *, plan=None, unpriced_groups=0,
+                     allocation_error=False, trail_error=False, cost_display=None):
+    """Deliberate, structured current facts instead of an automatic manual."""
+    sections = ["SETUP\n" + _automatic_context_summary(loadout)]
+    if plan:
+        price = "unknown" if plan.per_attempt is None else format_chart_money(plan.per_attempt, mode)
+        sections.append(
+            f"CRAFT BATCH\n{_automatic_context_summary(plan.blueprint)}\n"
+            f"{plan.observed}/{plan.attempts} groups observed · {price}/attempt\n"
+            f"Booked {format_chart_money(plan.booked_cost, mode)} TT once; "
+            f"returns {format_chart_money(plan.returns, mode)}.\n"
+            f"{unpriced_groups} historical craft groups have no attributed input price.")
+    if cost_display and cost_display.marker:
+        sections.append(
+            f"DISPLAY INPUTS\nBooked {format_chart_money(cost_display.booked, mode)} unchanged; "
+            f"supported excess estimate {format_chart_money(cost_display.excess_estimate, mode)} added once for display only. "
+            + (("* Partial: " + "; ".join(cost_display.incomplete_reasons) + ". "
+                "Displayed net is before unresolved inputs, not final profit; overall rate unknown. ")
+               if cost_display.incomplete else "≈ Uses saved input snapshots and matching recipe evidence. ")
+            + "Observed groups do not reveal silent failures or exact clicks. No new charge.")
+    sections.append("CHART\nInferred loot groups, not confirmed kills/clicks. "
+                    "Cost/average use assigned inputs; fans show recorded estimates, not predictions. "
+                    "Amber sections use their labeled local range.")
+    pending = float(getattr(points, "attribution_pending", 0))
+    if pending:
+        sections.append(f"UNASSIGNED INPUT\n{format_chart_money(pending, mode)} already in totals, including unassigned healing.")
+    healing = _healing_status_text(points, mode)
+    if healing:
+        breakdown = _healing_pending_detail(points, mode)
+        sections.append("HEALING\n" + healing + ("\n" + breakdown if breakdown else ""))
+    errors = []
+    if allocation_error:
+        errors.append("Allocation unavailable; chart uses raw receipt-interval inputs. Booked totals unchanged.")
+    if trail_error:
+        errors.append("Trail storage unavailable; totals and ordinary chart series unchanged.")
+    if errors:
+        sections.append("UNAVAILABLE\n" + "\n".join(errors))
+    return "\n\n".join(sections)
 
 
 def _streamer_trend_detail(points: list[dict[str, object]], mode: str = "PED") -> str:
@@ -4005,15 +4077,15 @@ def _streamer_trend_detail(points: list[dict[str, object]], mode: str = "PED") -
     if shared:
         basis = "~Neighbor cost" if latest.get("cost_basis") == "neighbors" else "~Cost"
         return (f"{label} · Est. profit {format_chart_money(float(latest['profit']), mode, signed=True)} · {change}\n"
-                + (f"{basis} {format_chart_money(float(latest['cost']), mode)} · {healing}" if healing else
-                   f"{basis} {format_chart_money(float(latest['cost']), mode)} · Shared/unassigned {format_chart_money(pending, mode)}"))
+                + f"{basis} {format_chart_money(float(latest['cost']), mode)}"
+                + (f"\n{healing}" if healing else
+                   f" · Shared/unassigned {format_chart_money(pending, mode)}"))
     scope = "Batch avg" if latest.get("kind") == "craft" else "Assigned avg"
     profit_label = "Est. profit" if latest.get("healing_cost", 0) else "Profit"
     detail = (f"{label} · {profit_label} {format_chart_money(float(latest['profit']), mode, signed=True)} · {change}\n"
               f"Cost {format_chart_money(float(latest['cost']), mode)} · {scope} {format_chart_money(float(latest['avg_cost']), mode)}")
     if healing:
-        return (detail.split("\n")[0] + f" · {scope} {format_chart_money(float(latest['avg_cost']), mode)}"
-                + f"\nCost {format_chart_money(float(latest['cost']), mode)} · {healing}")
+        return detail + f"\n{healing}"
     if pending:
         detail += f" · Unassigned {format_chart_money(pending, mode)}"
     return detail

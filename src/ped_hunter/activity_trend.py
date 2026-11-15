@@ -26,6 +26,7 @@ class ManufacturingPlan:
     observed: int = 0
     active: bool = True
     returns: float = 0.0
+    context_intact: bool = True
 
 
 class ActivityPoints(list):
@@ -35,6 +36,7 @@ class ActivityPoints(list):
         self.manufacturing: ManufacturingPlan | None = None
         self.has_crafting = False
         self.unknown_craft_groups = 0
+        self.unpriced_craft_plans = 0
         self.last_event_id = 0
         self.attribution_boundary_id = 0
         self.accounting_revision = 0
@@ -68,6 +70,10 @@ class _Group:
     context_key: str | None = None
     context_mixed: bool = False
     timing_valid: bool = True
+    recipe_output_seen: bool = False
+    explicit_input: float | None = None
+    recipe_context_intact: bool = True
+    recipe_context_epoch: int = 0
 
 
 def _amount(value) -> float | None:
@@ -114,8 +120,19 @@ class ActivityTrendBuilder:
         self._healing_invalidated = set()
         self._incoming_before_outgoing = False
         self._unpriced_heals = 0
+        self._last_craft_event_time = None
 
     def _point(self, group, closed=False):
+        # A display estimate is NOT another booked input or attributed cost.
+        # A saved price alone does not establish the recipe of excess receipts.
+        excess_estimate, excess_basis = None, None
+        if group.plan and group.attempt > group.plan.attempts:
+            if group.explicit_input is not None:
+                excess_estimate, excess_basis = group.explicit_input, 'saved explicit input'
+            elif (group.recipe_output_seen and group.recipe_context_intact and
+                  group.timing_valid and group.plan.per_attempt is not None):
+                excess_estimate = group.plan.per_attempt
+                excess_basis = 'matching recipe output; uninterrupted saved setup'
         cost = group.cost
         profit = None if cost is None else group.loot - cost
         previous = self.previous_profits.get(group.scope)
@@ -143,6 +160,8 @@ class ActivityTrendBuilder:
             'closed': closed,
             'input_cost': cost, 'weapon_cost': cost if group.kind == 'hunt' else None,
             'cost_scope': group.scope,
+            'excess_input_estimate': excess_estimate,
+            'excess_input_basis': excess_basis,
         }
 
     def _finish(self):
@@ -173,7 +192,69 @@ class ActivityTrendBuilder:
         elif payload:
             cost = _amount(payload.get('input_cost'))
         scope = ('craft', self.plan.event_id if self.plan else 'explicit')
-        self.group = _Group('craft', cost, scope, event_id, self.plan, not explicit, attempt=attempt)
+        self.group = _Group('craft', cost, scope, event_id, self.plan, not explicit, attempt=attempt,
+                            explicit_input=_amount(payload.get('input_cost')) if explicit and payload else None,
+                            recipe_context_intact=bool(self.plan and self.plan.context_intact),
+                            recipe_context_epoch=self._attribution_epoch)
+
+    def _springs_resume_signal(self, item, when):
+        # Narrow interrupted-batch recovery: generic oils/Shrapnel are also
+        # hunting loot. These distinctive receipts support an inferred return
+        # to the saved Springs plan, not proof of any silent clicks or a bill.
+        if (self.crafting or not self.plan or when is None or
+                self.plan.blueprint.strip().casefold() != 'simple 1 plastic springs blueprint' or
+                item.strip().casefold() not in {'simple 1 plastic springs', 'animal oil residue'}):
+            return False
+        group = self.group
+        return (group is None or (group.timing_valid and group.last_event_time is not None
+                                 and when >= group.last_event_time))
+
+    def _resume_springs_receipt(self, event_id, when):
+        pending = self.group
+        if pending is not None and (
+                pending.kind != 'hunt' or pending.shot_count or not pending.loot_events or
+                pending.event_id <= self._attribution_boundary_id or
+                pending.first_loot_time is None or
+                not 0 <= when - pending.first_loot_time <= CRAFT_RECEIPT_WINDOW_SECONDS):
+            return
+        # A generic input at the next clock second may already have closed
+        # the first input under the shorter hunting window. Rejoin only that
+        # bounded, shotless tail after a distinctive signal confirms the inferred
+        # receipt. Until then ordinary hunting grouping remains unchanged.
+        while pending is not None and self.points:
+            prefix = self.points[-1]
+            first = prefix.get('first_loot_time')
+            last = prefix.get('last_event_time')
+            if (prefix['kind'] != 'hunt' or prefix['shot_count'] or prefix['cost'] != 0 or
+                    first is None or last is None or
+                    prefix['event_id'] <= self._attribution_boundary_id or
+                    not 0 <= when - first <= CRAFT_RECEIPT_WINDOW_SECONDS or
+                    last > pending.first_loot_time):
+                break
+            self.points.pop()
+            self.numbers['hunt'] -= 1
+            scope = prefix['cost_scope']
+            self.counts[scope] -= 1  # This retracted hunting input was zero.
+            self.previous_profits.pop(scope, None)
+            for previous in reversed(self.points):
+                if previous['cost_scope'] == scope:
+                    self.previous_profits[scope] = previous['profit']
+                    break
+            pending = replace(pending, event_id=prefix['event_id'],
+                              loot=prefix['loot'] + pending.loot,
+                              loot_events=prefix['loot_events'] + pending.loot_events,
+                              first_event_time=prefix['first_event_time'], first_loot_time=first)
+        self._attribution_boundary(event_id)
+        self.crafting = True
+        self.plan.active = True
+        self._begin_craft(pending.event_id if pending else event_id)
+        if pending is not None:
+            # Promote the unfinished receipt, including input oils delivered on
+            # an earlier poll. Never discard/rebook it or increment per line.
+            self.group = replace(pending, kind='craft', cost=self.group.cost,
+                                 scope=self.group.scope, plan=self.plan,
+                                 attempt=self.group.attempt, inferred=True,
+                                 context_key=None)
 
     def _touch_group(self, event_id, when):
         group = self.group
@@ -238,6 +319,8 @@ class ActivityTrendBuilder:
             if kind == 'combat' and ('healing_action' in payload or 'healing_cost' in payload):
                 self._observe_healing(event_id, payload)
             if kind in {'weapon', 'repair'}:
+                if self.plan:
+                    self.plan.context_intact = False
                 # Context only: do not alter the established grouping or bill a
                 # repair again. Attribution must not borrow across this boundary.
                 self._attribution_boundary(event_id)
@@ -256,9 +339,18 @@ class ActivityTrendBuilder:
                 if price is None and booked is not None and attempts:
                     price = booked / attempts
                 self.plan = ManufacturingPlan(event_id, str(payload.get('blueprint') or 'Unknown blueprint'), attempts, price, booked or 0.0)
+                if price is None:
+                    self.points.unpriced_craft_plans += 1
+                self._last_craft_event_time = None
                 self.points.has_crafting = True
                 self.crafting = True
             elif kind == 'craft' and payload.get('result') in {'success', 'fail'}:
+                if self.plan:
+                    if (when is None or (self._last_craft_event_time is not None and
+                                         when < self._last_craft_event_time)):
+                        self.plan.context_intact = False
+                    if when is not None:
+                        self._last_craft_event_time = max(when, self._last_craft_event_time or when)
                 if not self.crafting:
                     self._attribution_boundary(event_id)
                 self._finish()
@@ -275,6 +367,8 @@ class ActivityTrendBuilder:
                             self._incoming_before_outgoing = True
                     continue
                 self._incoming_before_outgoing = False
+                if self.plan:
+                    self.plan.context_intact = False
                 if self.crafting:
                     self._attribution_boundary(event_id)
                 if self.crafting or (self.group and self.group.loot_events):
@@ -300,10 +394,20 @@ class ActivityTrendBuilder:
                 value = _amount(payload.get('value'))
                 if value is None or value <= 0 or is_conversion_output_item(str(payload.get('item_name') or '')):
                     continue
+                if (self.crafting and self.plan and when is not None and
+                        self._last_craft_event_time is not None and when < self._last_craft_event_time):
+                    # Restarting a group must not reset chronology evidence.
+                    self.plan.context_intact = False
+                resume_signal = self._springs_resume_signal(str(payload.get('item_name') or ''), when)
                 if self.group and self.group.loot_events and when is not None and self.group.last_loot_time is not None:
-                    window = CRAFT_RECEIPT_WINDOW_SECONDS if self.crafting else self.cluster_window
+                    pending_receipt = (resume_signal and not self.group.shot_count and
+                                       self.group.first_loot_time is not None and
+                                       0 <= when - self.group.first_loot_time <= CRAFT_RECEIPT_WINDOW_SECONDS)
+                    window = CRAFT_RECEIPT_WINDOW_SECONDS if self.crafting or pending_receipt else self.cluster_window
                     if when - self.group.last_loot_time > window or when < self.group.last_loot_time:
                         self._finish()
+                if resume_signal:
+                    self._resume_springs_receipt(event_id, when)
                 if self.group is None:
                     if self.crafting:
                         self._begin_craft(event_id)
@@ -311,6 +415,15 @@ class ActivityTrendBuilder:
                         self.group = _Group('hunt', 0.0, ('hunt', 0), event_id,
                                             context_key=self._last_shot_context)
                 self._touch_group(event_id, when)
+                if self.group.kind == 'craft' and self.group.plan:
+                    if (self.group.recipe_context_epoch != self._attribution_epoch or
+                            not self.group.plan.context_intact):
+                        self.group.recipe_context_intact = False
+                    if when is not None:
+                        self._last_craft_event_time = max(when, self._last_craft_event_time or when)
+                    product = self.group.plan.blueprint.strip().casefold().removesuffix(' blueprint').strip()
+                    if product and str(payload.get('item_name') or '').strip().casefold() == product:
+                        self.group.recipe_output_seen = True
                 if not self.group.loot_events:
                     self.group.first_loot_time = when
                 self.group.loot += value
@@ -322,6 +435,7 @@ class ActivityTrendBuilder:
         result.extend(self.points)
         result.has_crafting = self.points.has_crafting
         result.unknown_craft_groups = self.points.unknown_craft_groups
+        result.unpriced_craft_plans = self.points.unpriced_craft_plans
         result.manufacturing = replace(self.plan) if self.plan else None
         result.last_event_id = self.last_event_id
         result.attribution_boundary_id = self._attribution_boundary_id

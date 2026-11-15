@@ -94,6 +94,15 @@ large gaps and changing future equipment. `test_space_mining_ui` adds real nativ
 search/save/activation and Resume/HUD consumers. Keep those dependencies together
 when changing source-cursor or selected-equipment accounting behavior.
 
+`test_resume_reconciliation` is a separate private-file/SQLite operator suite:
+exact claimed intervals, accounting uncertainty without ledger changes,
+partial progress, duplicate/unparsed/UTF-8/LF semantics, changed source/rows/setup,
+common GUI/monitor lock ownership, bounded receipts and scan scope, archive/fsync
+faults, orphan-archive EOF refusal, ended runs and inspect-then-stage CLI proof
+confirmation. Run it with `test_resume_handoff` and ingestion/single-instance
+consumers after changing cursor publication or ownership. These offline cases
+are not live deployment or fresh-source ingestion evidence.
+
 `test_resume_responsiveness` adds native/SQLite checks for a responsive event
 loop while history preparation is held, arrivals and duplicate lines during
 preparation, ended-session confirmation without a success modal, draft/settings
@@ -125,8 +134,16 @@ Healing expenses are never repriced. Future supported activation-context allocat
 stream and 100-row page, confirmations, responsive asynchronous replay, restart,
 minimum dialog geometry and unchanged tracking/cursor state.
 
+`test_streamer_readability` checks warning meaning, absence of automatic hover/focus
+popups (including dynamically generated setup/footer controls), deliberate organized
+context, wrapped-height/font-floor and overflow-fallback models,
+slot identity/keyboard binding contracts and synthetic legacy-cost conservation without
+creating a Tk interpreter. These models do not establish rendered layout or focus acceptance.
+`test_healing_ui` adds native empty/priced/shared legacy-plus-unpriced warning checks
+at minimum/default/wide HUD sizes, including footer/durability/resize visibility.
+
 `test_streamer_currency` checks actual monetary canvas labels, local-scale spikes,
-chart summaries, recipe/batch and hover text under repeated USD/PED changes.
+chart summaries, recipe/batch and deliberately activated context under repeated USD/PED changes.
 Raw event rows, point values, saved fan samples and costs must remain PED; changing
 currency must not apply another conversion or restore an excluded spike. Physically
 deleted receipts cannot be restored by this editor. Keep historical manual proofs
@@ -135,8 +152,11 @@ and private data out of test fixtures, repository files and candidate artifacts.
 
 For setup or Help layout changes, run controller/data checks **and** authorized
 native layout checks. A headless controller/SQLite pass cannot prove that a
-button is visible, keyboard traversal works on Windows, or a preview child
-opens safely. Record actual client dimensions, actual monitor DPI versus any
+button is visible, keyboard traversal works on Windows, or named real hover/focus
+paths stay popup-free. `test_crafting_overrun_display` covers pure and nonnative
+actual-build/update Cost rendering, known versus unsupported excess input estimates,
+projection failure, missing prices/healing costs, animation-marker transitions and
+receipt chronology; it does not establish deployed runtime behavior. Record actual client dimensions, actual monitor DPI versus any
 simulated application scale, before/after screenshots, lower-control use and
 untested scaling limitations. Simulating `tk scaling` is not changing Windows
 display scaling and is not native-monitor parity.

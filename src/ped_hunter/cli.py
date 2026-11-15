@@ -113,6 +113,15 @@ def build_parser(*, redact_errors: bool = False) -> argparse.ArgumentParser:
     monitor.add_argument("--activity", default="hunt", choices=["hunt", "craft", "mine"], help="Session type")
     monitor.add_argument("--once", action="store_true", help="Process the file once and exit")
 
+    reconcile = sub.add_parser('reconcile-resume', help='Inspect a claimed Resume cursor; explicitly stage only exact source conservation')
+    reconcile.add_argument('--db', required=True, help='Existing SQLite database; never migrated')
+    reconcile.add_argument('--chat-log', required=True, help='Original chat log')
+    reconcile.add_argument('--session', required=True, help='Same sole unended run ID')
+    reconcile.add_argument('--max-bytes', type=int, default=8*1024*1024, help='Bounded scan scope, at most64MiB')
+    reconcile.add_argument('--stage', action='store_true', help='Explicit sidecar-only publication; all trackers must be closed')
+    reconcile.add_argument('--expect-proof', help='Exact proof_sha256 from a prior inspection')
+    reconcile.add_argument('--handoff-id', help='Unique short operator label required with --stage')
+
     stats = sub.add_parser("stats", help="Show recent session stats")
     stats.add_argument("--db", default=None, help="Path to the PED Hunter sqlite DB")
     stats.add_argument("--limit", type=int, default=5)
@@ -142,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
         return _seed_data(args.force)
     if args.cmd == "monitor":
         return _monitor(Path(args.chat_log), Path(args.db) if args.db else None, args.activity, args.once)
+    if args.cmd == 'reconcile-resume':
+        return _reconcile_resume(args)
     if args.cmd == "stats":
         return _stats(Path(args.db) if args.db else None, args.limit)
     if args.cmd == "weapon":
@@ -153,6 +164,34 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return _launch_gui()
     return 1
+
+
+def _reconcile_resume(args) -> int:
+    from .resume_reconciliation import (
+        inspect_resume_reconciliation, reconciliation_summary, stage_reconciled_resume,
+    )
+    import sqlite3
+    try:
+        if args.stage and (not args.expect_proof or not args.handoff_id):
+            raise ValueError('--stage requires --expect-proof and --handoff-id from explicit inspection')
+        if not args.stage and (args.expect_proof or args.handoff_id):
+            raise ValueError('Confirmation arguments require --stage')
+        evidence = inspect_resume_reconciliation(Path(args.db), Path(args.chat_log), args.session,
+                                                 max_bytes=args.max_bytes)
+        result = reconciliation_summary(evidence)
+        if args.stage:
+            if args.expect_proof != result['proof_sha256']:
+                raise ValueError('Inspection proof changed; inspect again before staging')
+            stage_reconciled_resume(Path(args.db), Path(args.chat_log), evidence, args.handoff_id)
+        result['status'] = 'staged-not-resumed' if args.stage else 'verified-not-staged'
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except (ValueError, RuntimeError) as exc:
+        print(f'Resume reconciliation refused: {exc}', file=sys.stderr)
+    except (OSError, sqlite3.Error) as exc:
+        # Never echo private paths or raw source content in operator output.
+        print(f'Resume reconciliation refused ({type(exc).__name__}); preserve the original receipt and inspect file access/database health', file=sys.stderr)
+    return 2
 
 
 def _gui_lock_path() -> Path:
@@ -253,6 +292,13 @@ def _seed_data(force: bool) -> int:
 
 
 def _monitor(chat_log: Path, db_path: Path | None, activity: str, once: bool) -> int:
+    # GUI, monitor and explicit cursor recovery share one ingestion-owner lock.
+    # Never create/migrate a Store or a competing run before ownership is held.
+    with _single_gui_instance():
+        return _monitor_locked(chat_log, db_path, activity, once)
+
+
+def _monitor_locked(chat_log: Path, db_path: Path | None, activity: str, once: bool) -> int:
     store = Store(db_path)
     catalog = Catalog.load()
     session_id = store.start_session(activity)

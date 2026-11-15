@@ -36,7 +36,7 @@ The main window starts at 900×600 logical pixels, with a 760×500 minimum; Wind
 
 The **Display** USD/PED selector and programmatic currency-mode changes refresh
 run, lifetime, history, event and HUD money immediately, including Streamer chart
-axes, local ranges, summaries, monetary hover text and the Manufacturing material
+axes, local ranges, summaries, explicit context details and the Manufacturing material
 preview. The preview retains per-attempt and batch precision; display conversion never
 reprices stored PED amounts or fan samples: **10 PED = 1 USD**. The selected
 healing tools are unchanged; their displayed quotes follow the selected currency while stored TT remains PED.
@@ -95,8 +95,8 @@ Explicit Resume still restores that recorded session's equipment snapshot;
 opening the app alone does not replace a setup chosen for the next hunt.
 
 Click a shortcut, or focus it with Tab and use Space/Enter, to activate that
-saved setup for **subsequent** tracked uses. Long names elide to fit; hover or
-keyboard focus shows the full name. Switching honors the existing unsaved-edit
+saved setup for **subsequent** tracked uses. Long names elide to fit; hovering or
+focusing controls does not open automatic popups. Switching honors the existing unsaved-edit
 Save/Discard/Cancel choice; clicking the already-active shortcut leaves a draft
 untouched. Equipment switching is unavailable while session restoration is still
 being prepared. No shortcut rewrites previous event prices, booked totals or
@@ -109,7 +109,18 @@ values still shrink within their own field rather than moving other controls.
 The Streamer HUD has no dedicated waiting/activity section or reserved empty
 status space. Crafting TT Input follows the metrics row directly; otherwise the
 chart follows it. Tracking and demo state remain in the existing header, while
-loot/skill feedback and optional cues remain in the main window.
+loot/skill feedback and optional cues remain in the main window. The bottom-right
+session-damage total is omitted, without a replacement metric. Chart/chart-note hover
+and focus never open automatic popups, including setup slots, Observed, currency,
+Fans and the crafting footer. Click the footer or focus it and press Enter/Space
+for organized current context. The primary **Cost** figure keeps the best supported
+value; a minimal ≈/* distinguishes supported excess-input estimates or incomplete
+cost evidence. Actual returns remain visible independently. Original booked costs
+are unchanged; deliberate context separates bookings, estimates and missing evidence.
+Legacy-healing warnings wrap completely in the existing chart summary: these costs
+are already in totals, lack saved allocation context, and are not backfilled—not a
+new charge or lost data. At very small HUD sizes, the content minimum can increase
+height to keep the warning and footer controls readable; widening can reduce wrapping.
 
 ## Heal, HoT and TT costs
 
@@ -284,7 +295,41 @@ it remains discoverable and blocks another Resume after an uncertain or
 partially committed handoff. Preserve it for reconciliation; the upgrade
 operator archives it only after real ingestion/history conservation is verified.
 
+An explicit source operator command, `reconcile-resume`, can inspect a claimed
+receipt without opening a GUI or migrating the database:
 
+```powershell
+ped-hunter reconcile-resume --db "PATH_TO_DB" --chat-log "PATH_TO_LOG" --session "RUN_ID"
+```
+
+It proves the exact ordered parsed-source interval from the old cursor through
+all subsequently committed source rows. Unknown prices and estimated crafting
+costs do not block that proof; missing source events, a changed log, ended runs,
+foreign-run writes or ambiguous provenance do. The output contains a sanitized
+`proof_sha256`, counts and a byte boundary, never raw chat or a rewritten ledger.
+The default scan bound is8MiB; repeat inspection with `--max-bytes` (at most64MiB)
+if the committed interval is larger. An insufficient bound refuses; it never
+chooses EOF or skips the missing interval.
+
+After preserving a consistent backup and normally closing **all** trackers,
+repeat the same command with explicit confirmation:
+
+```powershell
+ped-hunter reconcile-resume --db "PATH_TO_DB" --chat-log "PATH_TO_LOG" --session "RUN_ID" --stage --expect-proof "PROOF_FROM_INSPECTION" --handoff-id "UNIQUE_OPERATOR_LABEL"
+```
+
+Staging rechecks the proof under the shared GUI/monitor ingestion-owner lock.
+External or older writers that do not participate in that lock must also be
+quiescent. It only publishes a bounded successor cursor and archives the old
+claim verbatim; it neither ingests events nor starts/resumes a session. Then
+use ordinary Resume in this same candidate build. Stale evidence refuses and
+requires a fresh inspection. Publication failures retain blocking sidecars;
+never delete a guard to force Resume. An orphaned verified archive also blocks
+silent EOF fallback. File fsync and these guards protect ordinary process
+failures, not arbitrary filesystem corruption or a universal power-loss guarantee.
+
+This command is a separate source candidate; it is **not** retroactively present
+in an already-running frozen build or an older packaged executable.
 
 ## Quick start
 
@@ -495,8 +540,8 @@ The streamer retains a **development fan for each observed group**, not a single
 trail across the whole hunt. As that group's costs and receipt change, faint
 cost/average/return positions accumulate behind the ordinary series. Completed
 groups keep their fans; new groups start their own. Return traces are green for
-profit, pink for loss, and gray when input cost is unknown. Hover the chart or
-focus the footer for the interpretation. Groups and TT costs are inferred or
+profit, pink for loss, and gray when input cost is unknown. Click the footer (or
+focus it and press Enter/Space) for concise current context. Groups and TT costs are inferred or
 estimated from recorded inputs; the fans describe observations, **not predictions**.
 
 During ordinary tracking, fans are sampled only when the open HUD refreshes,
@@ -614,7 +659,7 @@ The streamer immediately shows the saved blueprint, TT input per attempt and
 `observed/planned` groups, even before the first result arrives. While crafting,
 it also shows batch returns, booked input and net against that booked input.
 The top cards are explicitly **booked whole-session** totals, including hunting;
-chart, input, batch and monetary hover figures follow the same USD/PED selection.
+chart, input, batch and explicit context figures follow the same USD/PED selection.
 
 Real crafting logs often contain only `You received ...` lines, not an explicit
 success/failure notice. Product, returned ingredients, residue and shrapnel in
@@ -622,7 +667,7 @@ one receipt group share one configured input cost. Craft receipts crossing a
 clock-second boundary stay together. **C** labels mark craft groups; **K** labels
 mark hunting clusters. The Groups* count is not a confirmed click/kill count.
 Craft chart averages/deltas are within a batch; hunting averages stay separate.
-Hover/focus the footer for full blueprint, cost-source and inference details.
+Click the footer or focus it and press Enter/Space for current batch and cost-coverage details.
 
 A newly added setup starts a new batch at its saved event position; outgoing
 attacks switch attribution back to hunting. Streamer attribution never prices
