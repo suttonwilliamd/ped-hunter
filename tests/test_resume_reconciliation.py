@@ -330,3 +330,54 @@ def test_malformed_claim_is_a_clean_cli_refusal_not_a_traceback(claimed_run,caps
     output=capsys.readouterr()
     assert 'refused' in output.err and 'Traceback' not in output.err and str(path) not in output.err
     assert claimed.read_bytes()==before and not pending.exists()
+
+
+def _empty_start_receipt(app, sid, path):
+    """Recreate the real 2026-11-14 shape: cursor captured while the run was empty."""
+    from ped_hunter.resume_handoff import _boundary, _setup_context
+    from dataclasses import asdict as _asdict
+    with app.store.connect() as conn:
+        conn.execute('DELETE FROM events WHERE session_id=?', (sid,))
+        conn.commit()
+    offset = path.stat().st_size
+    with path.open('rb') as stream:
+        boundary = _boundary(stream, offset, OLD[-1])
+    receipt = dict(boundary, schema=1, offset=str(offset), last_line=OLD[-1], committed_lines=[],
+                   boundary_kind='captured-empty-run-start', handoff_id='empty-start-test', session_id=sid,
+                   log_path=str(path.resolve()),
+                   cost_setup=_setup_context(_asdict(app.store.get_active_loadout())),
+                   status='claimed; not completion proof', claimed_utc='2026-11-14T09:03:52+00:00')
+    pending, claimed = sidecars(app.store.db_path)
+    pending.unlink(missing_ok=True)
+    claimed.write_text(json.dumps(receipt), encoding='utf-8')
+    return claimed
+
+
+def test_captured_empty_run_start_receipt_reconciles_to_exact_eof_without_replay(handoff_run):
+    app, sid, path, plan, setup, original_rows, errors = handoff_run
+    claimed = _empty_start_receipt(app, sid, path)
+    receipt_bytes = claimed.read_bytes()
+    append(path, encoded(GAP))
+    app._process_lines(GAP, sid, OLD[-1])  # the recovered reader ingested everything after the cursor
+    before = rows(app.store)
+    evidence = recovery.inspect_resume_reconciliation(app.store.db_path, path, sid)
+    assert evidence.verified_source_rows == len(before) and int(evidence.offset) == path.stat().st_size
+    archive = recovery.stage_reconciled_resume(app.store.db_path, path, evidence, 'empty-start-ok')
+    assert archive.read_bytes() == receipt_bytes and not claimed.exists()
+    staged = read_resume_handoff(app.store.db_path, sid, path, setup)
+    assert staged['offset'] == str(path.stat().st_size)
+    append(path, encoded([FUTURE]))
+    app.resume_selected_session()
+    assert app._log_queue.get(timeout=5) == ('parsed', 1)  # only the genuinely new line
+    app._stop_log_worker()
+    assert not errors and rows(app.store)[:len(before)] == before and len(rows(app.store)) == len(before) + 1
+
+
+def test_captured_empty_run_start_with_missing_row_is_refused(handoff_run):
+    app, sid, path, plan, setup, original_rows, errors = handoff_run
+    claimed = _empty_start_receipt(app, sid, path)
+    append(path, encoded(GAP))
+    app._process_lines(GAP[1:], sid, OLD[-1])  # first post-cursor line never committed
+    with pytest.raises(ValueError, match='missing/extra/reordered|missing'):
+        recovery.inspect_resume_reconciliation(app.store.db_path, path, sid)
+    assert claimed.exists()

@@ -96,18 +96,31 @@ def inspect_resume_reconciliation(db_path: Path, log_path: Path, session_id: str
         if not {'events', 'sessions', 'loadouts'} <= schema:
             raise ValueError('Resume database schema is missing required tables')
         conn.execute('BEGIN')
+        empty_start = (receipt.get('boundary_kind') == 'captured-empty-run-start'
+                       and receipt.get('committed_lines') == [])
+        global_before = int(conn.execute('SELECT COALESCE(max(id),0) FROM events').fetchone()[0])
         active = conn.execute('SELECT id FROM sessions WHERE ended_at IS NULL').fetchall()
         if [row['id'] for row in active] != [session_id]:
             raise ValueError('Only the same sole unended run can acquire a successor cursor')
-        anchors = conn.execute(
-            'SELECT * FROM events WHERE session_id=? AND raw_message=? ORDER BY id',
-            (session_id, receipt['last_line'])).fetchall()
-        if len(anchors) != 1:
-            raise ValueError('Claimed committed raw anchor is missing or ambiguous in this run')
-        anchor = anchors[0]
-        parsed_anchor = parse_line(anchor['raw_message'])
-        if parsed_anchor is None or parsed_anchor.kind != anchor['kind']:
-            raise ValueError('Claimed anchor is not a committed source event')
+        if empty_start:
+            # The cursor was captured before this run committed anything, so the
+            # run start is the anchor: EVERY row of the run must match the source
+            # interval from the receipt offset, in order (proved below).
+            first = conn.execute('SELECT min(id) FROM events WHERE session_id=?',
+                                 (session_id,)).fetchone()[0]
+            anchor = dict(id=(int(first) - 1) if first is not None else global_before,
+                          boundary_kind='captured-empty-run-start', offset=receipt['offset'],
+                          last_line=receipt['last_line'])
+        else:
+            anchors = conn.execute(
+                'SELECT * FROM events WHERE session_id=? AND raw_message=? ORDER BY id',
+                (session_id, receipt['last_line'])).fetchall()
+            if len(anchors) != 1:
+                raise ValueError('Claimed committed raw anchor is missing or ambiguous in this run')
+            anchor = anchors[0]
+            parsed_anchor = parse_line(anchor['raw_message'])
+            if parsed_anchor is None or parsed_anchor.kind != anchor['kind']:
+                raise ValueError('Claimed anchor is not a committed source event')
         if conn.execute('SELECT 1 FROM events WHERE id>? AND session_id!=? LIMIT 1',
                         (anchor['id'], session_id)).fetchone():
             raise ValueError('Later rows belong to another run; do not replay its suffix here')
