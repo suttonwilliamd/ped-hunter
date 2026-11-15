@@ -190,7 +190,7 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
                else pal.verdict_ink or pal.ink)
 
     def metric(rect, caption, reading, fill, size, *, panel_shape=None, panel_fill=pal.panel, align="left",
-               cap_ink=None):
+               cap_ink=None, value_dy=36):
         x, y, w, h = rect
         if panel_shape:
             box(rect, panel_shape, panel_fill)
@@ -198,25 +198,27 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         ax = {"left": x + pad, "center": x + w / 2, "right": x + w - pad}[align]
         anchor = {"left": "nw", "center": "n", "right": "ne"}[align]
         text(ax, y + 10, caption, 18, cap_ink or pal.muted, True, budget=w - 2 * pad, anchor=anchor)
-        text(ax, y + 36, reading.displayed, size, fill if reading.value is not None else pal.muted, True,
+        text(ax, y + value_dy, reading.displayed, size, fill if reading.value is not None else pal.muted, True,
              budget=w - 2 * pad, anchor=anchor)
 
     if theme == "results-first":
         hx, hy, hw, hh = lay["hero"]
         box(lay["hero"], "round", pal.panel)
         add("line", (hx + hw / 2, hy + 18, hx + hw / 2, hy + hh - 18), pal.border, width=2)
-        metric((hx, hy, hw / 2, hh), "NET", net, net_ink, 58, align="center")
-        metric((hx + hw / 2, hy, hw / 2, hh), "RETURN", model.get("rate"), pal.ink, 58, align="center")
+        metric((hx, hy, hw / 2, hh), "NET", net, net_ink, 58, align="center", value_dy=40)
+        metric((hx + hw / 2, hy, hw / 2, hh), "RETURN", model.get("rate"), pal.ink, 58, align="center",
+               value_dy=40)
         anchors = dict(hero=lay["hero"])
     else:
         hero_panel = lay.get("hero_panel", True)
         vfill = pal.verdict or pal.panel
         on_spine = lay.get("on_spine")
-        metric(lay["net"], "NET", net, net_ink, 42,
+        legacy = theme == "current"
+        metric(lay["net"], "NET", net, net_ink, 42 if legacy else 52,
                panel_shape=(lay.get("net_shape", shape) if hero_panel else None), panel_fill=vfill,
                cap_ink=(pal.spine_ink if on_spine else pal.verdict_ink or pal.muted))
         rate_ink = pal.spine_ink if on_spine else pal.ink
-        metric(lay["rate"], "RETURN", model.get("rate"), rate_ink, 34,
+        metric(lay["rate"], "RETURN", model.get("rate"), rate_ink, 34 if legacy else 46,
                panel_shape=(lay.get("rate_shape", shape) if hero_panel else None),
                align="right" if theme == "current" else "center" if lay.get("rate_shape") == "ellipse" else "left",
                cap_ink=pal.spine_ink if on_spine else None)
@@ -343,9 +345,15 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     tx = ax + (14 if theme == "results-first" else 0)
     order = (0, 1, 2, 3) if model.crafting else (0, 1, 3, 2)
     bar_row = order.index(3)
+    bar_beside = tx + 0.5 * size * len(model.activity[3]) + 14 + 120 < ax + aw
+    under = 0 if bar_beside or model.durability is None else 16  # room for a rule under its own row
+
+    def row_top(row):
+        return ay + 6 + row * line + (under if row > bar_row else 0)
+
     for row, index in enumerate(order):
         value = model.activity[index]
-        y = ay + 6 + row * line
+        y = row_top(row)
         strong = row == 0
         text(tx, y, value, size, pal.ink if strong else pal.muted, strong, budget=aw - 28)
     if model.durability is not None:
@@ -353,12 +361,12 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         # Beside the durability text when it fits, otherwise a thin rule beneath it.
         # Starts just after the text it belongs to; the empty track stays visible.
         estimate = tx + 0.5 * size * len(model.activity[3]) + 14
-        row_y = ay + 6 + bar_row * line
-        if estimate + 120 < ax + aw:
+        row_y = row_top(bar_row)
+        if bar_beside:
             by, bx0, bx1 = row_y + size / 2 - 3, max(estimate, ax + aw - 300), ax + aw - 14
         else:
-            # Too narrow to share the row: a full-width rule under the last row.
-            by, bx0, bx1 = ay + 6 + 3 * line + size + 10, tx, ax + aw - 14
+            # Too narrow to share the row: a rule directly under the durability row.
+            by, bx0, bx1 = row_y + size + 8, tx, ax + aw - 14
         add("rect", (bx0, by, bx1, by + 8), pal.border, outline=pal.border)
         tint = pal.negative if pct <= 10 else pal.cost if pct <= 30 else pal.loot
         if pct > 0:
@@ -376,7 +384,7 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     add("line", (644, fy + 16, 651, fy + 23), pal.accent, width=2, target="context", affordance="context-open")
     add("line", (651, fy + 23, 644, fy + 30), pal.accent, width=2, target="context", affordance="context-open")
     if focus == "context":
-        add("round", (10, fy + 3, 670, fy + 43), "", outline=pal.ink, width=2, affordance="context-focus")
+        add("round", (10, fy + 3, 674, fy + 43), "", outline=pal.ink, width=2, affordance="context-focus")
     controls.append(Control("context", model.context + "; open details", focused=focus == "context"))
     add("rect", (680, 622, 714, 656), pal.bg, target="resize", affordance="resize-hit-area")
     for start in (686, 694, 702):
