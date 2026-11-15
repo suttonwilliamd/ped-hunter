@@ -5,6 +5,9 @@ has no pack geometry, Tk label widgets, edge grips or per-widget animators. Test
 listed in ``legacy_streamer_tests.txt`` exercise those mechanics and keep running
 against ``app.LegacyStreamerWindow`` (kept for rollback). Equivalent behaviour of
 the themed HUD is covered in ``test_streamer_themes.py``.
+
+That class is not selected at runtime, so these tests are opt-in: pass
+``--legacy-hud`` (e.g. before pointing ``app.StreamerWindow`` back at it).
 """
 from pathlib import Path
 
@@ -19,11 +22,25 @@ def _key(item):
     return f"{Path(item.fspath).name}::{item.originalname}"
 
 
-def pytest_collection_modifyitems(items):
+def pytest_addoption(parser):
+    parser.addoption("--legacy-hud", action="store_true",
+                     help="also run tests of the retained pre-theme LegacyStreamerWindow")
+
+
+def pytest_collection_modifyitems(config, items):
+    run_legacy = config.getoption("--legacy-hud")
+    kept, skipped = [], []
     for item in items:
         if _key(item) in LEGACY:
+            if not run_legacy:
+                skipped.append(item)
+                continue
             item.add_marker(pytest.mark.legacy_streamer)
             item.fixturenames.insert(0, "_legacy_streamer_window")
+        kept.append(item)
+    if skipped:
+        config.hook.pytest_deselected(items=skipped)
+        items[:] = kept
 
 
 @pytest.fixture

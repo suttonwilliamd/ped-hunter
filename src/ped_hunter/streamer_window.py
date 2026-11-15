@@ -52,7 +52,7 @@ class StreamerWindow(tk.Toplevel):
         super().__init__(app)
         self.withdraw()
         self.app = app
-        from .app import HuntAttribution, TrailRecorder, _streamer_work_area
+        from .app import HuntAttribution, TrailRecorder, _bottom_right_position, _streamer_work_area
         from .dpi import window_ui_scale
         self.ui_scale = window_ui_scale(app)
         self._feedback_context = None
@@ -101,8 +101,8 @@ class StreamerWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.destroy)
         # Open at the dashboard monitor's bottom-right work-area corner.
         try:
-            left, top, right, bottom = _streamer_work_area(app)
-            self.geometry(f"+{max(left, right - width - 16)}+{max(top, bottom - height - 16)}")
+            x, y = _bottom_right_position(_streamer_work_area(app), width, height)
+            self.geometry(f"+{x}+{y}")
         except (tk.TclError, ValueError):
             pass
         self.redraw()

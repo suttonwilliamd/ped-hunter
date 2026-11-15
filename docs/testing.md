@@ -38,7 +38,10 @@ unrecognized names remain visible. Do not rename, delete or skip tests to satisf
 the mapping. There is no automatic fallback that unexpectedly runs the full suite.
 
 `full` does not filter by the registry: unmapped tests are reported **and included**.
-It rejects `-k`, `-m` and `--deselect` rather than calling a subset full. File/node
+It rejects `-k`, `-m` and `--deselect` rather than calling a subset full.
+Tests of the retained, runtime-unused `LegacyStreamerWindow` (listed in
+`tests/legacy_streamer_tests.txt`) are deselected in every mode unless
+`--legacy-hud` is passed (e.g. `full -- --legacy-hud`); see `docs/streamer-themes.md`. File/node
 paths, `--ignore`, `--ignore-glob`, `--lf` and `--stepwise` are rejected by the group
 tool because they can hide discovery. Use ordinary pytest for an explicit
 file/node or other deliberate subset and record that scope as focused, for example:

@@ -61,4 +61,6 @@ only when the money or assumptions change).
 
 `LegacyStreamerWindow` (the pre-theme widget HUD) is retained in `app.py`.
 Pointing `app.StreamerWindow` back at it restores the old HUD; the theme
-preference row is ignored by it.
+preference row is ignored by it. Its widget-level tests (listed in
+`tests/legacy_streamer_tests.txt`) are skipped by default; run them with
+`python -m pytest --legacy-hud` before and after such a rollback.
