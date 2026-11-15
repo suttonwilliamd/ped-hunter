@@ -195,4 +195,4 @@ def test_total_group_count_is_not_limited_to_sixteen_rendered_groups(hud):
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '20'
     assert '$' in overlay.vars['loot'].get()
-    assert overlay.vars['return'].get().endswith('%')
+    assert overlay.vars['return'].get() == '—'  # loot with no cost is not a fake return
