@@ -62,9 +62,9 @@ def test_accounting_uncertainty_does_not_block_proven_resume_or_change_bookings(
     app._stop_log_worker()
     assert not errors and rows(app.store)[:len(before)] == before
     assert len(rows(app.store)) == len(before) + 3
-    # Repeated Resume/reconciliation never automatically replays a claimed gap.
-    with pytest.raises(ValueError, match='claimed'):
-        read_resume_handoff(app.store.db_path, sid, path, setup)
+    # The committed gap retired the claim; the reconciled archive is accounted
+    # for by it, so the next Resume is ordinary EOF and never replays the gap.
+    assert read_resume_handoff(app.store.db_path, sid, path, setup) is None
     assert rows(app.store)[:len(before)] == before
 
 

@@ -129,6 +129,8 @@ def test_real_resume_books_install_downtime_and_future_once_without_touching_old
     # Use the real thread's ingestion acknowledgment, not a sleep-as-proof.
     kind, count = app._log_queue.get(timeout=5)
     assert (kind, count) == ("parsed", 3)
+    # Committing the whole gap retires the claim (kept verbatim as .completed-).
+    assert app._log_queue.get(timeout=5)[0] == "status"
     append(path, encoded([FUTURE]))
     assert app._log_queue.get(timeout=5) == ("parsed", 1)
     app._stop_log_worker()
@@ -142,9 +144,11 @@ def test_real_resume_books_install_downtime_and_future_once_without_touching_old
         assert rows[:len(old_rows)] == old_rows
         assert [json.loads(r[-1]).get("outgoing_miss") for r in conn.execute("SELECT * FROM events WHERE raw_message=?", (GAP[0],))] == [True]
     assert len(rows) == len(old_rows) + 4
-    assert has_resume_handoff(app.store.db_path)
-    with pytest.raises(ValueError, match="claimed"):
-        read_resume_handoff(app.store.db_path, sid, path, context)
+    # A completed handoff no longer blocks the next ordinary Resume-at-EOF.
+    assert not has_resume_handoff(app.store.db_path)
+    assert read_resume_handoff(app.store.db_path, sid, path, context) is None
+    completed = list(app.store.db_path.parent.glob(app.store.db_path.name + ".resume.json.claimed.completed-*"))
+    assert len(completed) == 1 and json.loads(completed[0].read_text())["handoff_id"] == plan["handoff_id"]
 
 
 @pytest.mark.parametrize("corruption", ["session", "setup", "prefix", "truncation", "replacement"])
@@ -284,3 +288,18 @@ def test_gap_uses_captured_price_then_future_uses_current_selected_setup(handoff
     assert [p["shot_cost"] for p in gap_payloads] == pytest.approx([0.0223, 0.0223])
     assert future["shot_cost"] == pytest.approx(0.0102)
     assert app.store.get_session(sid).hunting_cost == pytest.approx(3 * 0.0223 + 0.0102)
+
+
+def test_orphaned_archive_blocks_only_its_own_run_until_a_successor_references_it(tmp_path):
+    db = tmp_path / "db.sqlite3"
+    log = tmp_path / "chat.log"
+    log.write_text("x\n")
+    archive = Path(str(db) + ".resume.json.claimed.verified-old")
+    archive.write_text(json.dumps({"session_id": "run-a", "schema": 1}))
+    with pytest.raises(ValueError, match="archive"):
+        read_resume_handoff(db, "run-a", log, None)
+    assert read_resume_handoff(db, "run-b", log, None) is None  # Another run is unaffected.
+    digest = __import__("hashlib").sha256(archive.read_bytes()).hexdigest()
+    Path(str(db) + ".resume.json.claimed.completed-x").write_text(json.dumps({"reconciled_from_sha256": digest}))
+    assert read_resume_handoff(db, "run-a", log, None) is None
+    assert not has_resume_handoff(db)
