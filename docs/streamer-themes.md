@@ -36,7 +36,8 @@ history is touched.
   check mark for the active one, dashed outline for empty slots, per-slot name
   colours. Click or focus + Enter/Space activates a setup.
 * The footer (setup name or `Crafting: <blueprint>`) is underlined and ends in a
-  **Details ›** button, clear of the resize grip; the whole row is one target.
+  **Details ›** button, clear of the resize grip; the name and the button
+  both open it.
   Click, Enter or Space opens the read-only details view.
 * Keyboard focus on a setup tile or the footer draws a ring in the theme's ink
   colour, distinct from the accent outline that marks the active setup.

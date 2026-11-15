@@ -205,9 +205,9 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         hx, hy, hw, hh = lay["hero"]
         box(lay["hero"], "round", pal.panel)
         add("line", (hx + hw / 2, hy + 18, hx + hw / 2, hy + hh - 18), pal.border, width=2)
-        metric((hx, hy, hw / 2, hh), "NET", net, net_ink, 58, align="center", value_dy=40)
+        metric((hx, hy, hw / 2, hh), "NET", net, net_ink, 58, align="center", value_dy=34)
         metric((hx + hw / 2, hy, hw / 2, hh), "RETURN", model.get("rate"), pal.ink, 58, align="center",
-               value_dy=40)
+               value_dy=34)
         anchors = dict(hero=lay["hero"])
     else:
         hero_panel = lay.get("hero_panel", True)
@@ -346,7 +346,7 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     order = (0, 1, 2, 3) if model.crafting else (0, 1, 3, 2)
     bar_row = order.index(3)
     bar_beside = tx + 0.5 * size * len(model.activity[3]) + 14 + 120 < ax + aw
-    under = 0 if bar_beside or model.durability is None else 16  # room for a rule under its own row
+    under = 0 if bar_beside or model.durability is None else 20  # room for a rule under its own row
 
     def row_top(row):
         return ay + 6 + row * line + (under if row > bar_row else 0)
@@ -366,7 +366,7 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
             by, bx0, bx1 = row_y + size / 2 - 3, max(estimate, ax + aw - 300), ax + aw - 14
         else:
             # Too narrow to share the row: a rule directly under the durability row.
-            by, bx0, bx1 = row_y + size + 8, tx, ax + aw - 14
+            by, bx0, bx1 = row_y + size + 12, tx, ax + aw - 14
         add("rect", (bx0, by, bx1, by + 8), pal.border, outline=pal.border)
         tint = pal.negative if pct <= 10 else pal.cost if pct <= 30 else pal.loot
         if pct > 0:
