@@ -1305,10 +1305,7 @@ class PedHunterApp(tk.Tk):
             return
         self.streamer_window = StreamerWindow(self)
         if self.__dict__.get("_resume_pending") is not None:
-            self.streamer_window.update_from_session(None)
-            self.streamer_window.vars["state"].set("RESTORING")
-            for key in ("net_big", "return", "loot", "cost", "kills"):
-                self.streamer_window.vars[key].set("—")
+            self.streamer_window.set_restoring()
             return
         session = self.store.get_current_session()
         self._prime_resume_chart(session)
@@ -2351,8 +2348,8 @@ def _bottom_right_position(bounds: tuple[int, int, int, int], width: int, height
     return max(left, right - width - STREAMER_EDGE_MARGIN), max(top, bottom - height - STREAMER_EDGE_MARGIN)
 
 
-class StreamerWindow(tk.Toplevel):
-    """Always-on-top compact overlay inspired by LootNanny's streamer window."""
+class LegacyStreamerWindow(tk.Toplevel):
+    """Pre-theme widget HUD, retained for rollback/reference; not selected at runtime."""
 
     def __init__(self, app: PedHunterApp) -> None:
         super().__init__(app)
@@ -4162,6 +4159,10 @@ def _install_combobox_typeahead(combo: ttk.Combobox, *, on_change) -> None:
         return "break"
 
     combo.bind("<KeyPress>", on_key, add="+")
+
+
+# Themed streamer HUD (all themes share one model/scene); see streamer_window.py.
+from .streamer_window import StreamerWindow  # noqa: E402
 
 
 def main() -> int:

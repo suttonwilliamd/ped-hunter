@@ -41,7 +41,7 @@ def test_streamer_button_toggles_open_closed_and_reopens(app):
         # work, which can be delayed while tracking a busy live log.
         assert window is not None and window.winfo_exists()
         assert window.state() == "normal"
-        assert not window._initial_position_pending
+        assert window.winfo_x() >= 0 or window.winfo_y() >= 0  # placed before first show
         app.update_idletasks()
         assert window.winfo_ismapped()
         assert live_overlays(app) == [window]

@@ -73,12 +73,12 @@ def test_query_failure_is_distinct_from_no_kills_and_recovers(hud, monkeypatch):
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '—'
     assert 'unavailable' in overlay.vars['kill_trend_badge'].get()
-    texts = [overlay.kill_chart.itemcget(i, 'text') for i in overlay.kill_chart.find_all() if overlay.kill_chart.type(i) == 'text']
+    texts = [i.text for i in overlay._scene.items if i.kind == 'text']  # themed HUD scene
     assert any('unavailable' in text for text in texts)
     monkeypatch.setattr(appmod, '_kill_trend_points', original)
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '0'
-    assert overlay.vars['kill_trend_badge'].get() == 'No kill points yet'
+    assert overlay.vars['kill_trend_badge'].get() == 'Waiting for first kill'
 
 
 def test_tracking_header_remains_visible_after_loot_and_identical_snapshots(hud):
@@ -195,4 +195,4 @@ def test_total_group_count_is_not_limited_to_sixteen_rendered_groups(hud):
     overlay.update_from_session(app.store.get_session(sid))
     assert overlay.vars['kills'].get() == '20'
     assert '$' in overlay.vars['loot'].get()
-    assert overlay.return_label.cget('fg') == '#F1F5F9'
+    assert overlay.vars['return'].get().endswith('%')

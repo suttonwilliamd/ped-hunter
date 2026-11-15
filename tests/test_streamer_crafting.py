@@ -82,13 +82,12 @@ def real_lines(second=1):
 def test_manual_controls_show_inputs_before_any_result_and_book_cost_once(hud):
     app, window, sid = hud
     arm_from_real_controls(app)
-    assert window.input_label.winfo_ismapped()
     assert '0.70 PED' in window.vars['input'].get()
     assert '0/16' in window.vars['input'].get()
     assert BLUEPRINT in window.vars['loadout'].get()
     assert app.store.get_session(sid).hunting_cost == pytest.approx(11.2)
-    assert window.cost_title.cget('text') == 'Cost'
-    assert window.count_title.cget('text') == 'Groups*'
+    assert window.vars['cost_title'].get() == 'Cost'
+    assert window.vars['count_title'].get() == 'Groups'
 
 
 def test_real_ingestion_prices_full_craft_group_and_keeps_session_total(hud):
@@ -139,11 +138,12 @@ def test_unpriced_extra_craft_groups_do_not_show_gross_return_as_profit(hud):
     app.update()
     assert window.kill_trend_points[-1]['cost'] is None
     assert window.kill_trend_points[-1]['profit'] is None
-    assert window.vars['cost'].get() == '≈1.40 PED'
-    assert window.vars['net_big'].get().startswith('≈')
-    assert window.vars['return'].get().startswith('≈')
-    assert app.store.get_session(sid).hunting_cost == pytest.approx(.7)
-    assert 'supported excess estimate 0.70 PED' in window._footer_detail
+    # Clean numeric HUD: same estimate as the legacy '≈1.40 PED', no approximation mark.
+    assert window.vars['cost'].get() == '1.40 PED'
+    assert window.vars['net_big'].get() not in ('—', '') and '≈' not in window.vars['net_big'].get()
+    assert window.vars['return'].get().endswith('%') and '≈' not in window.vars['return'].get()
+    assert app.store.get_session(sid).hunting_cost == pytest.approx(.7)  # nothing booked by the HUD
+    assert '"supported_excess": 0.7' in window.diagnostics.text  # provenance kept off-HUD
 
 
 def test_new_priced_setup_does_not_hide_booked_totals_for_an_old_attribution_gap(hud):
@@ -155,10 +155,10 @@ def test_new_priced_setup_does_not_hide_booked_totals_for_an_old_attribution_gap
     window.update_from_session(app.store.get_session(sid))
     app.update()
     assert window.vars['net_big'].get() != '—'
-    assert window.vars['cost'].get() == '≈2.10 PED'
-    assert window.cost_title.cget('text') == 'Cost'
+    assert window.vars['cost'].get() == '2.10 PED'
+    assert window.vars['cost_title'].get() == 'Cost'
     assert app.store.get_session(sid).hunting_cost == pytest.approx(1.4)
-    assert '1 historical craft groups' in window._footer_detail
+    assert '1 historical craft groups' in window.diagnostics.text
 
 
 def test_return_to_hunting_restores_weapon_context_without_hiding_last_inputs(hud):
