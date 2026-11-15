@@ -34,3 +34,13 @@ def _legacy_streamer_window(monkeypatch):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "legacy_streamer: runs against the retained pre-theme HUD")
+
+
+@pytest.fixture(autouse=True)
+def _never_touch_real_user_data(tmp_path_factory, monkeypatch):
+    """Tests must not open %LOCALAPPDATA%/ped-hunter (real hunts) or its GUI lock."""
+    from ped_hunter import cli
+    from ped_hunter.storage import Store
+    private = tmp_path_factory.mktemp("default-user-data")
+    monkeypatch.setattr(Store, "default_db_path", staticmethod(lambda: private / "ped-hunter.sqlite3"))
+    monkeypatch.setattr(cli, "_gui_lock_path", lambda: private / "PED-Hunter.gui.lock")
