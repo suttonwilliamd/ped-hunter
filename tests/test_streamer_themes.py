@@ -131,6 +131,18 @@ def test_setup_tiles_outline_active_and_footer_is_clickable(theme):
     assert [c.target for c in view.controls if c.focused] == ["context"]
 
 
+@pytest.mark.parametrize("theme", list(THEMES))
+def test_focus_ring_details_button_and_empty_slot_last(theme):
+    view = scene(cases()["hunt"], theme, focus="setup:2")
+    rings = [i for i in view.items if i.affordance == "focus-ring"]
+    pal_active = [i for i in view.items if i.target == "setup:1" and i.width == 3]
+    assert len(rings) == 1 and rings[0].outline != pal_active[0].outline  # focus is not the active colour
+    assert any(i.affordance == "context-button" and i.target == "context" for i in view.items)
+    act = cases()["hunt"].activity  # latest, detail, healing (empty here), durability
+    rows = [i.text for i in view.items if i.kind == "text" and i.text in act]
+    assert rows == [act[0], act[1], act[3], act[2]]  # empty healing slot falls to the bottom row
+
+
 def test_offscreen_render_all_themes(tmp_path):
     pytest.importorskip("PIL")
     from ped_hunter.streamer_render import rasterize

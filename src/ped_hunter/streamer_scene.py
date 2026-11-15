@@ -74,22 +74,22 @@ LAYOUTS = {
     "current": dict(net=(18, 56, 232, 112), rate=(500, 56, 202, 112), setups=(256, 58, 236, 108), setup_cols=2,
                     stats=(18, 176, 684, 68), chart=(18, 280, 684, 196), activity=(18, 484, 684, 114),
                     shape="rect", hero_panel=False),
-    "results-first": dict(hero=(18, 54, 684, 108), stats=(18, 172, 684, 64), chart=(18, 272, 684, 196),
-                          activity=(18, 476, 684, 88), setups=(18, 570, 684, 40), setup_cols=4,
-                          shape="round", line=21, size=17),
+    "results-first": dict(hero=(18, 54, 684, 108), stats=(18, 172, 684, 64), chart=(18, 272, 684, 180),
+                          activity=(18, 460, 684, 102), setups=(18, 568, 684, 42), setup_cols=4,
+                          shape="round", line=23, size=18),
     "field-ledger": dict(net=(18, 56, 410, 112), rate=(446, 56, 256, 112), stats=(18, 180, 684, 64),
                          setups=(18, 254, 684, 44), setup_cols=4, chart=(18, 334, 684, 148),
                          activity=(18, 490, 684, 108), shape="rect", net_shape="beam", ruled=True),
     "night-signal": dict(net=(18, 54, 412, 110), rate=(442, 54, 260, 110), stats=(18, 174, 684, 62),
                          chart=(18, 272, 684, 168), setups=(18, 450, 684, 46), setup_cols=4,
                          activity=(18, 504, 684, 96), shape="round", line=23, size=17),
-    "inkwing": dict(net=(14, 60, 194, 104), rate=(14, 170, 194, 90), stats=(14, 268, 194, 186), vertical=True,
+    "inkwing": dict(net=(14, 60, 194, 104), rate=(14, 170, 194, 90), stats=(14, 268, 194, 228), vertical=True,
                     setups=(236, 58, 468, 100), setup_cols=2, chart=(236, 194, 468, 232),
                     activity=(236, 436, 468, 162), shape="clipped", hero_panel=False, on_spine=True),
     "copper-ledger": dict(net=(18, 56, 430, 108), rate=(468, 52, 234, 116), setups=(18, 178, 684, 48), setup_cols=4,
                           stats=(18, 236, 684, 62), chart=(18, 332, 684, 150), activity=(18, 490, 684, 108),
                           shape="clipped", net_shape="clipped", rate_shape="ellipse", ruled=True),
-    "vector-beacon": dict(net=(16, 56, 208, 124), rate=(16, 190, 208, 104), stats=(16, 304, 208, 174),
+    "vector-beacon": dict(net=(16, 56, 208, 114), rate=(16, 178, 208, 96), stats=(16, 282, 208, 198),
                           vertical=True, setups=(240, 56, 464, 100), setup_cols=2, chart=(240, 192, 464, 286),
                           activity=(16, 488, 688, 110), shape="round"),
 }
@@ -171,9 +171,12 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     text(18, 13, "PED HUNTER", 22, pal.accent, True, budget=170)
     live = "TRACKING" in model.state
     text(190, 17, model.state, 17, pal.accent if live else pal.muted, live, budget=220)
-    box((432, 9, 228, 36), "round", pal.bg, outline=pal.accent, width=2, target="theme")
-    text(448, 15, THEMES[theme], 18, pal.accent, budget=170, target="theme", underline=focus == "theme")
-    add("polygon", (632, 22, 646, 22, 639, 31), pal.accent, target="theme", affordance="theme-selector")
+    box((462, 9, 198, 36), "round", pal.bg, outline=pal.accent, width=2, target="theme")
+    text(480, 15, THEMES[theme], 18, pal.accent, budget=136, target="theme", underline=focus == "theme")
+    # Two chevrons: the pill cycles (click / arrows), it is not a dropdown.
+    for x0 in (626, 638):
+        add("line", (x0, 20, x0 + 6, 27), pal.accent, width=2, target="theme", affordance="theme-selector")
+        add("line", (x0 + 6, 27, x0, 34), pal.accent, width=2, target="theme", affordance="theme-selector")
     controls.append(Control("theme", f"Theme: {THEMES[theme]}; click to change", focused=focus == "theme"))
     add("rect", (672, 8, 712, 46), pal.bg, target="close", affordance="close-hit-area")
     add("line", (684, 18, 700, 34), pal.ink, width=2, target="close", affordance="close")
@@ -195,14 +198,15 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         ax = {"left": x + pad, "center": x + w / 2, "right": x + w - pad}[align]
         anchor = {"left": "nw", "center": "n", "right": "ne"}[align]
         text(ax, y + 10, caption, 18, cap_ink or pal.muted, True, budget=w - 2 * pad, anchor=anchor)
-        text(ax, y + 36, reading.displayed, size, fill, True, budget=w - 2 * pad, anchor=anchor)
+        text(ax, y + 36, reading.displayed, size, fill if reading.value is not None else pal.muted, True,
+             budget=w - 2 * pad, anchor=anchor)
 
     if theme == "results-first":
         hx, hy, hw, hh = lay["hero"]
         box(lay["hero"], "round", pal.panel)
         add("line", (hx + hw / 2, hy + 18, hx + hw / 2, hy + hh - 18), pal.border, width=2)
-        metric((hx, hy + 2, hw / 2, hh), "NET", net, net_ink, 44, align="center")
-        metric((hx + hw / 2, hy + 2, hw / 2, hh), "RETURN", model.get("rate"), pal.ink, 44, align="center")
+        metric((hx, hy, hw / 2, hh), "NET", net, net_ink, 58, align="center")
+        metric((hx + hw / 2, hy, hw / 2, hh), "RETURN", model.get("rate"), pal.ink, 58, align="center")
         anchors = dict(hero=lay["hero"])
     else:
         hero_panel = lay.get("hero_panel", True)
@@ -227,7 +231,7 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         box(lay["stats"], "rect")
     for i, (key, caption) in enumerate(captions):
         if vertical:
-            rect = (sx, sy + i * sh / 3, sw, sh / 3 - 6)
+            rect = (sx, sy + i * sh / 3, sw, sh / 3 - 10)
         else:
             gap = 0 if theme == "current" else 8
             rect = (sx + i * (sw + gap) / 3, sy, (sw + gap) / 3 - gap, sh)
@@ -236,9 +240,12 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
         if theme != "current" and not on_spine:
             box(rect, "round" if shape == "round" else "rect")
         ink = pal.spine_ink if on_spine else pal.ink
-        cap = pal.cost if key == "cost" else (pal.spine_ink if on_spine else pal.muted)
+        cap = (pal.cost if key == "cost" else pal.loot if key == "loot" and not on_spine
+               else pal.spine_ink if on_spine else pal.muted)
+        reading = model.get(key)
         text(x + 12, y + 6, caption, 17, cap, True, budget=w - 24)
-        text(x + 12, y + 29, model.get(key).displayed, 25, ink, True, budget=w - 24)
+        text(x + 12, y + 29, reading.displayed, 25, ink if reading.value is not None else pal.muted, True,
+             budget=w - 24)
         if lay.get("ruled"):
             add("line", (x, y + h - 3, x + w, y + h - 3), pal.muted)
 
@@ -267,7 +274,10 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
             add("line", (cx + 35, ty + 18, cx + 45, ty + 5), label_ink, width=2, target=target, affordance="selected-check")
             name_x = cx + 52
         text(name_x, ty, setup.name if setup else "Empty", 18, label_ink, True,
-             budget=cx + cwid - name_x - 8, target=target, underline=bool(target and target == focus))
+             budget=cx + cwid - name_x - 8, target=target)
+        if target and target == focus:
+            box((cx - 3, cy - 3, cwid + 6, chei + 6), shape if shape != "beam" else "rect", "",
+                outline=pal.ink, width=2, affordance="focus-ring")
         controls.append(Control(f"setup:{i}", f"Setup {i + 1}: " + (setup.name if setup else "Empty"),
                                 enabled=enabled, selected=active, focused=bool(target and target == focus)))
     anchors["setups"] = lay["setups"]
@@ -331,19 +341,25 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     if theme == "results-first":
         box(lay["activity"], "round")
     tx = ax + (14 if theme == "results-first" else 0)
-    for row, value in enumerate(model.activity):
+    order = (0, 1, 2, 3) if model.crafting else (0, 1, 3, 2)
+    bar_row = order.index(3)
+    for row, index in enumerate(order):
+        value = model.activity[index]
         y = ay + 6 + row * line
         strong = row == 0
         text(tx, y, value, size, pal.ink if strong else pal.muted, strong, budget=aw - 28)
     if model.durability is not None:
         pct = max(0.0, min(100.0, model.durability))
         # Beside the durability text when it fits, otherwise a thin rule beneath it.
-        estimate = tx + 0.5 * size * len(model.activity[3])
-        if estimate + 190 < ax + aw:
-            by, bx0, bx1 = ay + 6 + 3 * line + size / 2 - 3, ax + aw - 170, ax + aw - 14
+        # Starts just after the text it belongs to; the empty track stays visible.
+        estimate = tx + 0.5 * size * len(model.activity[3]) + 14
+        row_y = ay + 6 + bar_row * line
+        if estimate + 120 < ax + aw:
+            by, bx0, bx1 = row_y + size / 2 - 3, max(estimate, ax + aw - 300), ax + aw - 14
         else:
-            by, bx0, bx1 = ay + 6 + 3 * line + size + 12, tx, ax + aw - 14
-        add("rect", (bx0, by, bx1, by + 8), pal.panel, outline=pal.border)
+            # Too narrow to share the row: a full-width rule under the last row.
+            by, bx0, bx1 = ay + 6 + 3 * line + size + 10, tx, ax + aw - 14
+        add("rect", (bx0, by, bx1, by + 8), pal.border, outline=pal.border)
         tint = pal.negative if pct <= 10 else pal.cost if pct <= 30 else pal.loot
         if pct > 0:
             add("rect", (bx0 + 1, by + 1, bx0 + 1 + (bx1 - bx0 - 2) * pct / 100, by + 7), tint)
@@ -352,12 +368,15 @@ def scene(model, theme, width=DESIGN[0], height=DESIGN[1], dpi=1, focus="theme")
     # Footer: deliberate, underlined, clickable context with a visible cue.
     fy = 612 if theme != "results-first" else 616
     add("line", (18, fy, 702, fy), pal.border, width=1)
-    text(18, fy + 10, model.context, 19, pal.accent, budget=620, target="context",
+    text(18, fy + 10, model.context, 19, pal.accent, budget=520, target="context",
          underline=True, affordance="context-link")
-    add("line", (650, fy + 14, 659, fy + 21), pal.accent, width=2, target="context", affordance="context-open")
-    add("line", (659, fy + 21, 650, fy + 28), pal.accent, width=2, target="context", affordance="context-open")
+    box((556, fy + 7, 108, 32), "round", pal.panel, outline=pal.accent, width=2, target="context",
+        affordance="context-button")
+    text(572, fy + 12, "Details", 18, pal.accent, True, budget=64, target="context")
+    add("line", (644, fy + 16, 651, fy + 23), pal.accent, width=2, target="context", affordance="context-open")
+    add("line", (651, fy + 23, 644, fy + 30), pal.accent, width=2, target="context", affordance="context-open")
     if focus == "context":
-        add("rect", (14, fy + 6, 666, fy + 38), "", outline=pal.accent, width=1, affordance="context-focus")
+        add("round", (10, fy + 3, 670, fy + 43), "", outline=pal.ink, width=2, affordance="context-focus")
     controls.append(Control("context", model.context + "; open details", focused=focus == "context"))
     add("rect", (680, 622, 714, 656), pal.bg, target="resize", affordance="resize-hit-area")
     for start in (686, 694, 702):
