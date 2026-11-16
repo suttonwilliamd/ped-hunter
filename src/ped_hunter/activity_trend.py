@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
+import itertools
 import json
 import math
 from typing import Iterable, Mapping
@@ -14,6 +15,9 @@ from typing import Iterable, Mapping
 from .parser import is_conversion_output_item
 
 CRAFT_RECEIPT_WINDOW_SECONDS = 1.25
+
+
+_HISTORIES = itertools.count(1)
 
 
 @dataclass
@@ -48,6 +52,8 @@ class ActivityPoints(list):
         self.healing_pending = 0.0
         self.healing_pending_reasons = {}
         self.unpriced_heals = 0
+        # (builder history, rows consumed): equal versions mean equal content.
+        self.source_version = None
 
 
 @dataclass
@@ -121,6 +127,9 @@ class ActivityTrendBuilder:
         self._incoming_before_outgoing = False
         self._unpriced_heals = 0
         self._last_craft_event_time = None
+        self._history = next(_HISTORIES)  # a new identity for every reset; equal across copies
+        self._rows_seen = 0
+        self._snapshot = None
 
     def _point(self, group, closed=False):
         # A display estimate is NOT another booked input or attributed cost.
@@ -306,6 +315,7 @@ class ActivityTrendBuilder:
 
     def extend(self, rows: Iterable[Mapping]) -> None:
         for row in rows:
+            self._rows_seen += 1
             event_id = int(row['id'])
             self.last_event_id = max(self.last_event_id, event_id)
             try:
@@ -431,6 +441,21 @@ class ActivityTrendBuilder:
                 self.group.last_loot_time = when
 
     def snapshot(self) -> ActivityPoints:
+        version = (self._history, self._rows_seen)
+        if self._snapshot is not None and self._snapshot.source_version == version:
+            # Nothing appended since the last snapshot: same points, fresh containers.
+            result = ActivityPoints()
+            result.extend(self._snapshot)
+            result.__dict__.update(self._snapshot.__dict__)
+            result.manufacturing = replace(result.manufacturing) if result.manufacturing else None
+            result.healing_contexts = dict(result.healing_contexts)
+            result.healing_pending_reasons = dict(result.healing_pending_reasons)
+            return result
+        result = self._snapshot = self._build_snapshot()
+        result.source_version = version
+        return self.snapshot()
+
+    def _build_snapshot(self) -> ActivityPoints:
         result = ActivityPoints()
         result.extend(self.points)
         result.has_crafting = self.points.has_crafting

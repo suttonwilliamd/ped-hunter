@@ -6,6 +6,7 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 import json
@@ -56,6 +57,11 @@ STREAMER_MIN_HEIGHT = 240
 STREAMER_EDGE_MARGIN = 16
 KILL_CLUSTER_WINDOW_SECONDS = 0.75
 HUD_SETUP_COLORS = ("#5EEAD4", "#93C5FD", "#FCD34D", "#D8B4FE")
+
+
+def _held(store):
+    """One database connection for a whole refresh or batch (see ``Store.hold``)."""
+    return store.hold() if getattr(type(store), "hold", None) is not None else nullcontext()
 
 
 @dataclass(slots=True)
@@ -184,10 +190,11 @@ class PedHunterApp(tk.Tk):
         self.metric_cards: dict[str, MetricCard] = {}
         self._configure_theme()
         self._build_layout()
-        self._restore_default_context()
-        # Widgets and restored context must exist before a currency refresh.
-        self.currency_mode.trace_add("write", self._on_currency_changed)
-        self._refresh_all()
+        with _held(self.store):
+            self._restore_default_context()
+            # Widgets and restored context must exist before a currency refresh.
+            self.currency_mode.trace_add("write", self._on_currency_changed)
+            self._refresh_all()
 
     def _ui_font(self, points: int = 10, *, family: str = "Segoe UI", weight: str = "normal") -> tkfont.Font:
         """Readable point-equivalent fonts, sized once at this window's DPI."""
@@ -399,6 +406,7 @@ class PedHunterApp(tk.Tk):
         self._build_setup_tab()
         notebook.bind("<<NotebookTabChanged>>", lambda _event: self._refresh_visible_tab())
         self.bind("<Configure>", self._on_resize)
+        self.bind("<Map>", self._on_restore, add="+")
         for slot in range(4):
             self.bind(f"<Alt-Key-{slot + 1}>", lambda _event, index=slot: self._switch_setup_slot(index))
 
@@ -541,6 +549,16 @@ class PedHunterApp(tk.Tk):
         """
         if not hasattr(self, "hunt_chart"):
             return
+        try:
+            minimized = self.state() == "iconic"
+        except tk.TclError:
+            minimized = False
+        if minimized:
+            # None of the cockpit is on screen (the HUD has its own projection):
+            # rebuild once, from the then-current run, when the window returns.
+            self._hunt_chart_deferred = (session,)
+            return
+        self._hunt_chart_deferred = None
         key = (session.session_id, session.events, session.accounting_revision,
                round(session.loot_value, 6), round(session.hunting_cost, 6), self.currency_mode.get()) if session else None
         if key == getattr(self, "_hunt_key", None):
@@ -748,6 +766,12 @@ class PedHunterApp(tk.Tk):
         else:
             self.hero_panel.grid_remove()
             self.controls_panel.grid_remove()
+
+    def _on_restore(self, event: tk.Event) -> None:
+        deferred = self.__dict__.get("_hunt_chart_deferred")
+        if event.widget is self and deferred is not None:
+            with _held(self.store):
+                self._refresh_hunt_chart(deferred[0])
 
     def _on_resize(self, event: tk.Event) -> None:
         if event.widget is not self:
@@ -1801,7 +1825,10 @@ class PedHunterApp(tk.Tk):
         if self._log_drain_pending:
             return
         self._log_drain_pending = True
-        self.after(100, self._drain_log_queue)
+        # Leave the event loop at least twice a refresh's own duration for input
+        # and painting; saved events simply wait in the queue count until then.
+        cost = self.__dict__.get("_live_refresh_ms", 0.0)
+        self.after(max(100, min(1000, round(3 * cost))), self._drain_log_queue)
 
     def _drain_log_queue(self) -> None:
         self._log_drain_pending = False
@@ -1819,8 +1846,10 @@ class PedHunterApp(tk.Tk):
                     notice = str(payload)
             if parsed_total:
                 self.status_text.set(f"Parsed {parsed_total} new event{'s' if parsed_total != 1 else ''}")
+                started = time.perf_counter()
                 try:
                     self._refresh_live_views()
+                    self._live_refresh_ms = (time.perf_counter() - started) * 1000
                 except Exception as exc:
                     # Ingestion has already committed. A broken/closed drawing
                     # widget must not kill the only callback draining the queue.
@@ -1894,8 +1923,19 @@ class PedHunterApp(tk.Tk):
         *,
         handoff: dict | None = None,
     ) -> tuple[int, str | None]:
+        with _held(self.store):
+            return PedHunterApp._process_held_lines(self, lines, session_id, last_ingested_log_line, handoff=handoff)
+
+    def _process_held_lines(
+        self,
+        lines: list[str],
+        session_id: str,
+        last_ingested_log_line: str | None,
+        *,
+        handoff: dict | None = None,
+    ) -> tuple[int, str | None]:
         parsed = 0
-        session_state = self.store.get_session(session_id)
+        session_state = self.store.get_session_resume_state(session_id)
         if session_state is None or session_state.ended_at is not None:
             # A stale worker from a stopped/older GUI must never keep appending
             # events to an ended session.
@@ -2032,7 +2072,8 @@ class PedHunterApp(tk.Tk):
         self._full_refresh_pending = False
         if not self.running and self.session_id is None:
             return
-        self._refresh_visible_tab()
+        with _held(self.__dict__.get("store")):
+            self._refresh_visible_tab()
 
     def _refresh_visible_tab(self) -> None:
         """Keep hidden tables, lifetime queries and catalog work off live ticks."""
@@ -2051,11 +2092,12 @@ class PedHunterApp(tk.Tk):
             self._refresh_wtb()
 
     def _refresh_live_views(self) -> None:
-        session_id = self._session_id_value()
-        display = self.store.get_session(session_id) if session_id else None
-        self._refresh_metrics(display, [])
-        if self.streamer_window and self.streamer_window.winfo_exists():
-            self.streamer_window.update_from_session(display)
+        with _held(self.__dict__.get("store")):
+            session_id = self._session_id_value()
+            display = self.store.get_session(session_id) if session_id else None
+            self._refresh_metrics(display, [])
+            if self.streamer_window and self.streamer_window.winfo_exists():
+                self.streamer_window.update_from_session(display)
 
     def _refresh_setup_views(self) -> None:
         """Setup changes do not invalidate the last displayed financial totals."""
@@ -2074,6 +2116,10 @@ class PedHunterApp(tk.Tk):
             self.streamer_window.update_from_session(display)
 
     def _refresh_all(self) -> None:
+        with _held(self.__dict__.get("store")):
+            self._refresh_everything()
+
+    def _refresh_everything(self) -> None:
         current = self.store.get_current_session()
         sessions = self.store.list_recent_sessions(20)
         display = self._display_session(current, sessions)
@@ -4111,6 +4157,11 @@ def _resume_revision(store: Store) -> tuple:
 
 
 def _load_resume_view(store: Store, session_id: str) -> _ResumeView:
+    with _held(store):
+        return _read_resume_view(store, session_id)
+
+
+def _read_resume_view(store: Store, session_id: str) -> _ResumeView:
     revision = _resume_revision(store)
     sessions = store.list_all_sessions()
     session = next((item for item in sessions if item.session_id == session_id), None)
