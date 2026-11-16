@@ -31,13 +31,13 @@ GROUPS = {
         "test_chart_*.py", "test_loadouts.py", "test_setup_slots.py", "test_healing*.py", "test_storage_repair_cache.py",
         "test_streamer_crafting.py", "test_streamer_redesign.py", "test_streamer_refresh.py",
         "test_live_refresh_budget.py", "test_space_mining*.py", "test_resume_handoff.py",
-        "test_event_exclusion*.py", "test_streamer_currency.py")),
+        "test_event_exclusion*.py", "test_streamer_currency.py", "test_crafting_*.py")),
     "ingestion": Group("Parser, file watching, resume boundaries and charged-event consumers", (
         "test_parser.py", "test_log_ingestion.py", "test_setup_slots.py", "test_log_watcher.py",
         "test_default_log_path.py", "test_loadouts.py", "test_incremental_trend.py",
         "test_live_refresh_budget.py", "test_session_lifecycle.py", "test_healing.py", "test_healing_inference.py",
         "test_space_mining*.py", "test_resume_handoff.py", "test_resume_responsiveness.py",
-        "test_event_exclusion*.py")),
+        "test_resume_reconciliation*.py", "test_event_exclusion*.py")),
     "catalog-loadouts": Group("Catalog imports, ammo/decay, repair budgets, currency and setup snapshots", (
         "test_catalog.py", "test_loadouts.py", "test_setup_editor.py", "test_setup_slots.py", "test_currency.py",
         "test_storage_repair_cache.py", "test_resume_default.py", "test_space_mining*.py", "test_healing.py")),
@@ -45,8 +45,8 @@ GROUPS = {
         "test_session_lifecycle.py", "test_resume_default.py", "test_storage_repair_cache.py",
         "test_hunt_attribution_storage.py", "test_chart_trails*.py", "test_log_ingestion.py",
         "test_loadouts.py", "test_setup_editor.py", "test_setup_slots.py", "test_single_instance.py", "test_dashboard_startup.py",
-        "test_resume_handoff.py", "test_resume_responsiveness.py", "test_space_mining*.py", "test_healing*.py",
-        "test_event_exclusion*.py")),
+        "test_resume_handoff.py", "test_resume_responsiveness.py", "test_resume_reconciliation*.py",
+        "test_space_mining*.py", "test_healing*.py", "test_event_exclusion*.py")),
     "desktop-ui": Group("Native layout, DPI, feedback, streamer behavior and live UI refresh", (
         "test_dashboard_startup.py", "test_default_layout.py", "test_setup_editor.py", "test_setup_slots.py", "test_dpi.py",
         "test_feedback.py", "test_feedback_sounds.py", "test_streamer_*.py", "test_currency.py",

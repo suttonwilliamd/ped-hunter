@@ -132,4 +132,4 @@ jobs:
         run: git rev-parse HEAD
       - name: Run complete test suite
         # Keep every test; identify a blocked native case and its own thread stack.
-        run: xvfb-run --auto-servernum python -m pytest -ra -vv -o faulthandler_timeout=60
+        run: xvfb-run --auto-servernum python -m pytest -ra -vv -o faulthandler_timeout=60 --legacy-hud

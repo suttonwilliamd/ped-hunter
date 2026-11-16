@@ -27,14 +27,21 @@ history is touched.
   scales uniformly when resized (corner grip, or Shift+arrow keys). Nothing
   reflows when values change.
 * The activity/healing area always reserves four rows. Hunting: latest group,
-  cost/average detail, healing, durability (with bar). Crafting: latest group,
-  TT input, batch totals, healing. Rows that have nothing to say stay blank, so
-  the HUD never grows or shifts when healing starts.
+  cost/average detail, durability (with bar), healing. Crafting: latest group,
+  TT input, batch totals, healing. Rows that have nothing to say stay blank (an
+  empty healing slot falls to the bottom row), so the HUD never grows or shifts
+  when healing starts. The durability bar follows its text with a visible track;
+  in narrow layouts (Inkwing) it is a rule directly under the durability row.
 * Setup tiles: neutral outline for every saved setup, accent outline + tint and a
   check mark for the active one, dashed outline for empty slots, per-slot name
   colours. Click or focus + Enter/Space activates a setup.
-* The footer (setup name or `Crafting: <blueprint>`) is underlined with a `>` cue;
-  click, Enter or Space opens the read-only details view.
+* The footer (setup name or `Crafting: <blueprint>`) is underlined and ends in a
+  **Details ›** button, clear of the resize grip; the name and the button
+  both open it.
+  Click, Enter or Space opens the read-only details view.
+* Keyboard focus on a setup tile or the footer draws a ring in the theme's ink
+  colour, distinct from the accent outline that marks the active setup.
+* The theme pill shows `››` because it cycles; it is not a dropdown.
 
 ## Estimation policy `best-estimate/3`
 
@@ -61,4 +68,6 @@ only when the money or assumptions change).
 
 `LegacyStreamerWindow` (the pre-theme widget HUD) is retained in `app.py`.
 Pointing `app.StreamerWindow` back at it restores the old HUD; the theme
-preference row is ignored by it.
+preference row is ignored by it. Its widget-level tests (listed in
+`tests/legacy_streamer_tests.txt`) are skipped by default; run them with
+`python -m pytest --legacy-hud` before and after such a rollback.

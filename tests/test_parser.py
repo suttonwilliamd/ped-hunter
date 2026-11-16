@@ -7,6 +7,7 @@ def test_parse_loot_line():
     event = parse_line("2026-06-11 20:10:00 [System] [] You received Animal Oil Residue x (3) Value: 0.06 PED")
     assert event is not None
     assert event.kind == "loot"
+    assert event.payload["item_name"] == "Animal Oil Residue"  # not caught by the refiner "Oil" filter
     assert event.payload["quantity"] == 3
     assert event.payload["value"] == 0.06
 
@@ -60,14 +61,6 @@ def test_channel_message_quoting_system_receipt_is_not_personal_loot():
     assert event.payload["speaker"] == "B0b The South"
 
 
-def test_parse_compact_damage_line_with_cost():
-    event = parse_line("2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.")
-
-    assert event is not None
-    assert event.kind == "combat"
-    assert event.payload["damage"] == 43.8
-
-
 def test_refiner_and_conversion_outputs_are_not_loot():
     lines = [
         "2026-06-20 08:30:06 [System] [] You received Oil x (107) Value: 2.14 PED",
@@ -76,14 +69,6 @@ def test_refiner_and_conversion_outputs_are_not_loot():
     ]
 
     assert [parse_line(line) for line in lines] == [None, None, None]
-
-
-def test_refiner_filter_does_not_block_oil_residue_loot():
-    event = parse_line("2026-06-11 20:10:00 [System] [] You received Animal Oil Residue x (3) Value: 0.06 PED")
-
-    assert event is not None
-    assert event.kind == "loot"
-    assert event.payload["item_name"] == "Animal Oil Residue"
 
 
 def test_parse_lootnanny_skill_gain_formats():

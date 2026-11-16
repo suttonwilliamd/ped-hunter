@@ -131,6 +131,18 @@ def test_setup_tiles_outline_active_and_footer_is_clickable(theme):
     assert [c.target for c in view.controls if c.focused] == ["context"]
 
 
+@pytest.mark.parametrize("theme", list(THEMES))
+def test_focus_ring_details_button_and_empty_slot_last(theme):
+    view = scene(cases()["hunt"], theme, focus="setup:2")
+    rings = [i for i in view.items if i.affordance == "focus-ring"]
+    pal_active = [i for i in view.items if i.target == "setup:1" and i.width == 3]
+    assert len(rings) == 1 and rings[0].outline != pal_active[0].outline  # focus is not the active colour
+    assert any(i.affordance == "context-button" and i.target == "context" for i in view.items)
+    act = cases()["hunt"].activity  # latest, detail, healing (empty here), durability
+    rows = [i.text for i in view.items if i.kind == "text" and i.text in act]
+    assert rows == [act[0], act[1], act[3], act[2]]  # empty healing slot falls to the bottom row
+
+
 def test_offscreen_render_all_themes(tmp_path):
     pytest.importorskip("PIL")
     from ped_hunter.streamer_render import rasterize
@@ -240,3 +252,22 @@ def test_estimate_log_written_next_to_database(hud):
     log = app.store.db_path.parent / "logs" / "streamer-estimates.jsonl"
     record = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
     assert record["session"] == sid and record["policy"] == "best-estimate/3"
+
+
+def test_trail_storage_failure_keeps_points_and_totals(hud, monkeypatch):
+    app, window, sid = hud
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError("isolated trail storage failure")
+
+    monkeypatch.setattr(app.store, "save_chart_trails", unavailable)
+    for second, kind, payload in ((0, "combat", {"shot_cost": 2}), (1, "loot", {"value": 3, "item_name": "Animal Muscle Oil"})):
+        app.store.add_event(sid, {"kind": kind, "timestamp": f"2026-01-01T10:00:0{second}",
+                                  "raw_message": "trail failure", "payload": payload})
+    summary = app.store.get_session(sid)
+    window.update_from_session(summary)
+    app.update()
+    assert window._trail_error and window.kill_trail_histories == {}
+    assert [p["profit"] for p in window.kill_trend_points] == pytest.approx([1])
+    assert len(window.model.points) == 1
+    assert (summary.hunting_cost, summary.loot_value) == pytest.approx((2, 3))

@@ -6,6 +6,7 @@ summary cards, recent event streams, catalog search, and setup guidance.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 import json
 import logging
@@ -24,6 +25,9 @@ from .activity_trend import ActivityTrendBuilder
 from .catalog import Catalog, WeaponRecord
 from .chart_scales import plan_chart_scales
 from .chart_trails import TrailRecorder
+from .cockpit_chart import chart_scene, next_landmark, step_at as chart_step_at
+from .hunt_trajectory import active_hours, build_trajectory, log_provenance
+from .streamer_render import paint_canvas
 from .currency import currency_name, format_chart_money, format_money
 from .crafting_display import crafting_cost_display
 from .dpi import enable_high_dpi, window_ui_scale
@@ -81,7 +85,10 @@ class PedHunterApp(tk.Tk):
         super().__init__()
         self.title("PED Hunter")
         self.display_scale = window_ui_scale(self)
-        self.geometry(f"{round(900 * self.display_scale)}x{round(600 * self.display_scale)}")
+        # Cockpit layout: rail + chart + tabs; never larger than the screen.
+        width = min(1180 * self.display_scale, self.winfo_screenwidth() * 0.92)
+        height = min(780 * self.display_scale, self.winfo_screenheight() * 0.88)
+        self.geometry(f"{round(width)}x{round(height)}")
         self.minsize(round(760 * self.display_scale), round(500 * self.display_scale))
         self._ui_fonts: dict[tuple[str, int, str], tkfont.Font] = {}
 
@@ -118,7 +125,8 @@ class PedHunterApp(tk.Tk):
         self.repair_radar_text = tk.StringVar(value="Repair radar: start a fresh run at 100% gun + amp TT")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
         self.hero_net = tk.StringVar(value="—")
-        self.hero_return = tk.StringVar(value="No run in progress")
+        self.hero_return = tk.StringVar(value="—")
+        self.hero_burn = tk.StringVar(value="—")
         self.hero_loot = tk.StringVar(value="Loot $0.00")
         self.hero_cost = tk.StringVar(value="Cost $0.00")
         self.hero_events = tk.StringVar(value="Events 0")
@@ -245,6 +253,12 @@ class PedHunterApp(tk.Tk):
         style.configure("HeroSmallValue.TLabel", background="#0f1726", foreground=text, font=self._ui_font(13, family="Segoe UI Semibold"))
         style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=self._ui_font(9))
         style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=self._ui_font())
+        style.configure("ReadoutValue.TLabel", background="#0f1726", foreground=text, font=self._ui_font(16, family="Segoe UI Semibold"))
+        for suffix, colour in (("Good", "#99f6e4"), ("Bad", "#fed7aa"), ("Neutral", text)):
+            style.configure(f"Readout{suffix}.TLabel", background="#0f1726", foreground=colour,
+                            font=self._ui_font(16, family="Segoe UI Semibold"))
+        style.configure("RailKicker.TLabel", background=panel, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"))
+        style.configure("RailValue.TLabel", background=panel, foreground=text, font=self._ui_font(10))
         style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=self._ui_font(9, family="Segoe UI Semibold"))
         style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=self._ui_font(8))
         style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"), padding=(12, 5))
@@ -317,35 +331,35 @@ class PedHunterApp(tk.Tk):
         root = self.root_frame
         root.pack(fill="both", expand=True)
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(3, weight=1)
+        root.rowconfigure(2, weight=1)
 
         header = ttk.Frame(root, style="Header.TFrame")
         header.grid(row=0, column=0, sticky="ew")
         header.columnconfigure(1, weight=1)
         ttk.Label(header, text="PED Hunter", style="Title.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(header, text="Hunt tracker", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(header, text="Hunt cockpit", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
         ttk.Label(header, text="Display", style="Muted.TLabel").grid(row=0, column=2, sticky="e", padx=(6, 4))
         currency_picker = ttk.Combobox(header, textvariable=self.currency_mode, values=("USD", "PED"), state="readonly", width=6)
         currency_picker.grid(row=0, column=3, sticky="e", padx=(0, 8))
         ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
         ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
-        # Display preferences live with help/settings rather than competing
-        # with the primary tracking actions in the header.
 
+        # Cockpit: primary readouts across the top, a command rail on the left,
+        # the hunt chart above the existing tabs on the right.
         self._build_session_hero(root, row=1)
+        body = ttk.Frame(root, style="Root.TFrame")
+        body.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(1, weight=1)
+        # The chart keeps ~45% of the body (tables would otherwise claim it all).
+        body.bind("<Configure>", lambda event: body.rowconfigure(0, minsize=round(max(
+            170 * self.display_scale, min(360 * self.display_scale, event.height * 0.45)))))
+        self._build_command_rail(body)
+        self._build_hunt_chart(body)
 
-        self.controls_panel = ttk.Frame(root, style="Panel.TFrame", padding=(8, 4))
-        controls = self.controls_panel
-        controls.grid(row=2, column=0, sticky="ew", pady=(4, 5))
-        controls.columnconfigure(1, weight=1)
-        ttk.Label(controls, text="Chat log", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        ttk.Entry(controls, textvariable=self.chat_path).grid(row=0, column=1, sticky="ew", padx=(0, 6))
-        ttk.Button(controls, text="Browse", command=self._browse_log).grid(row=0, column=2, padx=(0, 8))
-        self.status_label = ttk.Label(controls, textvariable=self.status_text, style="Status.TLabel")
-        self.status_label.grid(row=0, column=3, sticky="e")
-
-        notebook = ttk.Notebook(root)
-        notebook.grid(row=3, column=0, sticky="nsew")
+        notebook = ttk.Notebook(body)
+        notebook.grid(row=1, column=1, sticky="nsew")
+        self.notebook = notebook
         self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
         self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
         self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
@@ -365,6 +379,16 @@ class PedHunterApp(tk.Tk):
         notebook.add(self.wtb_tab, text="WTB")
         notebook.add(self.setup_tab, text="Help")
 
+        self.controls_panel = ttk.Frame(root, style="Panel.TFrame", padding=(8, 4))
+        controls = self.controls_panel
+        controls.grid(row=3, column=0, sticky="ew", pady=(5, 0))
+        controls.columnconfigure(1, weight=1)
+        ttk.Label(controls, text="Chat log", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
+        ttk.Entry(controls, textvariable=self.chat_path).grid(row=0, column=1, sticky="ew", padx=(0, 6))
+        ttk.Button(controls, text="Browse", command=self._browse_log).grid(row=0, column=2, padx=(0, 8))
+        self.status_label = ttk.Label(controls, textvariable=self.status_text, style="Status.TLabel")
+        self.status_label.grid(row=0, column=3, sticky="e")
+
         self._build_dashboard_tab()
         self._build_events_tab()
         self._build_skills_tab()
@@ -375,76 +399,257 @@ class PedHunterApp(tk.Tk):
         self._build_setup_tab()
         notebook.bind("<<NotebookTabChanged>>", lambda _event: self._refresh_visible_tab())
         self.bind("<Configure>", self._on_resize)
+        for slot in range(4):
+            self.bind(f"<Alt-Key-{slot + 1}>", lambda _event, index=slot: self._switch_setup_slot(index))
 
     def _build_session_hero(self, parent: ttk.Frame, *, row: int) -> None:
+        """Primary readout strip: hunt net first, then return, burn, loot, cost, events."""
         self.hero_panel = ttk.Frame(parent, style="Hero.TFrame", padding=(10, 6))
         hero = self.hero_panel
         hero.grid(row=row, column=0, sticky="ew", pady=(4, 0))
-        hero.columnconfigure(0, weight=0)
-        hero.columnconfigure(1, weight=2)
-        hero.columnconfigure(2, weight=1)
-        ttk.Frame(hero, style="HeroAccent.TFrame", width=3).grid(row=0, column=0, sticky="ns", padx=(0, 10))
+        hero.columnconfigure(0, weight=3)
+        hero.columnconfigure((1, 2, 3, 4, 5), weight=1, uniform="readouts")
 
         self.hero_left = ttk.Frame(hero, style="Hero.TFrame")
         left = self.hero_left
-        left.grid(row=0, column=1, sticky="nsew", padx=(0, 12))
-        ttk.Label(left, text="RUN PROFIT / LOSS", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w")
-        self.hero_session_label = ttk.Label(left, textvariable=self.hero_session, style="HeroSetup.TLabel", wraplength=540)
-        self.hero_session_label.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(1, 2))
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        ttk.Label(left, text="HUNT NET", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w")
         self.hero_net_label = ttk.Label(left, textvariable=self.hero_net, style="HeroNeutral.TLabel")
-        self.hero_net_label.grid(row=2, column=0, sticky="w")
-        self.hero_return_label = ttk.Label(left, textvariable=self.hero_return, style="HeroReturnNeutral.TLabel")
-        self.hero_return_label.grid(row=2, column=1, sticky="sw", padx=(12, 0), pady=(0, 4))
-        self.hero_loadout_label = ttk.Label(left, textvariable=self.active_loadout_text, style="HeroSetup.TLabel", wraplength=540)
-        # Full setup details are available in Setups; don't repeat them here.
-        self.hero_repair_label = ttk.Label(left, textvariable=self.repair_radar_text, style="HeroSetup.TLabel", wraplength=540)
-        self.hero_repair_label.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(1, 0))
+        self.hero_net_label.grid(row=1, column=0, sticky="w")
+        self.hero_session_label = ttk.Label(left, textvariable=self.hero_session, style="HeroSetup.TLabel", wraplength=420)
+        self.hero_session_label.grid(row=2, column=0, sticky="ew")
+        self.hero_loadout_label = ttk.Label(left, textvariable=self.active_loadout_text, style="HeroSetup.TLabel", wraplength=420)
 
-        self.hero_right = ttk.Frame(hero, style="Hero.TFrame")
-        right = self.hero_right
-        right.grid(row=0, column=2, sticky="nsew")
-        right.columnconfigure((0, 1, 2), weight=1, uniform="hero_stats")
-        self.hero_healing = ttk.Frame(right, style="Hero.TFrame")
+        self.hero_right = hero  # readouts sit in the strip itself
+        self.hero_return_label = self._add_hero_stat(hero, 1, self.hero_return, "RETURN")
+        self._add_hero_stat(hero, 2, self.hero_burn, "COST / HOUR")
+        self._add_hero_stat(hero, 3, self.hero_loot, "LOOT")
+        self._add_hero_stat(hero, 4, self.hero_cost, "COST")
+        self._add_hero_stat(hero, 5, self.hero_events, "EVENTS")
+        left.bind("<Configure>", self._on_hero_resize)
+
+    def _build_command_rail(self, body: ttk.Frame) -> None:
+        """Run, setup, healing and equipment controls always within reach."""
+        self.command_rail = ttk.Frame(body, style="Panel.TFrame", padding=(10, 8))
+        rail = self.command_rail
+        rail.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(0, 8))
+        rail.columnconfigure(0, weight=1)
+        rail.bind("<Configure>", self._on_rail_resize)
+
+        ttk.Label(rail, text="RUN", style="RailKicker.TLabel").grid(row=0, column=0, sticky="w")
+        actions = ttk.Frame(rail, style="Panel.TFrame")
+        actions.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+        actions.columnconfigure((0, 1, 2), weight=1, uniform="run")
+        self.start_button = ttk.Button(actions, text="New run", command=self.start, style="Accent.TButton")
+        self.start_button.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        self.resume_button = ttk.Button(actions, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
+        self.resume_button.grid(row=0, column=1, sticky="ew", padx=(0, 4))
+        self.stop_button = ttk.Button(actions, text="End run", command=self.stop, state="disabled")
+        self.stop_button.grid(row=0, column=2, sticky="ew")
+        ttk.Label(rail, textvariable=self.hero_state, style="RailValue.TLabel").grid(row=2, column=0, sticky="w", pady=(4, 0))
+        self.activity_strip = ActivityStrip(rail, reduced_motion=self.reduced_motion, money=self._money, compact=True)
+        self.activity_strip.grid(row=3, column=0, sticky="ew", pady=(2, 0))
+        # The rail is a narrow column: its widest children request a compact width.
+        rail_width = round(250 * self.display_scale)
+        self.activity_strip.configure(width=rail_width)
+
+        ttk.Label(rail, text="SETUP  ·  Alt+1–4", style="RailKicker.TLabel").grid(row=4, column=0, sticky="w", pady=(12, 0))
+        self.setup_rail = ttk.Frame(rail, style="Panel.TFrame")
+        self.setup_rail.grid(row=5, column=0, sticky="ew", pady=(3, 0))
+        self.setup_rail.columnconfigure(0, weight=1)
+        self.setup_rail_buttons: list[ttk.Button] = []
+        for slot in range(4):
+            button = ttk.Button(self.setup_rail, style="Ghost.TButton",
+                                command=lambda index=slot: self._switch_setup_slot(index))
+            button.grid(row=slot, column=0, sticky="ew", pady=(0, 3))
+            self.setup_rail_buttons.append(button)
+        ttk.Button(self.setup_rail, text="All setups…", style="Ghost.TButton",
+                   command=lambda: self.notebook.select(self.loadouts_tab)).grid(row=4, column=0, sticky="ew")
+
+        ttk.Label(rail, text="HEALING", style="RailKicker.TLabel").grid(row=6, column=0, sticky="w", pady=(12, 0))
+        self.hero_healing = ttk.Frame(rail, style="Panel.TFrame")
         healing = self.hero_healing
-        healing.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 4))
-        healing.columnconfigure((1, 3), weight=1, uniform="healing_tools")
-        ttk.Label(healing, text="Heal:", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=4, sticky="e")
+        healing.grid(row=7, column=0, sticky="ew", pady=(3, 0))
+        healing.columnconfigure(1, weight=1)
+        ttk.Label(healing, text="Heal", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
         self.healing_selector = ttk.Combobox(
             healing, textvariable=self.healing_tool, state="readonly", width=1,
             values=["None", *sorted(self.catalog.healing_tools, key=str.casefold)])
-        self.healing_selector.grid(row=0, column=1, sticky="ew", padx=(0, 6))
+        self.healing_selector.grid(row=0, column=1, sticky="ew")
         self.healing_selector.bind("<<ComboboxSelected>>", lambda _event: self._healing_tool_changed())
         _install_combobox_typeahead(self.healing_selector, on_change=self._healing_tool_changed)
-        ttk.Label(healing, text="HoT:", style="HeroKicker.TLabel").grid(row=0, column=2, sticky="w", padx=(0, 6))
+        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=2, sticky="e", padx=(4, 0))
+        ttk.Label(healing, text="HoT", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(3, 0))
         self.hot_selector = ttk.Combobox(
             healing, textvariable=self.hot_tool, state="readonly", width=1,
             values=["None", *sorted((name for name, tool in self.catalog.healing_tools.items() if tool.has_hot), key=str.casefold)])
-        self.hot_selector.grid(row=0, column=3, sticky="ew", padx=(0, 6))
+        self.hot_selector.grid(row=1, column=1, columnspan=2, sticky="ew", pady=(3, 0))
         self.hot_selector.bind("<<ComboboxSelected>>", lambda _event: self._hot_tool_changed())
         _install_combobox_typeahead(self.hot_selector, on_change=self._hot_tool_changed)
-        self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="HeroSetup.TLabel", wraplength=170)
-        self.healing_detail_label.grid(row=1, column=0, columnspan=5, sticky="ew", pady=(2, 0))
-        self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="HeroSetup.TLabel", wraplength=170)
-        self.healing_totals_label.grid(row=2, column=0, columnspan=5, sticky="ew")
+        self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="PanelMuted.TLabel", wraplength=rail_width)
+        self.healing_detail_label.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(3, 0))
+        self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="RailValue.TLabel", wraplength=rail_width)
+        self.healing_totals_label.grid(row=3, column=0, columnspan=3, sticky="ew")
         healing.bind("<Configure>", self._on_healing_resize)
 
-        self._add_hero_stat(right, 0, self.hero_loot, "LOOT")
-        self._add_hero_stat(right, 1, self.hero_cost, "COST")
-        self._add_hero_stat(right, 2, self.hero_events, "EVENTS")
+        ttk.Label(rail, text="EQUIPMENT", style="RailKicker.TLabel").grid(row=8, column=0, sticky="w", pady=(12, 0))
+        self.hero_repair_label = ttk.Label(rail, textvariable=self.repair_radar_text, style="RailValue.TLabel", wraplength=rail_width)
+        self.hero_repair_label.grid(row=9, column=0, sticky="ew", pady=(3, 0))
+        setup_line = ttk.Label(rail, textvariable=self.active_loadout_text, style="PanelMuted.TLabel", wraplength=rail_width)
+        setup_line.grid(row=10, column=0, sticky="ew", pady=(2, 0))
+        self._rail_wrapped = (setup_line,)
 
-        actions = ttk.Frame(right, style="Hero.TFrame")
-        actions.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(5, 0))
-        self.start_button = ttk.Button(actions, text="New run", command=self.start, style="Accent.TButton")
-        self.start_button.pack(side="left", padx=(0, 6))
-        self.resume_button = ttk.Button(actions, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
-        self.resume_button.pack(side="left", padx=(0, 6))
-        self.stop_button = ttk.Button(actions, text="End run", command=self.stop, state="disabled")
-        self.stop_button.pack(side="left", padx=(0, 8))
-        ttk.Label(actions, textvariable=self.hero_state, style="HeroSetup.TLabel").pack(side="left")
-        self.activity_strip = ActivityStrip(right, reduced_motion=self.reduced_motion, money=self._money, compact=True)
-        self.activity_strip.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4, 0))
-        left.bind("<Configure>", self._on_hero_resize)
+    def _on_rail_resize(self, event: tk.Event) -> None:
+        wrap = max(1, event.width - round(24 * self.display_scale))
+        for label in (self.hero_repair_label, self.healing_detail_label, self.healing_totals_label,
+                      *self.__dict__.get("_rail_wrapped", ())):
+            label.configure(wraplength=wrap)
+
+    def _build_hunt_chart(self, body: ttk.Frame) -> None:
+        panel = ttk.Frame(body, style="Panel.TFrame", padding=(6, 6))
+        panel.grid(row=0, column=1, sticky="nsew", pady=(0, 6))
+        panel.columnconfigure(0, weight=1)
+        panel.rowconfigure(1, weight=1)
+        ttk.Label(panel, text="Hunt net by encounter", style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", padx=(4, 0))
+        self.hunt_chart = tk.Canvas(panel, height=round(160 * self.display_scale), bg=self.colors["panel"],
+                                    highlightthickness=0, takefocus=1)
+        self.hunt_chart.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
+        self._hunt_view = None
+        self._hunt_focus: int | None = None
+        self._hunt_pulse = 0.0
+        canvas = self.hunt_chart
+        canvas.bind("<Configure>", lambda _event: self._draw_hunt_chart())
+        canvas.bind("<Motion>", self._hunt_chart_hover)
+        canvas.bind("<Leave>", lambda _event: None if self.focus_get() is canvas else self._set_hunt_focus(None))
+        canvas.bind("<Button-1>", lambda event: (canvas.focus_set(), self._hunt_chart_hover(event)))
+        canvas.bind("<FocusIn>", lambda _event: self._draw_hunt_chart())
+        canvas.bind("<FocusOut>", lambda _event: self._set_hunt_focus(None))
+        for key, move in (("<Left>", -1), ("<Right>", 1)):
+            canvas.bind(key, lambda _event, step=move: self._step_hunt_focus(step))
+        canvas.bind("<Home>", lambda _event: self._set_hunt_focus(0))
+        canvas.bind("<End>", lambda _event: self._set_hunt_focus(len(self._hunt_view.steps) - 1 if self._hunt_view else None))
+        canvas.bind("<bracketright>", lambda _event: self._jump_hunt_landmark(1))
+        canvas.bind("<bracketleft>", lambda _event: self._jump_hunt_landmark(-1))
+        canvas.bind("<Escape>", lambda _event: self._set_hunt_focus(None))
+
+    # ----- cockpit chart -------------------------------------------------
+    def _refresh_hunt_chart(self, session: SessionSummary | None) -> None:
+        """Rebuild the reconciled trajectory when the hunt's events change.
+
+        Reads stored attribution only (``live=False``): the HUD remains the single
+        writer of attribution state, so two views never race on one session.
+        """
+        if not hasattr(self, "hunt_chart"):
+            return
+        key = (session.session_id, session.events, session.accounting_revision,
+               round(session.loot_value, 6), round(session.hunting_cost, 6), self.currency_mode.get()) if session else None
+        if key == getattr(self, "_hunt_key", None):
+            return
+        previous = getattr(self, "_hunt_trajectory", None)
+        trajectory = build_trajectory(None, [])
+        if session is not None:
+            try:
+                builder_key = (session.session_id, session.accounting_revision)
+                view = self.__dict__.get("_prepared_resume")
+                if (getattr(self, "_hunt_builder_key", None) != builder_key
+                        or session.events < getattr(self, "_hunt_events", 0)):
+                    if (view is not None and view.builder is not None
+                            and view.session.session_id == session.session_id):
+                        self._hunt_builder = deepcopy(view.builder)
+                    else:
+                        self._hunt_builder = ActivityTrendBuilder(KILL_CLUSTER_WINDOW_SECONDS)
+                    self._hunt_attribution = HuntAttribution(self.store)
+                    self._hunt_builder_key = builder_key
+                points = _kill_trend_points(self.store, session.session_id, builder=self._hunt_builder)
+                points = self._hunt_attribution.update(session.session_id, points, live=False)
+                trajectory = build_trajectory(session, points)
+                log_provenance(getattr(self.store, "db_path", None), session.session_id, trajectory)
+            except Exception:
+                logging.exception("Hunt chart refresh failed; totals still shown")
+                self._hunt_builder_key = None
+                trajectory = build_trajectory(session, [])
+        self._hunt_events = session.events if session else 0
+        self._hunt_key = key
+        self._hunt_trajectory = trajectory
+        if trajectory.groups and session is not None:
+            hours = active_hours(trajectory)
+            self.hero_burn.set(f"{self._money(trajectory.cost / hours)}/h" if hours >= 0.05 else "—")
+        else:
+            self.hero_burn.set("—")
+        fresh = (previous is not None and previous.groups and trajectory.standouts
+                 and len(trajectory.groups) > len(previous.groups)
+                 and trajectory.standouts[-1] >= len(previous.groups))
+        if fresh and not self.reduced_motion.get() and self.running:
+            self.animator.tween("hunt_chart", self._hunt_chart_pulse, 900)
+        else:
+            self._draw_hunt_chart()
+
+    def _hunt_chart_pulse(self, phase: float) -> None:
+        self._hunt_pulse = 0.0 if phase >= 1.0 else phase
+        self._draw_hunt_chart()
+
+    def _draw_hunt_chart(self) -> None:
+        canvas = self.__dict__.get("hunt_chart")
+        if canvas is None or not canvas.winfo_exists():
+            return
+        trajectory = self.__dict__.get("_hunt_trajectory") or build_trajectory(None, [])
+        scale = max(0.5, self.display_scale)
+        width = max(canvas.winfo_width(), 1) / scale
+        height = max(canvas.winfo_height(), 1) / scale
+        if width < 200 or height < 160:
+            return
+        view = chart_scene(trajectory, width, height, mode=self.currency_mode.get(), scale=scale,
+                           focus=self._hunt_focus, pulse=self._hunt_pulse,
+                           focused_ring=self.focus_get() is canvas)
+        if self._hunt_focus is not None and self._hunt_focus >= len(view.steps):
+            self._hunt_focus = None
+        self._hunt_view = view
+        paint_canvas(canvas, view.scene)
+
+    def _hunt_chart_hover(self, event) -> None:
+        view = self._hunt_view
+        if view is None:
+            return
+        index = chart_step_at(view, event.x / max(0.5, self.display_scale))
+        if index is not None and index != self._hunt_focus:
+            self._set_hunt_focus(index)
+
+    def _set_hunt_focus(self, index: int | None) -> str:
+        self._hunt_focus = index
+        self._draw_hunt_chart()
+        return "break"
+
+    def _step_hunt_focus(self, move: int) -> str:
+        view = self._hunt_view
+        if view is None or not view.steps:
+            return "break"
+        current = self._hunt_focus
+        target = (len(view.steps) - 1 if move < 0 else 0) if current is None else current + move
+        return self._set_hunt_focus(max(0, min(len(view.steps) - 1, target)))
+
+    def _jump_hunt_landmark(self, direction: int) -> str:
+        if self._hunt_view is None:
+            return "break"
+        return self._set_hunt_focus(next_landmark(self._hunt_view, self._hunt_focus, direction))
+
+    def _switch_setup_slot(self, index: int) -> str:
+        loadouts = list(self.store.list_loadouts())[:4]
+        if 0 <= index < len(loadouts) and not loadouts[index].active:
+            self._activate_saved_loadout(loadouts[index].id)
+        return "break"
+
+    def _refresh_setup_rail(self, loadouts) -> None:
+        buttons = self.__dict__.get("setup_rail_buttons", [])
+        loadouts = list(loadouts)[:4]
+        for slot, button in enumerate(buttons):
+            if slot < len(loadouts):
+                loadout = loadouts[slot]
+                mark = "✓ " if loadout.active else ""
+                button.configure(text=f"{slot + 1}  {mark}{loadout.name}", state="normal",
+                                 style="Accent.TButton" if loadout.active else "Ghost.TButton")
+                button.grid()
+            else:
+                button.grid_remove()
 
     def _on_currency_changed(self, *_args) -> None:
         """Refresh rendered money for selector and programmatic mode writes."""
@@ -462,31 +667,19 @@ class PedHunterApp(tk.Tk):
     def _money_label(self, label: str, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         return f"{label} {self._money(value_ped, signed=signed, decimals=decimals)}"
 
-    def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> None:
-        frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(7, 4))
-        frame.grid(row=1, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
-        # Quiet supporting metrics; reserve accent color for the main action.
+    def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> ttk.Label:
+        frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(9, 6))
+        frame.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
         ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel").pack(anchor="w")
-        ttk.Label(frame, textvariable=value, style="HeroSmallValue.TLabel").pack(anchor="w", pady=(2, 0))
+        shown = ttk.Label(frame, textvariable=value, style="ReadoutValue.TLabel")
+        shown.pack(anchor="w", pady=(2, 0))
+        return shown
 
     def _on_hero_resize(self, event: tk.Event) -> None:
         width = event.width
         if width < round(200 * self.display_scale):
             return  # Ignore the initial unallocated frame.
-        wrap = max(1, width - round(4 * self.display_scale))
-        for label in (self.hero_session_label, self.hero_loadout_label, self.hero_repair_label):
-            label.configure(wraplength=wrap)
-        # The controls' natural width can leave less than half the window for
-        # this column. Stack the two summary values instead of clipping them.
-        compact = width < round(380 * self.display_scale)
-        if compact != getattr(self, "_hero_compact", None):
-            self._hero_compact = compact
-            self.hero_net_label.grid_configure(columnspan=2 if compact else 1)
-            self.hero_return_label.grid_configure(
-                row=3 if compact else 2, column=0 if compact else 1,
-                columnspan=2 if compact else 1, sticky="w" if compact else "sw",
-                padx=0 if compact else (12, 0), pady=(0, 2 if compact else 4))
-            self.hero_repair_label.grid_configure(row=4 if compact else 3)
+        self.hero_session_label.configure(wraplength=max(1, width - round(4 * self.display_scale)))
 
     def _on_healing_resize(self, event: tk.Event) -> None:
         if event.width > 1:
@@ -508,31 +701,20 @@ class PedHunterApp(tk.Tk):
         self.status_text.set("HoT selection saved for future activations; retained cast context and past costs unchanged")
 
     def _refresh_healing_summary(self, session: SessionSummary | None) -> None:
+        """Priced tools show their per-use cost; pricing caveats stay in the ? help and logs."""
         def detail(label, name):
             tool = self.catalog.healing_tools.get(name)
-            if name == "None":
-                value = "none"
-            elif tool is None:
-                value = "missing tool; unpriced"
-            elif label == "HoT:" and not tool.has_hot:
-                value = "not a HoT tool; unpriced"
-            elif not tool.cost_verified:
-                value = "cost unverified; unpriced"
-            elif tool.cost_per_use is None:
-                value = "unknown TT; unpriced"
-            elif tool.has_hot and (tool.hot_fraction is None or tool.hot_duration is None):
-                value = "cast pattern unverified; unpriced"
-            elif tool.has_hot:
-                value = f"{self._money(tool.cost_per_use, decimals=5)}/cast est."
-            elif tool.tracking_limit:
-                value = "activation uncertain"
-            else:
-                value = f"{self._money(tool.cost_per_use, decimals=5)}/use est."
-            return f"{label} {value}"
-        self.healing_detail.set(detail("Heal:", self.healing_tool.get()) + " · " + detail("HoT:", self.hot_tool.get()))
-        self.healing_totals.set(
-            f"Booked heals {self._money(session.healing_cost if session else 0, decimals=5)} · "
-            f"{session.estimated_healing_uses if session else 0} uses est. · {session.unpriced_heal_events if session else 0} unpriced")
+            if (tool is None or not tool.cost_verified or tool.cost_per_use is None or tool.tracking_limit
+                    or (label == "HoT" and not tool.has_hot)
+                    or (tool.has_hot and (tool.hot_fraction is None or tool.hot_duration is None))):
+                return ""
+            unit = "cast" if tool.has_hot else "use"
+            return f"{label} {self._money(tool.cost_per_use, decimals=5)}/{unit}"
+        self.healing_detail.set(" · ".join(part for part in (
+            detail("Heal", self.healing_tool.get()), detail("HoT", self.hot_tool.get())) if part))
+        uses = session.estimated_healing_uses if session else 0
+        self.healing_totals.set(f"Healing {self._money(session.healing_cost if session else 0, decimals=5)}"
+                                + (f" · {uses:,} uses" if uses else ""))
 
     def _show_healing_info(self) -> None:
         tools = [self.catalog.healing_tools.get(var.get()) for var in (self.healing_tool, self.hot_tool)]
@@ -1272,6 +1454,7 @@ class PedHunterApp(tk.Tk):
             self.active_loadout_details.set("Activate a hunting setup before starting. This replaces the old hunt/craft/mine dropdown.")
             self.active_loadout_text.set("No active setup — configure one before tracking for accurate costs")
         loadouts = self.store.list_loadouts()
+        self._refresh_setup_rail(loadouts)
         for index, loadout in enumerate(loadouts):
             self.loadouts_tree.insert(
                 "",
@@ -1970,12 +2153,13 @@ class PedHunterApp(tk.Tk):
             self.session_text.set("No sessions yet — start a run to begin collecting data")
             self.hero_session.set("No active session — start a run to begin collecting data")
             self.hero_net.set("—")
-            self.hero_return.set("No run in progress")
+            self.hero_return.set("—")
             self.hero_loot.set(self._money(0))
             self.hero_cost.set(self._money(0))
             self.hero_events.set("0")
             self.repair_radar_text.set("Repair radar: start a fresh run at 100% gun + amp TT")
             self._set_hero_profit_style("neutral")
+            self._refresh_hunt_chart(None)
             return
 
         status = "active" if session.ended_at is None else "ended"
@@ -1986,12 +2170,13 @@ class PedHunterApp(tk.Tk):
         self.session_text.set(f"{session.session_id} • {setup} • {status} • started {session.started_at}")
         self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
         self.animator.number("net", session.net_value, lambda value: self.hero_net.set(self._money(value, signed=True)), animate)
-        self.animator.number("return", return_pct, lambda value: self.hero_return.set(f"{value:.2f}% Return"), animate)
+        self.animator.number("return", return_pct, lambda value: self.hero_return.set(f"{value:.2f}%"), animate)
         self.animator.number("loot", session.loot_value, lambda value: self.hero_loot.set(self._money(value)), animate)
         self.animator.number("cost", session.hunting_cost, lambda value: self.hero_cost.set(self._money(value)), animate)
         self.hero_events.set(str(session.events))
         self.repair_radar_text.set(format_repair_radar(session, self.currency_mode.get()))
         self._set_hero_profit_style(_profit_state(session.net_value))
+        self._refresh_hunt_chart(session)
 
     def _activity_snapshot(self, session: SessionSummary | None) -> Snapshot:
         if session is None:
@@ -2043,7 +2228,7 @@ class PedHunterApp(tk.Tk):
         if hasattr(self, "hero_net_label"):
             self.hero_net_label.configure(style=f"Hero{suffix}.TLabel")
         if hasattr(self, "hero_return_label"):
-            self.hero_return_label.configure(style=f"HeroReturn{suffix}.TLabel")
+            self.hero_return_label.configure(style=f"Readout{suffix}.TLabel")
 
     def _refresh_sessions(self, sessions: list[SessionSummary]) -> None:
         self._session_summaries = {session.session_id: session for session in sessions}
@@ -3724,20 +3909,6 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
     }
 
 
-def durability_color(percent: float) -> str:
-    stops = [(100.0, (34, 197, 94)), (60.0, (234, 179, 8)), (30.0, (249, 115, 22)), (10.0, (239, 68, 68)), (0.0, (0, 0, 0))]
-    pct = max(0.0, min(100.0, percent))
-    for index in range(len(stops) - 1):
-        hi_pct, hi_rgb = stops[index]
-        lo_pct, lo_rgb = stops[index + 1]
-        if lo_pct <= pct <= hi_pct:
-            span = hi_pct - lo_pct or 1.0
-            t = (pct - lo_pct) / span
-            rgb = tuple(round(lo + ((hi - lo) * t)) for hi, lo in zip(hi_rgb, lo_rgb))
-            return "#%02x%02x%02x" % rgb
-    return "#000000"
-
-
 def format_repair_radar(session: SessionSummary | None, mode: str = "USD") -> str:
     if not session:
         return "Repair radar: start a fresh run at 100% gun + amp TT"
@@ -3746,7 +3917,8 @@ def format_repair_radar(session: SessionSummary | None, mode: str = "USD") -> st
     used = float(status.get("used_decay", 0.0) or 0.0)
     shots = int(status.get("used_shots", session.repair_shots) or 0)
     if "items" in status:
-        return f"Repair radar: {status['streamer_text']} • {format_money(used, mode, decimals=4)} gun+amp decay across {shots:,} shots"
+        shown = str(status['streamer_text']).replace("~", "")
+        return f"Repair radar: {shown} • {format_money(used, mode, decimals=4)} gun+amp decay across {shots:,} shots"
     budget = float(snapshot.get("repair_budget", 0) or 0)
     known = bool(snapshot.get("repair_budget_known")) and budget > 0
     if not known:
@@ -3757,7 +3929,7 @@ def format_repair_radar(session: SessionSummary | None, mode: str = "USD") -> st
     shots_left = max(0, math.ceil(remaining / per_shot)) if per_shot > 0 else 0
     return (
         f"Repair radar: {remaining_pct:.1f}% gun+amp TT left • "
-        f"{format_money(remaining, mode)}/{format_money(budget, mode)} remaining • ~{shots_left:,} shots to empty"
+        f"{format_money(remaining, mode)}/{format_money(budget, mode)} remaining • {shots_left:,} shots to empty"
     )
 
 
