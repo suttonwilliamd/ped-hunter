@@ -1,14 +1,46 @@
 # Hunt cockpit (main window)
 
-The main window is a cockpit: primary readouts across the top, a command rail on
-the left, and the hunt chart above the existing tabs.
+This run's readouts stay on top; run, setup and healing controls sit beside the
+chart; the tabs below switch only the tables. Default size 960×640, minimum
+520×360 (logical pixels; multiply by the display scale).
 
-- **Readout strip**: hunt net (largest), return, cost per hour of active play
-  (pauses of 10 minutes or more are not counted), loot, cost, events.
-- **Command rail**: New run / Resume / End run and tracking state; setup
+- **Readout strip** ("This run"): hunt net (largest), return, cost per hour of
+  active play (pauses of 10 minutes or more are not counted), loot, cost, events.
+- **Rail**: New run / Resume while idle, End run while tracking; setup
   quick-switch for the first four setups (buttons or Alt+1–4; the same order as
   the streamer HUD tiles); heal and HoT selectors with the per-use cost of a
   priced tool and the run's healing total; durability.
+- **Tabs**: Runs (history, Resume), Lifetime, Events (filter, "Don't count this
+  loot…", Loot corrections), Skills, Setups (builder, "Weapon data…"), Crafting,
+  WTB, Help & settings (chat log, currency, motion, sounds).
+- **Status line**: what the app is doing, the chat log in use, Streamer UI,
+  Hide totals.
+
+## Size classes
+
+`responsive.py` picks a class from the window's logical size; the layout is
+re-laid only when a threshold is crossed (16 px of slack stops flicker), so a
+drag costs arithmetic, not font changes.
+
+| Class | When | What changes |
+|---|---|---|
+| wide | ≥ 1000 × 600 | 20 pt net, 224 px rail, loot strip on the Events tab |
+| regular | ≥ 720 × 600 | 16 pt net, 196 px rail |
+| compact | narrower than 720 or shorter than 600 | one-line readouts; a run bar (run buttons, setup picker) replaces the rail, whose healing and equipment open as a drawer; tables drop secondary columns |
+| compact, short | shorter than 520 | chart and tables take turns ("Show chart" / "Show tables") |
+| compact, narrow | narrower than 600 | cost per hour leaves the strip |
+
+No chart is shown until a run is started or resumed. A chart shorter than 212 px
+drops its summary band and shows encounter details there only while one is focused.
+
+Tables sort by clicking a heading (`table_sort.py`; the order survives refreshes).
+Weapon, attachment, blueprint and healing selectors are searchable lists
+(`search_select.py`): click to open, type to filter, arrows and Enter to pick,
+Esc to cancel; text that is not a listed item is put back on leaving the field.
+
+`tools/perf/shoot.py` captures the real window on the hidden desktop (see
+docs/testing.md) for layout review without touching the screen.
+
 - **Hunt chart** ("Hunt net by encounter"): encounter contributions as a
   waterfall that climbs and falls along the hunt net, with a bold break-even
   line. Standout wins (the largest positive encounters, at least a quarter of

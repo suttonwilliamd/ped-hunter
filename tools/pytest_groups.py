@@ -48,7 +48,7 @@ GROUPS = {
         "test_resume_handoff.py", "test_resume_responsiveness.py", "test_resume_reconciliation*.py",
         "test_space_mining*.py", "test_healing*.py", "test_event_exclusion*.py")),
     "desktop-ui": Group("Native layout, DPI, feedback, streamer behavior and live UI refresh", (
-        "test_dashboard_startup.py", "test_default_layout.py", "test_setup_editor.py", "test_setup_slots.py", "test_dpi.py",
+        "test_dashboard_startup.py", "test_default_layout.py", "test_main_layout.py", "test_setup_editor.py", "test_setup_slots.py", "test_dpi.py",
         "test_feedback.py", "test_feedback_sounds.py", "test_streamer_*.py", "test_currency.py",
         "test_chart_trails_ui.py", "test_log_ingestion.py", "test_live_refresh_budget.py",
         "test_default_log_path.py", "test_space_mining_ui.py", "test_resume_responsiveness.py", "test_healing_ui.py",

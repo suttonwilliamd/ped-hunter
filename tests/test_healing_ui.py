@@ -59,15 +59,20 @@ def inside(widget, parent):
 def test_selector_values_warnings_and_run_actions_fit_ordinary_sizes(app, size, name):
     app.geometry(f"{round(size[0] * app.display_scale)}x{round(size[1] * app.display_scale)}")
     select(app, name)
+    docked = app.size_class.docked
+    if not docked:  # small windows: healing lives in the drawer
+        app._toggle_drawer(True)
+        app.update()
     for widget in (app.healing_selector, app.hot_selector, app.healing_detail_label, app.healing_totals_label):
         inside(widget, app.hero_healing)
         inside(widget, app)
     for label in (app.healing_detail_label, app.healing_totals_label):
         assert label.winfo_reqheight() <= label.winfo_height()
         assert label.winfo_reqwidth() <= label.winfo_width()
-    for widget in (app.start_button, app.resume_button, app.stop_button):
+    # End run replaces these while tracking; small windows show them in the run bar.
+    for widget in (app.start_button, app.resume_button) if docked else (app.bar_start, app.bar_resume):
         inside(widget, app)
-    assert app.healing_selector.instate(["readonly"])
+    assert not app.healing_selector.instate(["disabled"])  # searchable list
     values = tuple(app.healing_selector.cget("values"))
     assert "None" in values and FAP in values and "Regeneration Chip 8" in values
     assert "SET Combat Blade (L)" not in values
@@ -165,7 +170,7 @@ def test_native_startup_restores_known_or_missing_preference_without_repricing(a
 
 def test_native_hot_filter_exact_labels_and_independent_persistent_choices(app):
     values = tuple(app.hot_selector.cget("values"))
-    assert app.hot_selector.instate(["readonly"])
+    assert not app.hot_selector.instate(["disabled"])  # searchable list
     assert FAP not in values and "Regeneration Chip 8" not in values
     assert "Restoration Chip 3 (L)" in values
     assert all(app.catalog.healing_tools[name].has_hot for name in values if name != "None")
@@ -210,8 +215,7 @@ def test_native_dual_quotes_and_new_primary_cost_follow_repeated_currency_toggle
     app._open_streamer_window()
     app.update()
     hud = app.streamer_window
-    picker = next(widget for section in app.root_frame.winfo_children() for widget in section.winfo_children()
-                  if isinstance(widget, ttk.Combobox) and str(widget.cget("textvariable")) == str(app.currency_mode))
+    picker = app.currency_picker  # under Help & settings
     with app.store.connect() as conn:
         original = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
     for mode in ("USD", "PED", "USD", "PED"):

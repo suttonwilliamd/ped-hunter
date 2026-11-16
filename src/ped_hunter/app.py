@@ -1,8 +1,8 @@
-"""Modern Tkinter dashboard for PED Hunter.
+"""PED Hunter's main window.
 
-The interface keeps LootNanny's core idea — live run tracking from Entropia chat
-logs — but presents it as a cleaner local-first dashboard with obvious status,
-summary cards, recent event streams, catalog search, and setup guidance.
+This run's readouts stay on top; run, setup and healing controls sit in a rail
+(or a run bar and drawer in small windows); the hunt chart and the tabs share
+the rest. The layout changes at a few size thresholds (see responsive.py).
 """
 from __future__ import annotations
 
@@ -39,6 +39,11 @@ from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .scrolling import ScrollPane
+from .search_select import SearchSelect
+from .table_sort import apply_sort, make_sortable
+from .responsive import (
+    DEFAULT_SIZE, FONTS as RESPONSIVE_FONTS, MIN_SIZE, RAIL_WIDTH, SizeClass, chart_height, classify,
+)
 from .resume_handoff import (
     claim_resume_handoff, complete_resume_handoff, has_resume_handoff, read_resume_handoff,
 )
@@ -57,6 +62,38 @@ STREAMER_MIN_HEIGHT = 240
 STREAMER_EDGE_MARGIN = 16
 KILL_CLUSTER_WINDOW_SECONDS = 0.75
 HUD_SETUP_COLORS = ("#5EEAD4", "#93C5FD", "#FCD34D", "#D8B4FE")
+# Events tab filter -> stored event kinds (None: everything except chat).
+EVENT_FILTERS = {
+    "Loot": ("loot",),
+    "Loot and skills": ("loot", "skill"),
+    "Combat": ("combat",),
+    "Globals": ("global",),
+    "Everything": None,
+}
+_EVENT_TYPES = {"manufacturing_offset": "Crafting", "craft": "Crafting"}
+HELP_SECTIONS = (
+    ("Start a hunt",
+     "1. In Entropia Universe, turn on chat logging to a file.\n"
+     "2. Check the chat log path under Settings above.\n"
+     "3. In Setups, build the weapon you are using, then Save and activate.\n"
+     "4. Press New run and hunt. Press End run when you are done."),
+    ("Continue a run later", "Open Runs, select the run, then Resume this run."),
+    ("Switch weapon mid-hunt", "Press Alt+1 to Alt+4, or use the setup buttons. Only later shots use the new setup."),
+    ("Read the chart",
+     "Each bar is one or more encounters; the line ends at this run's net. Hover a bar, or click the chart "
+     "and use the left and right arrow keys. [ and ] jump between the standout wins."),
+    ("Nothing is updating",
+     "Check the chat log path, make sure logging is turned on in the game, then press New run or Resume. "
+     "The status line at the bottom says what PED Hunter is doing."),
+    ("A cost looks wrong",
+     "Check the active setup's weapon, amplifier and enhancers. Setups > Weapon data shows the figures used. "
+     "Healing cost comes from the Heal and HoT tools chosen under Healing."),
+    ("A loot item should not count",
+     "Open Events, select the item, then Don't count this loot. Nothing is deleted; "
+     "Loot corrections lets you count it again."),
+    ("Crafting", "Use the Crafting tab to add the material cost of your attempts to this run."),
+    ("Your data", "Runs, setups and settings are saved on this PC only."),
+)
 
 
 def _held(store):
@@ -91,11 +128,13 @@ class PedHunterApp(tk.Tk):
         super().__init__()
         self.title("PED Hunter")
         self.display_scale = window_ui_scale(self)
-        # Cockpit layout: rail + chart + tabs; never larger than the screen.
-        width = min(1180 * self.display_scale, self.winfo_screenwidth() * 0.92)
-        height = min(780 * self.display_scale, self.winfo_screenheight() * 0.88)
+        # A compact default that leaves the desktop free; never larger than the screen.
+        width = min(DEFAULT_SIZE[0] * self.display_scale, self.winfo_screenwidth() * 0.92)
+        height = min(DEFAULT_SIZE[1] * self.display_scale, self.winfo_screenheight() * 0.88)
         self.geometry(f"{round(width)}x{round(height)}")
-        self.minsize(round(760 * self.display_scale), round(500 * self.display_scale))
+        self.minsize(round(MIN_SIZE[0] * self.display_scale), round(MIN_SIZE[1] * self.display_scale))
+        self._initial_size = (width, height)
+        self.size_class = SizeClass()
         self._ui_fonts: dict[tuple[str, int, str], tkfont.Font] = {}
 
         self.store = store if store is not None else Store()
@@ -117,18 +156,18 @@ class PedHunterApp(tk.Tk):
         self._log_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         self.chat_path = tk.StringVar(value=str(_default_chat_log_path()))
-        self.status_text = tk.StringVar(value="Ready — choose a chat log and start tracking")
+        self.status_text = tk.StringVar(value="Ready — press New run, or pick a run under Runs and Resume")
         self.session_text = tk.StringVar(value="No active session")
-        self.catalog_query = tk.StringVar(value="Frontier Rifle")
+        self.catalog_query = tk.StringVar(value="")
         blueprint_names = sorted(self.catalog.blueprints)
-        self.crafting_blueprint = tk.StringVar(value=blueprint_names[0] if blueprint_names else "")
+        self.crafting_blueprint = tk.StringVar(value="")
         self.crafting_attempts = tk.StringVar(value="1")
-        self.crafting_preview = tk.StringVar(value="Select a blueprint to preview material TT cost.")
+        self.crafting_preview = tk.StringVar(value="Pick a blueprint to see its material cost.")
         self.active_loadout_title = tk.StringVar(value="No active setup")
         self.active_loadout_details = tk.StringVar(value="Configure and activate a hunting setup before starting for accurate costs.")
 
         self.active_loadout_text = tk.StringVar(value="No active setup — configure one before tracking")
-        self.repair_radar_text = tk.StringVar(value="Repair radar: start a fresh run at 100% gun + amp TT")
+        self.repair_radar_text = tk.StringVar(value="Durability tracking starts with a fresh run at full gun and amp TT")
         self.selected_session_text = tk.StringVar(value="Select a recent session.")
         self.hero_net = tk.StringVar(value="—")
         self.hero_return = tk.StringVar(value="—")
@@ -136,8 +175,8 @@ class PedHunterApp(tk.Tk):
         self.hero_loot = tk.StringVar(value="Loot $0.00")
         self.hero_cost = tk.StringVar(value="Cost $0.00")
         self.hero_events = tk.StringVar(value="Events 0")
-        self.hero_state = tk.StringVar(value="Idle")
-        self.hero_session = tk.StringVar(value="No active session — start a run to begin collecting data")
+        self.hero_state = tk.StringVar(value="Not tracking")
+        self.hero_session = tk.StringVar(value="No active session — press New run, or resume one from Runs")
         self.healing_tool = tk.StringVar(value=self.store.get_selected_healing_tool() or "None")
         self.hot_tool = tk.StringVar(value=self.store.get_selected_hot_tool() or "None")
         self.healing_detail = tk.StringVar()
@@ -145,18 +184,18 @@ class PedHunterApp(tk.Tk):
         self.skill_total_text = tk.StringVar(value="0.0000 XP")
         self.skill_proc_text = tk.StringVar(value="0 skill gains")
         self.skill_summary_text = tk.StringVar(value="No skill gains recorded for this session yet.")
-        self.wtb_summary_text = tk.StringVar(value="No WTB listings parsed yet — trade channels will populate here.")
-        self.lifetime_summary_text = tk.StringVar(value="No completed runs yet — start tracking to build your lifetime stats.")
+        self.wtb_summary_text = tk.StringVar(value="No buy requests seen yet.")
+        self.lifetime_summary_text = tk.StringVar(value="No saved runs yet — your lifetime totals build up as you hunt.")
         self.lifetime_vars = {
             "total_cost": tk.StringVar(value="$0.00"),
             "total_loot": tk.StringVar(value="$0.00"),
             "total_net": tk.StringVar(value="+$0.00"),
             "overall_return": tk.StringVar(value="0.00%"),
-            "total_events": tk.StringVar(value="0 events"),
-            "avg_return": tk.StringVar(value="0.00% avg"),
+            "total_events": tk.StringVar(value="0"),
+            "avg_return": tk.StringVar(value="0.00%"),
             "best_run": tk.StringVar(value="—"),
             "worst_run": tk.StringVar(value="—"),
-            "avg_profit": tk.StringVar(value="+$0.00/run"),
+            "avg_profit": tk.StringVar(value="+$0.00"),
         }
 
         self.loadout_name = tk.StringVar(value="")
@@ -173,7 +212,7 @@ class PedHunterApp(tk.Tk):
         self.loadout_draft_text = tk.StringVar(value="New setup · not saved")
         self._loadout_clean_state: tuple[str, ...] = ()
         self.top_area_expanded = tk.BooleanVar(value=True)
-        self.top_toggle_text = tk.StringVar(value="Hide top")
+        self.top_toggle_text = tk.StringVar(value="Hide totals")
         self.currency_mode = tk.StringVar(value="USD")
         self.reduced_motion = tk.BooleanVar(value=False)
         self.feedback_sounds = tk.BooleanVar(value=False)
@@ -220,6 +259,7 @@ class PedHunterApp(tk.Tk):
         good = "#22c55e"
 
         self.configure(bg=bg)
+        p = self._px
         style = ttk.Style(self)
         try:
             if style.theme_use() != "clam":
@@ -245,36 +285,39 @@ class PedHunterApp(tk.Tk):
         style.configure("Muted.TLabel", background=bg, foreground=muted, font=self._ui_font(9))
         style.configure("Kicker.TLabel", background=bg, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"))
         style.configure("Panel.TLabel", background=panel, foreground=text, font=self._ui_font())
-        style.configure("PanelTitle.TLabel", background=panel, foreground="#d8fffb", font=self._ui_font(11, family="Segoe UI Semibold"))
+        style.configure("PanelTitle.TLabel", background=panel, foreground="#d8fffb", font=self._ui_font(10, family="Segoe UI Semibold"))
         style.configure("PanelMuted.TLabel", background=panel, foreground=muted, font=self._ui_font(9))
-        style.configure("CardValue.TLabel", background=panel_2, foreground=text, font=self._ui_font(19, family="Segoe UI Semibold"))
+        style.configure("CardValue.TLabel", background=panel_2, foreground=text, font=self._role_font("card"))
         style.configure("CardTitle.TLabel", background=panel_2, foreground=text, font=self._ui_font(11, family="Segoe UI Semibold"))
         style.configure("CardLabel.TLabel", background=panel_2, foreground=muted, font=self._ui_font(9))
-        style.configure("HeroKicker.TLabel", background=panel_2, foreground=accent, font=self._ui_font(10, family="Segoe UI Semibold"))
-        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=self._ui_font(24, family="Segoe UI Semibold"))
-        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=self._ui_font(24, family="Segoe UI Semibold"))
-        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=self._ui_font(24, family="Segoe UI Semibold"))
+        style.configure("HeroKicker.TLabel", background=panel_2, foreground=accent, font=self._ui_font(8, family="Segoe UI Semibold"))
+        style.configure("HeroGood.TLabel", background=panel_2, foreground=accent, font=self._role_font("net"))
+        style.configure("HeroBad.TLabel", background=panel_2, foreground="#fb923c", font=self._role_font("net"))
+        style.configure("HeroNeutral.TLabel", background=panel_2, foreground=text, font=self._role_font("net"))
         style.configure("HeroReturnGood.TLabel", background=panel_2, foreground="#99f6e4", font=self._ui_font(14, family="Segoe UI Semibold"))
         style.configure("HeroReturnBad.TLabel", background=panel_2, foreground="#fed7aa", font=self._ui_font(14, family="Segoe UI Semibold"))
         style.configure("HeroReturnNeutral.TLabel", background=panel_2, foreground=muted, font=self._ui_font(14, family="Segoe UI Semibold"))
         style.configure("HeroSmallValue.TLabel", background="#0f1726", foreground=text, font=self._ui_font(13, family="Segoe UI Semibold"))
-        style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=self._ui_font(9))
-        style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=self._ui_font())
-        style.configure("ReadoutValue.TLabel", background="#0f1726", foreground=text, font=self._ui_font(16, family="Segoe UI Semibold"))
+        style.configure("HeroSmallLabel.TLabel", background="#0f1726", foreground=muted, font=self._role_font("label"))
+        style.configure("HeroSetup.TLabel", background=panel_2, foreground=muted, font=self._ui_font(9))
+        style.configure("ReadoutValue.TLabel", background="#0f1726", foreground=text, font=self._role_font("value"))
         for suffix, colour in (("Good", "#99f6e4"), ("Bad", "#fed7aa"), ("Neutral", text)):
             style.configure(f"Readout{suffix}.TLabel", background="#0f1726", foreground=colour,
-                            font=self._ui_font(16, family="Segoe UI Semibold"))
+                            font=self._role_font("value"))
         style.configure("RailKicker.TLabel", background=panel, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"))
-        style.configure("RailValue.TLabel", background=panel, foreground=text, font=self._ui_font(10))
+        style.configure("RailValue.TLabel", background=panel, foreground=text, font=self._ui_font(9))
+        style.configure("RailLive.TLabel", background=panel, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"))
         style.configure("TrendTitle.TLabel", background="#020617", foreground="#d8fffb", font=self._ui_font(9, family="Segoe UI Semibold"))
         style.configure("TrendBody.TLabel", background="#020617", foreground=muted, font=self._ui_font(8))
         style.configure("Pill.TLabel", background=accent_soft, foreground=accent, font=self._ui_font(9, family="Segoe UI Semibold"), padding=(12, 5))
         style.configure("Title.TLabel", background=bg, foreground=accent, font=self._ui_font(16, family="Segoe UI Semibold"))
         style.configure("Subtitle.TLabel", background=bg, foreground=muted, font=self._ui_font())
         style.configure("Status.TLabel", background=panel, foreground=muted, font=self._ui_font(9))
-        style.configure("Accent.TButton", background=accent, foreground="#031412", font=self._ui_font(9, family="Segoe UI Semibold"), padding=(10, 4), borderwidth=0, focusthickness=0)
-        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(8, 4), borderwidth=0, focusthickness=0)
-        style.configure("TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(8, 4), borderwidth=0, focusthickness=0)
+        style.configure("Accent.TButton", background=accent, foreground="#031412", font=self._ui_font(9, family="Segoe UI Semibold"), padding=(p(10), p(3)), borderwidth=0, focusthickness=0)
+        style.configure("Ghost.TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(p(8), p(3)), borderwidth=0, focusthickness=0)
+        style.configure("TButton", background=panel_3, foreground=text, font=self._ui_font(9), padding=(p(8), p(3)), borderwidth=0, focusthickness=0)
+        style.configure("Footer.TButton", background=panel_2, foreground=muted, font=self._ui_font(8), padding=(p(6), p(1)), borderwidth=0, focusthickness=0)
+        style.map("Footer.TButton", background=[("pressed", "#1f293d"), ("active", "#223049")], foreground=[("active", text)])
         style.map(
             "Accent.TButton",
             background=[("disabled", "#2a3444"), ("pressed", "#14b8a6"), ("active", "#5eead4")],
@@ -285,18 +328,28 @@ class PedHunterApp(tk.Tk):
             background=[("disabled", "#151c2a"), ("pressed", "#1f293d"), ("active", "#223049")],
             foreground=[("disabled", "#697586"), ("active", text)],
         )
-        style.map("TButton", background=[("pressed", "#1f293d"), ("active", "#223049")], foreground=[("active", text)])
-        style.configure("TCheckbutton", background=bg, foreground=muted, font=self._ui_font(9), indicatorbackground=panel_2, padding=(3, 2))
-        style.map("TCheckbutton", background=[("active", bg)], foreground=[("selected", text), ("active", text)], indicatorbackground=[("selected", accent), ("active", panel_3)])
+        style.map("TButton", background=[("disabled", "#1c232c"), ("pressed", "#1f293d"), ("active", "#223049")],
+                  foreground=[("disabled", "#697586"), ("active", text)])
+        style.configure("TCheckbutton", background=panel, foreground=muted, font=self._ui_font(9), indicatorbackground=panel_2,
+                        indicatorsize=p(12), padding=(p(2), p(2)))
+        style.map("TCheckbutton", background=[("active", panel)], foreground=[("selected", text), ("active", text)], indicatorbackground=[("selected", accent), ("active", panel_3)])
         style.map("TCombobox", fieldbackground=[("readonly", "#0a0f1a")], selectbackground=[("readonly", panel_3)], selectforeground=[("readonly", text)])
-        style.configure("TEntry", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, insertcolor=text, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
-        style.configure("TCombobox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(8, 4), borderwidth=1)
-        style.configure("TSpinbox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=muted, bordercolor=border, lightcolor=border, darkcolor=border, padding=(7, 4), borderwidth=1)
-        style.configure("Vertical.TScrollbar", background=panel_3, troughcolor=panel, borderwidth=0, arrowcolor=muted)
-        style.configure("TNotebook", background=bg, borderwidth=0, tabmargins=(0, 0, 0, 0), lightcolor=bg, darkcolor=bg, bordercolor=bg)
-        style.configure("TNotebook.Tab", background=bg, foreground=muted, padding=(9, 4), font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, relief="flat", lightcolor=bg, darkcolor=bg, bordercolor=bg)
-        style.layout("TNotebook.Tab", [("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [("Notebook.label", {"side": "top", "sticky": ""})]})])
-        style.map("TNotebook.Tab", background=[("selected", panel_2), ("active", "#101827")], foreground=[("selected", accent), ("active", text)])
+        style.configure("TEntry", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, insertcolor=text, bordercolor=border, lightcolor=border, darkcolor=border, padding=(p(6), p(3)), borderwidth=1)
+        # A wide arrow button: the dropdown target must be easy to hit at any display scale.
+        style.configure("TCombobox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=text, arrowsize=p(18), background=panel_3, bordercolor=border, lightcolor=border, darkcolor=border, padding=(p(6), p(3)), borderwidth=1)
+        style.configure("TSpinbox", font=self._ui_font(), fieldbackground="#0a0f1a", foreground=text, arrowcolor=text, arrowsize=p(12), background=panel_3, bordercolor=border, lightcolor=border, darkcolor=border, padding=(p(6), p(3)), borderwidth=1)
+        for bar in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+            style.configure(bar, background=panel_3, troughcolor=panel, borderwidth=0, arrowcolor=muted,
+                            arrowsize=p(11), bordercolor=panel, lightcolor=panel_3, darkcolor=panel_3)
+        # The tab strip is a bar of its own: it switches the tables below, not the run above.
+        style.configure("TNotebook", background=panel, borderwidth=0, tabmargins=(0, 0, 0, 0), lightcolor=panel, darkcolor=panel, bordercolor=panel)
+        style.configure("TNotebook.Tab", background=panel, foreground=muted, padding=(p(10), p(4)), font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, relief="flat", lightcolor=panel, darkcolor=panel, bordercolor=panel)
+        style.layout("TNotebook.Tab", [("Notebook.tab", {"sticky": "nswe", "children": [
+            ("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [("Notebook.label", {"side": "top", "sticky": ""})]})]})])
+        style.map("TNotebook.Tab", expand=[("selected", (0, 0, 0, 0))],
+                  lightcolor=[("selected", accent_soft)], darkcolor=[("selected", accent_soft)],
+                  bordercolor=[("selected", accent_soft)])
+        style.map("TNotebook.Tab", background=[("selected", accent_soft), ("active", panel_3)], foreground=[("selected", accent), ("active", text)])
         tree_font = self._ui_font(9)
         # Rows and glyphs use the same monitor scale, independently of Tk's
         # process-wide point scaling; never clip the rendered line.
@@ -313,8 +366,10 @@ class PedHunterApp(tk.Tk):
             font=tree_font,
             borderwidth=0,
         )
-        style.configure("Treeview.Heading", background=panel_3, foreground="#c7fffa", font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, padding=(6, 5))
+        style.configure("Treeview.Heading", background=panel_3, foreground="#c7fffa", font=self._ui_font(9, family="Segoe UI Semibold"), borderwidth=0, padding=(p(6), p(3)))
         style.map("Treeview", background=[("selected", "#155e59")], foreground=[("selected", "#ffffff")])
+        style.map("Treeview.Heading", background=[("pressed", "#1f293d"), ("active", "#3a4757")],
+                  foreground=[("active", "#ffffff")])
 
         self.colors = {
             "bg": bg,
@@ -333,195 +388,438 @@ class PedHunterApp(tk.Tk):
             "cyan": "#38bdf8",
         }
 
+    def _px(self, logical: float) -> int:
+        """Logical pixels at this window's monitor scale (spacing uses 4 / 8 / 12)."""
+        return round(logical * self.display_scale)
+
+    def _role_font(self, role: str) -> tkfont.Font:
+        """Readout fonts that change with the window's size class, never per pixel."""
+        index = ("net", "value", "label", "card").index(role)
+        points = RESPONSIVE_FONTS[self.size_class.name][index]
+        pixels = -max(1, round(points * 96 / 72 * self.display_scale))
+        fonts = self.__dict__.setdefault("_role_fonts", {})
+        font = fonts.get(role)
+        if font is None:
+            family = "Segoe UI" if role == "label" else "Segoe UI Semibold"
+            font = fonts[role] = tkfont.Font(self, family=family, size=pixels)
+        elif int(font.cget("size")) != pixels:
+            font.configure(size=pixels)
+        return font
+
     def _build_layout(self) -> None:
-        self.root_frame = ttk.Frame(self, style="Root.TFrame", padding=(8, 6))
+        p = self._px
+        self.root_frame = ttk.Frame(self, style="Root.TFrame", padding=(p(8), p(6)))
         root = self.root_frame
         root.pack(fill="both", expand=True)
         root.columnconfigure(0, weight=1)
         root.rowconfigure(2, weight=1)
 
-        header = ttk.Frame(root, style="Header.TFrame")
-        header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(1, weight=1)
-        ttk.Label(header, text="PED Hunter", style="Title.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(header, text="Hunt cockpit", style="Subtitle.TLabel").grid(row=0, column=1, sticky="w")
-        ttk.Label(header, text="Display", style="Muted.TLabel").grid(row=0, column=2, sticky="e", padx=(6, 4))
-        currency_picker = ttk.Combobox(header, textvariable=self.currency_mode, values=("USD", "PED"), state="readonly", width=6)
-        currency_picker.grid(row=0, column=3, sticky="e", padx=(0, 8))
-        ttk.Button(header, textvariable=self.top_toggle_text, command=self._toggle_top_area, style="Ghost.TButton").grid(row=0, column=5, sticky="e", padx=(0, 6))
-        ttk.Button(header, text="Streamer UI", command=self._open_streamer_window, style="Ghost.TButton").grid(row=0, column=6, sticky="e", padx=(0, 6))
-
-        # Cockpit: primary readouts across the top, a command rail on the left,
-        # the hunt chart above the existing tabs on the right.
-        self._build_session_hero(root, row=1)
-        body = ttk.Frame(root, style="Root.TFrame")
-        body.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
+        # This run's readouts stay on top; the run bar (small windows) or the
+        # rail (larger ones) holds the controls; chart and tabs share the body.
+        self._build_session_hero(root, row=0)
+        self._build_run_bar(root, row=1)
+        self.body = body = ttk.Frame(root, style="Root.TFrame")
+        body.grid(row=2, column=0, sticky="nsew", pady=(p(8), 0))
         body.columnconfigure(1, weight=1)
-        body.rowconfigure(1, weight=1)
-        # The chart keeps ~45% of the body (tables would otherwise claim it all).
-        body.bind("<Configure>", lambda event: body.rowconfigure(0, minsize=round(max(
-            170 * self.display_scale, min(360 * self.display_scale, event.height * 0.45)))))
+        self._body_height = 0
+        body.bind("<Configure>", self._on_body_resize)
         self._build_command_rail(body)
         self._build_hunt_chart(body)
 
         notebook = ttk.Notebook(body)
         notebook.grid(row=1, column=1, sticky="nsew")
         self.notebook = notebook
-        self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.catalog_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.wtb_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        notebook.add(self.dashboard_tab, text="Dashboard")
-        self.statistics_tab = ttk.Frame(notebook, style="Root.TFrame", padding=(2, 6, 2, 2))
-        notebook.add(self.statistics_tab, text="Statistics")
-        notebook.add(self.events_tab, text="Events")
-        notebook.add(self.skills_tab, text="Skills")
-        notebook.add(self.loadouts_tab, text="Setups")
-        notebook.add(self.manufacturing_tab, text="Manufacturing")
-        notebook.add(self.catalog_tab, text="Catalog")
-        notebook.add(self.wtb_tab, text="WTB")
-        notebook.add(self.setup_tab, text="Help")
+        pad = (0, p(8), 0, 0)
+        self.dashboard_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.statistics_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.events_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.skills_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.loadouts_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.manufacturing_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.wtb_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        self.setup_tab = ttk.Frame(notebook, style="Root.TFrame", padding=pad)
+        for tab, title in ((self.dashboard_tab, "Runs"), (self.statistics_tab, "Lifetime"),
+                           (self.events_tab, "Events"), (self.skills_tab, "Skills"), (self.loadouts_tab, "Setups"),
+                           (self.manufacturing_tab, "Crafting"), (self.wtb_tab, "WTB"),
+                           (self.setup_tab, "Help & settings")):
+            notebook.add(tab, text=title)
 
-        self.controls_panel = ttk.Frame(root, style="Panel.TFrame", padding=(8, 4))
-        controls = self.controls_panel
-        controls.grid(row=3, column=0, sticky="ew", pady=(5, 0))
-        controls.columnconfigure(1, weight=1)
-        ttk.Label(controls, text="Chat log", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        ttk.Entry(controls, textvariable=self.chat_path).grid(row=0, column=1, sticky="ew", padx=(0, 6))
-        ttk.Button(controls, text="Browse", command=self._browse_log).grid(row=0, column=2, padx=(0, 8))
-        self.status_label = ttk.Label(controls, textvariable=self.status_text, style="Status.TLabel")
-        self.status_label.grid(row=0, column=3, sticky="e")
-
+        self._build_footer(root, row=3)
         self._build_dashboard_tab()
         self._build_events_tab()
         self._build_skills_tab()
         self._build_loadouts_tab()
         self._build_manufacturing_tab()
-        self._build_catalog_tab()
         self._build_wtb_tab()
         self._build_setup_tab()
         notebook.bind("<<NotebookTabChanged>>", lambda _event: self._refresh_visible_tab())
+        self._apply_size_class(*self._initial_size, force=True)
         self.bind("<Configure>", self._on_resize)
         self.bind("<Map>", self._on_restore, add="+")
+        self.bind("<Escape>", lambda _event: self._toggle_drawer(False), add="+")
         for slot in range(4):
             self.bind(f"<Alt-Key-{slot + 1}>", lambda _event, index=slot: self._switch_setup_slot(index))
 
-    def _build_session_hero(self, parent: ttk.Frame, *, row: int) -> None:
-        """Primary readout strip: hunt net first, then return, burn, loot, cost, events."""
-        self.hero_panel = ttk.Frame(parent, style="Hero.TFrame", padding=(10, 6))
-        hero = self.hero_panel
-        hero.grid(row=row, column=0, sticky="ew", pady=(4, 0))
-        hero.columnconfigure(0, weight=3)
-        hero.columnconfigure((1, 2, 3, 4, 5), weight=1, uniform="readouts")
+    # ----- size classes --------------------------------------------------
+    def _apply_size_class(self, width: float, height: float, *, force: bool = False) -> None:
+        """Re-lay the window only when a size threshold is crossed (see responsive.py)."""
+        scale = max(0.5, self.display_scale)
+        size = classify(width / scale, height / scale, None if force else self.size_class)
+        if size == self.size_class and not force:
+            return
+        self.size_class = size
+        for role in ("net", "value", "label", "card"):
+            self._role_font(role)
+        self._layout_hero()
+        self._layout_body()
+        self._layout_tabs()
 
+    def _layout_hero(self) -> None:
+        size, hero, left, p = self.size_class, self.hero_panel, self.hero_left, self._px
+        compact = not size.docked
+        cells = self._hero_cells
+        for widget in (left, self.hero_kicker, self.hero_net_label, self.hero_session_label,
+                       *(cell[0] for cell in cells.values())):
+            widget.grid_forget()
+        for column in range(len(cells) + 2):
+            hero.columnconfigure(column, weight=0, uniform="")
+        shown = [key for key in cells if not (compact and key == "events") and not (size.tight and key == "burn")]
+        if compact:
+            self.hero_net_label.grid(row=0, column=0, sticky="w")
+            left.grid(row=0, column=0, sticky="w", padx=(0, p(8)))
+            hero.columnconfigure(len(shown) + 1, weight=1)
+        else:
+            self.hero_kicker.grid(row=0, column=0, sticky="w")
+            self.hero_net_label.grid(row=1, column=0, sticky="w")
+            self.hero_session_label.grid(row=2, column=0, sticky="ew")
+            left.grid(row=0, column=0, sticky="nsew", padx=(0, p(12)))
+            hero.columnconfigure(0, weight=3)
+        for column, key in enumerate(shown, start=1):
+            frame, label, value, long_text, short_text = cells[key]
+            label.grid_forget()
+            value.grid_forget()
+            frame.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 1 else p(4), 0))
+            if compact:
+                frame.configure(padding=(p(6), p(2)))
+                label.configure(text=short_text)
+                label.grid(row=0, column=0, sticky="w", padx=(0, p(4)))
+                value.grid(row=0, column=1, sticky="w")
+            else:
+                frame.configure(padding=(p(8), p(4)))
+                label.configure(text=long_text)
+                label.grid(row=0, column=0, sticky="w")
+                value.grid(row=1, column=0, sticky="w")
+                hero.columnconfigure(column, weight=1, uniform="readouts")
+
+    def _layout_body(self) -> None:
+        size, p, rail, body = self.size_class, self._px, self.command_rail, self.body
+        rail.configure(width=p(RAIL_WIDTH[size.name]))
+        body.columnconfigure(0, minsize=p(RAIL_WIDTH[size.name]) if size.docked else 0)
+        for widget in self._rail_bar_twins:
+            widget.grid() if size.docked else widget.grid_remove()
+        if size.docked:
+            self._drawer_open = False
+            rail.place_forget()
+            rail.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=(0, p(8)))
+            self.run_bar.grid_remove()
+        else:
+            rail.grid_forget()
+            self.run_bar.grid()
+            if self._drawer_open:
+                rail.place(in_=body, x=0, y=0, relheight=1.0, width=p(RAIL_WIDTH["compact"]))
+                rail.lift()
+            else:
+                rail.place_forget()
+        self.drawer_text.set("Close ◂" if self._drawer_open else "Healing & gear ▸")
+        idle = self.__dict__.get("_shown_session") is None  # nothing to chart yet
+        chart_only = size.split and self.chart_first.get() and not idle
+        if idle or (size.split and not chart_only):
+            self.chart_panel.grid_remove()
+        else:
+            self.chart_panel.grid()
+        if chart_only:
+            self.notebook.grid_remove()
+        else:
+            self.notebook.grid()
+        body.rowconfigure(0, weight=1 if chart_only else 0)
+        body.rowconfigure(1, weight=0 if chart_only else 1)
+        if size.split and not idle:
+            self.bar_chart_button.grid()
+        else:
+            self.bar_chart_button.grid_remove()
+        if size.tight:
+            self.bar_setup_label.grid_remove()
+        else:
+            self.bar_setup_label.grid()
+        self.chart_toggle_text.set("Show tables" if chart_only else "Show chart")
+        self._size_chart_row()
+        self._sync_run_bar()
+
+    def _size_chart_row(self) -> None:
+        scale = max(0.5, self.display_scale)
+        height = chart_height(self._body_height / scale, self.size_class)
+        if self.__dict__.get("_shown_session") is None:
+            height = 0
+        self.body.rowconfigure(0, minsize=round(height * scale))
+
+    def _on_body_resize(self, event: tk.Event) -> None:
+        if event.widget is self.body and event.height != self._body_height:
+            self._body_height = event.height
+            self._size_chart_row()
+
+    def _layout_tabs(self) -> None:
+        size, p = self.size_class, self._px
+        compact = not size.docked
+        ttk.Style(self).configure("TNotebook.Tab", padding=(p(6), p(3)) if compact else (p(10), p(4)))
+        self.sessions_tree.configure(displaycolumns=(
+            ("started", "setup", "return", "net") if size.tight
+            else ("started", "setup", "return", "loot", "cost", "net") if compact else "#all"))
+        self.loadouts_tree.configure(displaycolumns=("active", "name", "cost") if compact else "#all")
+        self.loadout_list_panel.configure(width=p(190 if compact else 300 if size.name == "wide" else 250))
+        for widget in self._setup_extras:
+            widget.grid_remove() if compact else widget.grid()
+        for tree in (self.sessions_tree, self.loadouts_tree):
+            self._fit_tree(tree)
+        if size.name == "wide":
+            self.loot_chart_canvas.grid()
+        else:
+            self.loot_chart_canvas.grid_remove()  # the table needs the room
+        columns = 3 if compact else 5
+        for column in range(5):
+            self.lifetime_grid.columnconfigure(column, weight=1 if column < columns else 0,
+                                               uniform="lifetime" if column < columns else "")
+        for index, card in enumerate(self.lifetime_cards):
+            row, column = divmod(index, columns)
+            card.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else p(8), 0),
+                      pady=(0 if row == 0 else p(8), 0))
+        for note in self.lifetime_notes:
+            note.pack_forget() if compact else note.pack(anchor="w")
+
+    def _toggle_drawer(self, open_: bool | None = None) -> None:
+        """Small windows: the rail (setups, healing, equipment) slides over the body."""
+        if self.size_class.docked:
+            return
+        self._drawer_open = (not self._drawer_open) if open_ is None else open_
+        self._layout_body()
+
+    def _toggle_chart_first(self) -> None:
+        self.chart_first.set(not self.chart_first.get())
+        self._layout_body()
+
+    def _sync_run_bar(self) -> None:
+        """The run bar mirrors the rail's buttons and shows only what applies now."""
+        if "resume_run_button" not in self.__dict__:
+            return
+        for button, source in ((self.bar_start, self.start_button), (self.bar_resume, self.resume_button),
+                               (self.bar_stop, self.stop_button)):
+            button.configure(state=str(source.cget("state")))
+        tracking = str(self.stop_button.cget("state")) != "disabled"
+        for widget in (self.bar_state, self.bar_stop, self.rail_state, self.stop_button):
+            widget.grid() if tracking else widget.grid_remove()
+        for widget in (self.bar_start, self.bar_resume, self.start_button, self.resume_button):
+            widget.grid_remove() if tracking else widget.grid()
+        self.resume_run_button.configure(state="disabled" if tracking else "normal")
+
+    def _build_session_hero(self, parent: ttk.Frame, *, row: int) -> None:
+        """This run's readout strip: hunt net first, then return, burn, loot, cost, events."""
+        p = self._px
+        self.hero_panel = ttk.Frame(parent, style="Hero.TFrame", padding=(p(8), p(4)))
+        hero = self.hero_panel
+        hero.grid(row=row, column=0, sticky="ew")
         self.hero_left = ttk.Frame(hero, style="Hero.TFrame")
         left = self.hero_left
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        ttk.Label(left, text="HUNT NET", style="HeroKicker.TLabel").grid(row=0, column=0, sticky="w")
+        left.columnconfigure(0, weight=1)
+        self.hero_kicker = ttk.Label(left, text="THIS RUN · HUNT NET", style="HeroKicker.TLabel")
         self.hero_net_label = ttk.Label(left, textvariable=self.hero_net, style="HeroNeutral.TLabel")
-        self.hero_net_label.grid(row=1, column=0, sticky="w")
-        self.hero_session_label = ttk.Label(left, textvariable=self.hero_session, style="HeroSetup.TLabel", wraplength=420)
-        self.hero_session_label.grid(row=2, column=0, sticky="ew")
-        self.hero_loadout_label = ttk.Label(left, textvariable=self.active_loadout_text, style="HeroSetup.TLabel", wraplength=420)
-
+        self.hero_session_label = ttk.Label(left, textvariable=self.hero_session, style="HeroSetup.TLabel", wraplength=p(300))
         self.hero_right = hero  # readouts sit in the strip itself
-        self.hero_return_label = self._add_hero_stat(hero, 1, self.hero_return, "RETURN")
-        self._add_hero_stat(hero, 2, self.hero_burn, "COST / HOUR")
-        self._add_hero_stat(hero, 3, self.hero_loot, "LOOT")
-        self._add_hero_stat(hero, 4, self.hero_cost, "COST")
-        self._add_hero_stat(hero, 5, self.hero_events, "EVENTS")
+        self._hero_cells: dict[str, tuple] = {}
+        self.hero_return_label = self._add_hero_stat(hero, "return", self.hero_return, "RETURN", "Return")
+        self._add_hero_stat(hero, "burn", self.hero_burn, "COST / HOUR", "Per hour")
+        self._add_hero_stat(hero, "loot", self.hero_loot, "LOOT", "Loot")
+        self._add_hero_stat(hero, "cost", self.hero_cost, "COST", "Cost")
+        self._add_hero_stat(hero, "events", self.hero_events, "EVENTS", "Events")
         left.bind("<Configure>", self._on_hero_resize)
 
+    def _build_run_bar(self, parent: ttk.Frame, *, row: int) -> None:
+        """Small windows: run controls and the active setup in one row; the rest is a drawer."""
+        p = self._px
+        self.run_bar = ttk.Frame(parent, style="Panel.TFrame", padding=(p(8), p(4)))
+        bar = self.run_bar
+        bar.grid(row=row, column=0, sticky="ew", pady=(p(4), 0))
+        self._drawer_open = False
+        self.drawer_text = tk.StringVar(value="Healing & gear ▸")
+        self.chart_first = tk.BooleanVar(value=False)
+        self.chart_toggle_text = tk.StringVar(value="Show chart")
+        self.bar_start = ttk.Button(bar, text="New run", command=self.start, style="Accent.TButton")
+        self.bar_resume = ttk.Button(bar, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
+        self.bar_state = ttk.Label(bar, text="● Tracking", style="RailLive.TLabel")
+        self.bar_stop = ttk.Button(bar, text="End run", command=self.stop)
+        self.bar_start.grid(row=0, column=0, padx=(0, p(4)))
+        self.bar_resume.grid(row=0, column=1, padx=(0, p(8)))
+        self.bar_state.grid(row=0, column=2, padx=(0, p(8)))
+        self.bar_stop.grid(row=0, column=3, padx=(0, p(8)))
+        self.bar_setup_label = ttk.Label(bar, text="Setup", style="PanelMuted.TLabel")
+        self.bar_setup_label.grid(row=0, column=4, padx=(0, p(4)))
+        self.bar_setup = ttk.Combobox(bar, state="readonly", width=8)
+        self.bar_setup.grid(row=0, column=5, sticky="ew", padx=(0, p(8)))
+        self.bar_setup.bind("<<ComboboxSelected>>", lambda _event: self._bar_setup_chosen())
+        bar.columnconfigure(5, weight=1)
+        self.bar_chart_button = ttk.Button(bar, textvariable=self.chart_toggle_text, command=self._toggle_chart_first,
+                                           style="Ghost.TButton")
+        self.bar_chart_button.grid(row=0, column=6, padx=(0, p(4)))
+        ttk.Button(bar, textvariable=self.drawer_text, command=self._toggle_drawer,
+                   style="Ghost.TButton").grid(row=0, column=7)
+
+    def _bar_setup_chosen(self) -> None:
+        index = self.bar_setup.current()
+        loadouts = list(self.store.list_loadouts())
+        self.bar_setup.selection_clear()
+        if 0 <= index < len(loadouts):
+            if not loadouts[index].active:
+                self._activate_saved_loadout(loadouts[index].id)
+        else:
+            self.notebook.select(self.loadouts_tab)
+        self._refresh_setup_rail(self.store.list_loadouts())
+
+    def _build_footer(self, parent: ttk.Frame, *, row: int) -> None:
+        """One status line; the chat-log path itself lives under Help & settings."""
+        p = self._px
+        self.controls_panel = ttk.Frame(parent, style="Panel.TFrame", padding=(p(8), p(2)))
+        footer = self.controls_panel
+        footer.grid(row=row, column=0, sticky="ew", pady=(p(4), 0))
+        footer.columnconfigure(0, weight=1)
+        self.status_label = ttk.Label(footer, textvariable=self.status_text, style="Status.TLabel", width=1, anchor="w")
+        self.status_label.grid(row=0, column=0, sticky="ew", padx=(0, p(8)))
+        self.log_button = ttk.Button(footer, style="Footer.TButton", command=self._open_settings)
+        self.log_button.grid(row=0, column=1, padx=(0, p(4)))
+        ttk.Button(footer, text="Streamer UI", command=self._open_streamer_window,
+                   style="Footer.TButton").grid(row=0, column=2, padx=(0, p(4)))
+        ttk.Button(footer, textvariable=self.top_toggle_text, command=self._toggle_top_area,
+                   style="Footer.TButton").grid(row=0, column=3)
+        self.chat_path.trace_add("write", lambda *_args: self._refresh_log_button())
+        self._refresh_log_button()
+
+    def _refresh_log_button(self) -> None:
+        text = self.chat_path.get().strip().strip('"')
+        try:
+            found = bool(text) and Path(text).is_file()
+        except OSError:
+            found = False
+        if found:
+            self.log_button.configure(text=f"Log: {Path(text).name}", style="Footer.TButton")
+        else:
+            self.log_button.configure(text="Choose chat log…", style="Accent.TButton")
+
+    def _open_settings(self) -> None:
+        self.notebook.select(self.setup_tab)
+        if self.size_class.split and self.chart_first.get():
+            self._toggle_chart_first()
+        self.help_scroll.canvas.yview_moveto(0)
+        self.chat_log_entry.focus_set()
+
     def _build_command_rail(self, body: ttk.Frame) -> None:
-        """Run, setup, healing and equipment controls always within reach."""
-        self.command_rail = ttk.Frame(body, style="Panel.TFrame", padding=(10, 8))
-        rail = self.command_rail
-        rail.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=(0, 8))
+        """Run, setup, healing and equipment controls: docked beside the chart, or a drawer."""
+        p = self._px
+        self.command_rail = ttk.Frame(body, style="Panel.TFrame")
+        self.command_rail.grid_propagate(False)
+        self.command_rail.columnconfigure(0, weight=1)
+        self.command_rail.rowconfigure(0, weight=1)
+        self.rail_scroll = ScrollPane(self.command_rail, background=self.colors["panel"], autohide=True)
+        self.rail_scroll.grid(row=0, column=0, sticky="nsew")
+        rail = ttk.Frame(self.rail_scroll.content, style="Panel.TFrame", padding=(p(8), p(8)))
+        rail.pack(fill="both", expand=True)
         rail.columnconfigure(0, weight=1)
         rail.bind("<Configure>", self._on_rail_resize)
 
-        ttk.Label(rail, text="RUN", style="RailKicker.TLabel").grid(row=0, column=0, sticky="w")
+        run_title = ttk.Label(rail, text="RUN", style="RailKicker.TLabel")
+        run_title.grid(row=0, column=0, sticky="w", pady=(0, p(4)))
         actions = ttk.Frame(rail, style="Panel.TFrame")
-        actions.grid(row=1, column=0, sticky="ew", pady=(3, 0))
-        actions.columnconfigure((0, 1, 2), weight=1, uniform="run")
+        actions.grid(row=1, column=0, sticky="ew")
+        actions.columnconfigure((0, 1), weight=1, uniform="run")
+        # Only what applies now: New run / Resume while idle, End run while tracking.
         self.start_button = ttk.Button(actions, text="New run", command=self.start, style="Accent.TButton")
-        self.start_button.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        self.start_button.grid(row=0, column=0, sticky="ew", padx=(0, p(4)))
         self.resume_button = ttk.Button(actions, text="Resume", command=self.resume_selected_session, style="Ghost.TButton")
-        self.resume_button.grid(row=0, column=1, sticky="ew", padx=(0, 4))
+        self.resume_button.grid(row=0, column=1, sticky="ew")
+        self.rail_state = ttk.Label(actions, text="● Tracking", style="RailLive.TLabel")
+        self.rail_state.grid(row=0, column=0, sticky="w")
         self.stop_button = ttk.Button(actions, text="End run", command=self.stop, state="disabled")
-        self.stop_button.grid(row=0, column=2, sticky="ew")
-        ttk.Label(rail, textvariable=self.hero_state, style="RailValue.TLabel").grid(row=2, column=0, sticky="w", pady=(4, 0))
-        self.activity_strip = ActivityStrip(rail, reduced_motion=self.reduced_motion, money=self._money, compact=True)
-        self.activity_strip.grid(row=3, column=0, sticky="ew", pady=(2, 0))
-        # The rail is a narrow column: its widest children request a compact width.
-        rail_width = round(250 * self.display_scale)
-        self.activity_strip.configure(width=rail_width)
+        self.stop_button.grid(row=0, column=1, sticky="ew")
+        self.activity_strip = ActivityStrip(rail, reduced_motion=self.reduced_motion, money=self._money, compact=True, width=1)
+        self.activity_strip.grid(row=2, column=0, sticky="ew", pady=(p(4), 0))
 
-        ttk.Label(rail, text="SETUP  ·  Alt+1–4", style="RailKicker.TLabel").grid(row=4, column=0, sticky="w", pady=(12, 0))
+        setup_title = ttk.Label(rail, text="SETUP  ·  Alt+1–4", style="RailKicker.TLabel")
+        setup_title.grid(row=4, column=0, sticky="w", pady=(p(12), 0))
         self.setup_rail = ttk.Frame(rail, style="Panel.TFrame")
-        self.setup_rail.grid(row=5, column=0, sticky="ew", pady=(3, 0))
+        self.setup_rail.grid(row=5, column=0, sticky="ew", pady=(p(4), p(12)))
+        # In small windows the run bar has these; the drawer then starts at Healing.
+        self._rail_bar_twins = (run_title, actions, self.activity_strip, setup_title, self.setup_rail)
         self.setup_rail.columnconfigure(0, weight=1)
         self.setup_rail_buttons: list[ttk.Button] = []
         for slot in range(4):
-            button = ttk.Button(self.setup_rail, style="Ghost.TButton",
+            button = ttk.Button(self.setup_rail, style="Ghost.TButton", width=1,
                                 command=lambda index=slot: self._switch_setup_slot(index))
-            button.grid(row=slot, column=0, sticky="ew", pady=(0, 3))
+            button.grid(row=slot, column=0, sticky="ew", pady=(0, p(2)))
             self.setup_rail_buttons.append(button)
-        ttk.Button(self.setup_rail, text="All setups…", style="Ghost.TButton",
-                   command=lambda: self.notebook.select(self.loadouts_tab)).grid(row=4, column=0, sticky="ew")
+        ttk.Button(self.setup_rail, text="Edit setups…", style="Ghost.TButton",
+                   command=lambda: (self._toggle_drawer(False), self.notebook.select(self.loadouts_tab))
+                   ).grid(row=4, column=0, sticky="ew")
 
-        ttk.Label(rail, text="HEALING", style="RailKicker.TLabel").grid(row=6, column=0, sticky="w", pady=(12, 0))
+        healing_title = ttk.Frame(rail, style="Panel.TFrame")
+        healing_title.grid(row=6, column=0, sticky="ew")
+        healing_title.columnconfigure(0, weight=1)
+        ttk.Label(healing_title, text="HEALING", style="RailKicker.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Button(healing_title, text="How it's costed", style="Footer.TButton",
+                   command=self._show_healing_info).grid(row=0, column=1, sticky="e")
         self.hero_healing = ttk.Frame(rail, style="Panel.TFrame")
         healing = self.hero_healing
-        healing.grid(row=7, column=0, sticky="ew", pady=(3, 0))
+        healing.grid(row=7, column=0, sticky="ew", pady=(p(4), 0))
         healing.columnconfigure(1, weight=1)
-        ttk.Label(healing, text="Heal", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 6))
-        self.healing_selector = ttk.Combobox(
-            healing, textvariable=self.healing_tool, state="readonly", width=1,
+        ttk.Label(healing, text="Heal", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, p(4)))
+        self.healing_selector = SearchSelect(
+            healing, textvariable=self.healing_tool, width=1,
+            colors=self.colors, list_font=self._ui_font(9),
             values=["None", *sorted(self.catalog.healing_tools, key=str.casefold)])
-        self.healing_selector.grid(row=0, column=1, sticky="ew")
+        self.healing_selector.grid(row=0, column=1, columnspan=2, sticky="ew")
         self.healing_selector.bind("<<ComboboxSelected>>", lambda _event: self._healing_tool_changed())
-        _install_combobox_typeahead(self.healing_selector, on_change=self._healing_tool_changed)
-        ttk.Button(healing, text="?", width=2, style="Ghost.TButton", command=self._show_healing_info).grid(row=0, column=2, sticky="e", padx=(4, 0))
-        ttk.Label(healing, text="HoT", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(3, 0))
-        self.hot_selector = ttk.Combobox(
-            healing, textvariable=self.hot_tool, state="readonly", width=1,
+        ttk.Label(healing, text="HoT", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, p(4)), pady=(p(4), 0))
+        self.hot_selector = SearchSelect(
+            healing, textvariable=self.hot_tool, width=1,
+            colors=self.colors, list_font=self._ui_font(9),
             values=["None", *sorted((name for name, tool in self.catalog.healing_tools.items() if tool.has_hot), key=str.casefold)])
-        self.hot_selector.grid(row=1, column=1, columnspan=2, sticky="ew", pady=(3, 0))
+        self.hot_selector.grid(row=1, column=1, columnspan=2, sticky="ew", pady=(p(4), 0))
         self.hot_selector.bind("<<ComboboxSelected>>", lambda _event: self._hot_tool_changed())
-        _install_combobox_typeahead(self.hot_selector, on_change=self._hot_tool_changed)
-        self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="PanelMuted.TLabel", wraplength=rail_width)
-        self.healing_detail_label.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(3, 0))
-        self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="RailValue.TLabel", wraplength=rail_width)
+        self.healing_detail_label = ttk.Label(healing, textvariable=self.healing_detail, style="PanelMuted.TLabel", wraplength=p(180))
+        self.healing_detail_label.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(p(4), 0))
+        self.healing_totals_label = ttk.Label(healing, textvariable=self.healing_totals, style="RailValue.TLabel", wraplength=p(180))
         self.healing_totals_label.grid(row=3, column=0, columnspan=3, sticky="ew")
         healing.bind("<Configure>", self._on_healing_resize)
 
-        ttk.Label(rail, text="EQUIPMENT", style="RailKicker.TLabel").grid(row=8, column=0, sticky="w", pady=(12, 0))
-        self.hero_repair_label = ttk.Label(rail, textvariable=self.repair_radar_text, style="RailValue.TLabel", wraplength=rail_width)
-        self.hero_repair_label.grid(row=9, column=0, sticky="ew", pady=(3, 0))
-        setup_line = ttk.Label(rail, textvariable=self.active_loadout_text, style="PanelMuted.TLabel", wraplength=rail_width)
-        setup_line.grid(row=10, column=0, sticky="ew", pady=(2, 0))
+        ttk.Label(rail, text="EQUIPMENT", style="RailKicker.TLabel").grid(row=8, column=0, sticky="w", pady=(p(12), 0))
+        self.hero_repair_label = ttk.Label(rail, textvariable=self.repair_radar_text, style="RailValue.TLabel", wraplength=p(180))
+        self.hero_repair_label.grid(row=9, column=0, sticky="ew", pady=(p(4), 0))
+        setup_line = ttk.Label(rail, textvariable=self.active_loadout_text, style="PanelMuted.TLabel", wraplength=p(180))
+        setup_line.grid(row=10, column=0, sticky="ew", pady=(p(4), 0))
         self._rail_wrapped = (setup_line,)
+        self.rail_scroll.attach()
 
     def _on_rail_resize(self, event: tk.Event) -> None:
-        wrap = max(1, event.width - round(24 * self.display_scale))
+        wrap = max(1, event.width - self._px(16))
         for label in (self.hero_repair_label, self.healing_detail_label, self.healing_totals_label,
                       *self.__dict__.get("_rail_wrapped", ())):
             label.configure(wraplength=wrap)
 
     def _build_hunt_chart(self, body: ttk.Frame) -> None:
-        panel = ttk.Frame(body, style="Panel.TFrame", padding=(6, 6))
-        panel.grid(row=0, column=1, sticky="nsew", pady=(0, 6))
+        p = self._px
+        self.chart_panel = ttk.Frame(body, style="Panel.TFrame", padding=(p(4), p(4)))
+        panel = self.chart_panel
+        panel.grid(row=0, column=1, sticky="nsew", pady=(0, p(8)))
         panel.columnconfigure(0, weight=1)
         panel.rowconfigure(1, weight=1)
-        ttk.Label(panel, text="Hunt net by encounter", style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", padx=(4, 0))
-        self.hunt_chart = tk.Canvas(panel, height=round(160 * self.display_scale), bg=self.colors["panel"],
-                                    highlightthickness=0, takefocus=1)
-        self.hunt_chart.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
+        ttk.Label(panel, text="This run · net by encounter", style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", padx=(p(4), 0))
+        self.hunt_chart = tk.Canvas(panel, height=1, bg=self.colors["panel"], highlightthickness=0, takefocus=1)
+        self.hunt_chart.grid(row=1, column=0, sticky="nsew", pady=(p(4), 0))
         self._hunt_view = None
         self._hunt_focus: int | None = None
         self._hunt_pulse = 0.0
@@ -614,11 +912,11 @@ class PedHunterApp(tk.Tk):
         scale = max(0.5, self.display_scale)
         width = max(canvas.winfo_width(), 1) / scale
         height = max(canvas.winfo_height(), 1) / scale
-        if width < 200 or height < 160:
+        if width < 200 or height < 140:
             return
         view = chart_scene(trajectory, width, height, mode=self.currency_mode.get(), scale=scale,
                            focus=self._hunt_focus, pulse=self._hunt_pulse,
-                           focused_ring=self.focus_get() is canvas)
+                           focused_ring=self.focus_get() is canvas, compact=height < 212)
         if self._hunt_focus is not None and self._hunt_focus >= len(view.steps):
             self._hunt_focus = None
         self._hunt_view = view
@@ -658,7 +956,7 @@ class PedHunterApp(tk.Tk):
 
     def _refresh_setup_rail(self, loadouts) -> None:
         buttons = self.__dict__.get("setup_rail_buttons", [])
-        loadouts = list(loadouts)[:4]
+        loadouts = list(loadouts)
         for slot, button in enumerate(buttons):
             if slot < len(loadouts):
                 loadout = loadouts[slot]
@@ -668,6 +966,11 @@ class PedHunterApp(tk.Tk):
                 button.grid()
             else:
                 button.grid_remove()
+        picker = self.__dict__.get("bar_setup")
+        if picker is not None:
+            picker.configure(values=[*(loadout.name for loadout in loadouts), "Edit setups…"])
+            active = next((loadout.name for loadout in loadouts if loadout.active), "")
+            picker.set(active or "No setup")
 
     def _on_currency_changed(self, *_args) -> None:
         """Refresh rendered money for selector and programmatic mode writes."""
@@ -685,24 +988,21 @@ class PedHunterApp(tk.Tk):
     def _money_label(self, label: str, value_ped: float, *, signed: bool = False, decimals: int = 2) -> str:
         return f"{label} {self._money(value_ped, signed=signed, decimals=decimals)}"
 
-    def _add_hero_stat(self, parent: ttk.Frame, column: int, value: tk.StringVar, label: str) -> ttk.Label:
-        frame = ttk.Frame(parent, style="HeroInset.TFrame", padding=(9, 6))
-        frame.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0))
-        ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel").pack(anchor="w")
+    def _add_hero_stat(self, parent: ttk.Frame, key: str, value: tk.StringVar, label: str, short: str) -> ttk.Label:
+        frame = ttk.Frame(parent, style="HeroInset.TFrame")
+        name = ttk.Label(frame, text=label, style="HeroSmallLabel.TLabel")
         shown = ttk.Label(frame, textvariable=value, style="ReadoutValue.TLabel")
-        shown.pack(anchor="w", pady=(2, 0))
+        self._hero_cells[key] = (frame, name, shown, label, short)
         return shown
 
     def _on_hero_resize(self, event: tk.Event) -> None:
-        width = event.width
-        if width < round(200 * self.display_scale):
-            return  # Ignore the initial unallocated frame.
-        self.hero_session_label.configure(wraplength=max(1, width - round(4 * self.display_scale)))
+        if event.width >= self._px(120):
+            self.hero_session_label.configure(wraplength=max(1, event.width - self._px(4)))
 
     def _on_healing_resize(self, event: tk.Event) -> None:
         if event.width > 1:
             for label in (self.healing_detail_label, self.healing_totals_label):
-                label.configure(wraplength=max(1, event.width - round(4 * self.display_scale)))
+                label.configure(wraplength=max(1, event.width - self._px(4)))
 
     def _healing_tool_changed(self) -> None:
         name = self.healing_tool.get()
@@ -739,33 +1039,27 @@ class PedHunterApp(tk.Tk):
         notes = "\n".join(f"{tool.name}: {tool.verification_note or tool.tracking_limit or 'selected-profile estimate'}\n{tool.source_url}"
                           for tool in tools if tool)
         messagebox.showinfo(
-            "Healing cost estimates",
-            f"{notes}\n\n"
-            "Independent persistent choices; no automatic tool/caster detection. Future observations only; "
-            "old prices and retained activation profiles do not follow new selections.\n\n"
-            "A supported HoT marker consumes at most one cast estimate; later ticks never add charges. "
-            "Mixed, capped, missing-marker, external or overlapping evidence stays uncertain/unpriced, "
-            "or explicitly booked but unassigned.\n\n"
-            "Supported activation-context healing enters primary group costs: during combat toward upcoming loot, "
-            "between fights toward previous loot. Unresolved amounts/reasons remain pending, still in run/lifetime totals. "
-            "Existing fan observations are preserved; new observations include assigned healing. No historical healing backfill.\n\n"
-            "A selected HoT can leave overlapping unmarked instant receipts unpriced. Unknown effect duration "
-            "is never invented or cleared by selecting a different tool.\n\n"
-            "Exact timestamp/message replays are not charged twice. Same-second identical activations, silent uses, "
-            "implant/enhancer changes and unmarked passive effects cannot be resolved reliably.",
+            "Healing cost",
+            "Pick the healing tool you use and, if you have one, your heal-over-time (HoT) tool. "
+            "PED Hunter adds an estimated cost each time the chat log shows a heal.\n\n"
+            "The log does not say which tool you fired, so keep these matching what you actually use. "
+            "Changing them affects future heals only; costs already recorded stay as they are.\n\n"
+            "A HoT is charged once per cast, not per tick. Heals the log does not clearly show "
+            "(silent uses, overlapping effects, a second identical heal in the same second) are left "
+            "uncosted rather than guessed."
+            + (f"\n\nDetails for the selected tools\n{notes}" if notes else ""),
             parent=self,
         )
 
     def _toggle_top_area(self) -> None:
+        """Hide or show the readout strip; the status line stays."""
         expanded = not self.top_area_expanded.get()
         self.top_area_expanded.set(expanded)
-        self.top_toggle_text.set("Hide top" if expanded else "Show top")
+        self.top_toggle_text.set("Hide totals" if expanded else "Show totals")
         if expanded:
             self.hero_panel.grid()
-            self.controls_panel.grid()
         else:
             self.hero_panel.grid_remove()
-            self.controls_panel.grid_remove()
 
     def _on_restore(self, event: tk.Event) -> None:
         deferred = self.__dict__.get("_hunt_chart_deferred")
@@ -779,99 +1073,135 @@ class PedHunterApp(tk.Tk):
         scale = window_ui_scale(self)
         if abs(scale - self.display_scale) > 0.01:
             self.display_scale = scale
-            self.minsize(round(760 * scale), round(500 * scale))
+            self.minsize(round(MIN_SIZE[0] * scale), round(MIN_SIZE[1] * scale))
             self._configure_theme()
-        width = event.width
-        if hasattr(self, "status_label"):
-            self.status_label.configure(wraplength=max(1, width - round(40 * scale)))
-            if width < 900 * scale:
-                self.status_label.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(3, 0))
-            else:
-                self.status_label.grid(row=0, column=3, columnspan=1, sticky="e", pady=0)
-
+            self._apply_size_class(event.width, event.height, force=True)
+            return
+        self._apply_size_class(event.width, event.height)
 
     def _build_dashboard_tab(self) -> None:
+        """Runs: every saved run, and Resume for the selected one."""
+        p = self._px
         tab = self.dashboard_tab
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=0)
 
         self.statistics_tab.columnconfigure(0, weight=1)
-        totals_panel = self._panel(self.statistics_tab, "Lifetime statistics", 0, 0)
+        totals_panel = ttk.Frame(self.statistics_tab, style="Panel.TFrame", padding=(p(8), p(8)))
+        totals_panel.grid(row=0, column=0, sticky="new")
         self._build_lifetime_totals(totals_panel)
 
-        recent_panel = self._panel(tab, "Run history", 0, 0)
+        table = ttk.Frame(tab, style="Panel.TFrame")
+        table.grid(row=0, column=0, sticky="nsew")
+        table.columnconfigure(0, weight=1)
+        table.rowconfigure(0, weight=1)
+        numeric = ("return", "loot", "cost", "net", "events")
         self.sessions_tree = self._tree(
-            recent_panel,
+            table,
             headings=("Started", "Setup", "Return", "Loot", "Cost", "Net", "Events", "Status"),
             columns=("started", "setup", "return", "loot", "cost", "net", "events", "status"),
+            numeric=numeric, widths={"started": 104, "setup": 130, "return": 66, "loot": 70, "cost": 70,
+                                     "net": 72, "events": 64, "status": 66},
         )
+        make_sortable(self.sessions_tree, numeric=numeric, text=("started", "setup", "status"))
         self.sessions_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_session_selected())
 
-        action_panel = self._panel(tab, "Continue a saved run", 1, 0)
-        command_card = ttk.Frame(action_panel, style="Card.TFrame", padding=(10, 8))
-        command_card.grid(row=0, column=0, sticky="ew")
-        command_card.columnconfigure(1, weight=1)
-        ttk.Label(command_card, text="SESSION", style="CardLabel.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        ttk.Label(command_card, textvariable=self.selected_session_text, style="CardTitle.TLabel").grid(row=0, column=1, sticky="ew", padx=(0, 10))
-        ttk.Button(command_card, text="Resume", command=self.resume_selected_session, style="Accent.TButton").grid(row=0, column=2, sticky="e")
+        action = ttk.Frame(tab, style="Card.TFrame", padding=(p(8), p(4)))
+        action.grid(row=1, column=0, sticky="ew", pady=(p(4), 0))
+        action.columnconfigure(0, weight=1)
+        ttk.Label(action, textvariable=self.selected_session_text, style="CardLabel.TLabel", width=1, anchor="w").grid(
+            row=0, column=0, sticky="ew", padx=(0, p(8)))
+        self.resume_run_button = ttk.Button(action, text="Resume this run", command=self.resume_selected_session,
+                                            style="Accent.TButton")
+        self.resume_run_button.grid(row=0, column=1, sticky="e")
 
     def _build_lifetime_totals(self, parent: ttk.Frame) -> None:
-        parent.columnconfigure(tuple(range(5)), weight=1, uniform="lifetime")
-        ttk.Label(parent, textvariable=self.lifetime_summary_text, style="PanelMuted.TLabel").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 7))
-        cards = (
-            ("total_cost", "TOTAL TT IN", 0, 0),
-            ("total_loot", "TOTAL TT OUT", 0, 1),
-            ("total_net", "LIFETIME P/L", 0, 2),
-            ("overall_return", "OVERALL RETURN", 0, 3),
-            ("avg_profit", "AVG PROFIT / RUN", 0, 4),
-            ("total_events", "EVENTS", 1, 0),
-            ("avg_return", "AVG RETURN / RUN", 1, 1),
-            ("best_run", "BEST RUN", 1, 2),
-            ("worst_run", "WORST RUN", 1, 3),
-        )
-        for key, label, row, column in cards:
-            columnspan = 2 if key == "worst_run" else 1
-            self._add_lifetime_card(parent, key, label, row + 1, column, columnspan=columnspan)
+        parent.columnconfigure(0, weight=1)
+        ttk.Label(parent, textvariable=self.lifetime_summary_text, style="PanelMuted.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, self._px(8)))
+        self.lifetime_grid = ttk.Frame(parent, style="Panel.TFrame")
+        self.lifetime_grid.grid(row=1, column=0, sticky="ew")
+        self.lifetime_cards: list[ttk.Frame] = []
+        self.lifetime_notes: list[ttk.Label] = []  # explanations, shown when there is room
+        for key, label in (
+            ("total_net", "LIFETIME NET"), ("overall_return", "OVERALL RETURN"), ("total_loot", "TOTAL LOOT"),
+            ("total_cost", "TOTAL COST"), ("avg_profit", "AVG NET / RUN"), ("avg_return", "AVG RETURN / RUN"),
+            ("best_run", "BEST RUN"), ("worst_run", "WORST RUN"), ("total_events", "EVENTS"),
+        ):
+            self._add_lifetime_card(self.lifetime_grid, key, label)
 
-    def _add_lifetime_card(self, parent: ttk.Frame, key: str, label: str, row: int, column: int, *, columnspan: int = 1) -> None:
-        frame = ttk.Frame(parent, style="Card.TFrame", padding=(10, 8))
-        frame.grid(row=row, column=column, columnspan=columnspan, sticky="ew", padx=(0 if column == 0 else 8, 0), pady=(0 if row == 1 else 8, 0))
+    def _add_lifetime_card(self, parent: ttk.Frame, key: str, label: str) -> None:
+        frame = ttk.Frame(parent, style="Card.TFrame", padding=(self._px(8), self._px(4)))
         ttk.Label(frame, text=label, style="CardLabel.TLabel").pack(anchor="w")
-        ttk.Label(frame, textvariable=self.lifetime_vars[key], style="CardValue.TLabel").pack(anchor="w", pady=(3, 0))
-        if key == "overall_return":
-            ttk.Label(frame, text="Weighted: TT Out ÷ TT In", style="CardLabel.TLabel").pack(anchor="w", pady=(2, 0))
-        elif key == "avg_return":
-            ttk.Label(frame, text="Simple average of per-run %", style="CardLabel.TLabel").pack(anchor="w", pady=(2, 0))
+        ttk.Label(frame, textvariable=self.lifetime_vars[key], style="CardValue.TLabel").pack(anchor="w")
+        note = {"overall_return": "All loot ÷ all cost", "avg_return": "Each run counts equally"}.get(key)
+        if note:
+            self.lifetime_notes.append(ttk.Label(frame, text=note, style="CardLabel.TLabel"))
+        self.lifetime_cards.append(frame)
 
     def _build_events_tab(self) -> None:
+        """Events: what this run recorded, newest first, plus the one everyday correction."""
+        p = self._px
         tab = self.events_tab
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(0, weight=2)
-        tab.rowconfigure(1, weight=3)
-        chart_panel = self._panel(tab, "Loot event chart", 0, 0)
-        self.loot_chart_canvas = tk.Canvas(
-            chart_panel,
-            bg=self.colors["panel_2"],
-            highlightthickness=0,
-            relief="flat",
-            height=210,
-        )
-        self.loot_chart_canvas.grid(row=0, column=0, sticky="nsew")
+        tab.rowconfigure(2, weight=1)
+        bar = ttk.Frame(tab, style="Root.TFrame")
+        bar.grid(row=0, column=0, sticky="ew", pady=(0, p(4)))
+        bar.columnconfigure(2, weight=1)
+        ttk.Label(bar, text="Show", style="Muted.TLabel").grid(row=0, column=0, padx=(0, p(4)))
+        self.event_filter = tk.StringVar(value="Loot")
+        picker = ttk.Combobox(bar, textvariable=self.event_filter, values=tuple(EVENT_FILTERS), state="readonly", width=14)
+        picker.grid(row=0, column=1, sticky="w")
+        picker.bind("<<ComboboxSelected>>", lambda _event: (picker.selection_clear(), self._event_filter_changed()))
+        self.corrections_text = tk.StringVar(value="Loot corrections…")
+        self.exclude_loot_button = ttk.Button(bar, text="Don't count this loot…", command=self._exclude_selected_loot,
+                                              state="disabled")
+        self.exclude_loot_button.grid(row=0, column=3, padx=(p(8), p(4)))
+        self.event_history_button = ttk.Button(bar, textvariable=self.corrections_text, command=self._open_event_history,
+                                               style="Ghost.TButton")
+        self.event_history_button.grid(row=0, column=4)
+
+        self.loot_chart_canvas = tk.Canvas(tab, bg=self.colors["panel_2"], highlightthickness=0, relief="flat", height=p(96))
+        self.loot_chart_canvas.grid(row=1, column=0, sticky="ew", pady=(0, p(4)))
         self.loot_chart_canvas.bind("<Configure>", lambda _event: self._draw_loot_chart())
 
-        panel = self._panel(tab, "Live event stream", 1, 0)
-        self.events_tree = self._tree(
-            panel,
-            columns=("time", "kind", "summary"),
-            headings=("Time", "Kind", "Summary"),
-        )
-        # Let the scrollable stream give space back to the chart in small windows.
-        self.events_tree.configure(height=2)
-        # Keep history actions in the existing heading, not another body row.
-        panel.grid_configure(columnspan=2)
-        self.event_history_button = ttk.Button(panel.master, text="Browse stored loot / exclude / restore…", command=self._open_event_history)
-        self.event_history_button.grid(row=0, column=1, sticky="e", padx=(8, 0), pady=(0, 4))
+        table = ttk.Frame(tab, style="Panel.TFrame")
+        table.grid(row=2, column=0, sticky="nsew")
+        table.columnconfigure(0, weight=1)
+        table.rowconfigure(0, weight=1)
+        self.events_tree = self._tree(table, columns=("time", "kind", "summary"), headings=("Time", "Type", "Detail"),
+                                      widths={"time": 92, "kind": 64, "summary": 320}, fixed=("time", "kind"))
+        self.events_tree.bind("<<TreeviewSelect>>", lambda _event: self._event_selection_changed())
+        self._event_kinds: dict[str, str] = {}
+        note = ttk.Label(tab, style="Muted.TLabel", text=(
+            "Not from this hunt (a trade, a pickup)? Select the loot and choose Don't count this loot. "
+            "Nothing is deleted; Loot corrections can count it again."))
+        note.grid(row=3, column=0, sticky="ew", pady=(p(4), 0))
+        tab.bind("<Configure>", lambda event: note.configure(wraplength=max(1, event.width - p(8)))
+                 if event.widget is tab else None)
+
+    def _event_filter_changed(self) -> None:
+        self._event_context = None
+        self._event_ids.clear()
+        with _held(self.store):
+            self._refresh_events(self._session_id_value())
+
+    def _event_selection_changed(self) -> None:
+        selection = self.events_tree.selection()
+        loot = bool(selection) and self._event_kinds.get(selection[0]) == "loot"
+        self.exclude_loot_button.configure(state="normal" if loot else "disabled")
+
+    def _exclude_selected_loot(self) -> None:
+        """Open Loot corrections on the selected receipt; the change is confirmed there."""
+        selection = self.events_tree.selection()
+        if not selection or self._event_kinds.get(selection[0]) != "loot":
+            return
+        self._open_event_history()
+        window = self._event_history_window
+        window.select_run(self._session_id_value())
+        window.event_id.set(selection[0])
+        window.find_event()
+        window.lift()
 
     def _open_event_history(self) -> None:
         from .event_history import EventHistoryWindow
@@ -894,50 +1224,45 @@ class PedHunterApp(tk.Tk):
         self._refresh_all()
 
     def _build_skills_tab(self) -> None:
+        p = self._px
         tab = self.skills_tab
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
-
-        summary_panel = self._panel(tab, "Session skill gain summary", 0, 0)
-        summary_panel.columnconfigure(0, weight=1)
-        summary_panel.columnconfigure(1, weight=1)
-        ttk.Label(summary_panel, textvariable=self.skill_summary_text, style="PanelMuted.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        self._add_skill_card(summary_panel, self.skill_total_text, "TOTAL SKILL GAIN", 1, 0)
-        self._add_skill_card(summary_panel, self.skill_proc_text, "SKILL GAIN PROCS", 1, 1)
-
-        table_panel = self._panel(tab, "Skill gains by skill", 1, 0)
-        self.skills_tree = self._tree(
-            table_panel,
-            columns=("skill", "xp", "procs", "proc_pct"),
-            headings=("Skill", "Value", "Procs", "Proc %"),
-        )
-
-    def _add_skill_card(self, parent: ttk.Frame, value: tk.StringVar, label: str, row: int, column: int) -> None:
-        frame = ttk.Frame(parent, style="Card.TFrame", padding=(10, 8))
-        frame.grid(row=row, column=column, sticky="ew", padx=(0 if column == 0 else 8, 0))
-        ttk.Label(frame, text=label, style="CardLabel.TLabel").pack(anchor="w")
-        ttk.Label(frame, textvariable=value, style="CardValue.TLabel").pack(anchor="w", pady=(3, 0))
+        ttk.Label(tab, textvariable=self.skill_summary_text, style="Muted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, p(4)))
+        table = ttk.Frame(tab, style="Panel.TFrame")
+        table.grid(row=1, column=0, sticky="nsew")
+        table.columnconfigure(0, weight=1)
+        table.rowconfigure(0, weight=1)
+        numeric = ("xp", "procs", "proc_pct")
+        self.skills_tree = self._tree(table, columns=("skill", "xp", "procs", "proc_pct"),
+                                      headings=("Skill", "XP gained", "Procs", "Proc %"), numeric=numeric,
+                                      widths={"skill": 200, "xp": 90, "procs": 70, "proc_pct": 70})
+        make_sortable(self.skills_tree, numeric=numeric, text=("skill",), default=("xp", True))
 
     def _build_loadouts_tab(self) -> None:
+        p = self._px
         tab = self.loadouts_tab
-        tab.columnconfigure(0, weight=1)
         tab.columnconfigure(1, weight=1)
         tab.rowconfigure(0, weight=1)
 
-        list_panel = self._panel(tab, "Saved setups · drag to reorder · ✓ active", 0, 0)
+        list_panel = self._panel(tab, "Saved setups", 0, 0)
         # The comparison table may scroll horizontally; it must not force the
         # editor narrower than its fields just to satisfy every column's width.
-        list_panel.configure(width=round(250 * self.display_scale))
+        self.loadout_list_panel = list_panel
+        list_panel.configure(width=p(250))
         list_panel.grid_propagate(False)
         self.loadouts_tree = self._tree(
             list_panel,
             columns=("active", "name", "weapon", "amp", "enh", "cost"),
-            headings=("HUD", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
+            headings=("#", "Name", "Weapon", "Amp", "Enhancers", "Cost/shot"),
+            widths={"active": 34, "name": 96, "weapon": 130, "amp": 100, "enh": 80, "cost": 64}, fixed=("active", "cost"),
         )
-        self.loadouts_tree.column("active", width=round(38 * self.display_scale), minwidth=30, stretch=False)
         xscroll = ttk.Scrollbar(list_panel, orient="horizontal", command=self.loadouts_tree.xview)
         self.loadouts_tree.configure(xscrollcommand=xscroll.set)
         xscroll.grid(row=1, column=0, sticky="ew")
+        hint = ttk.Label(list_panel, text="Click to use · drag to reorder · 1–4 are the Alt+1–4 slots",
+                         style="PanelMuted.TLabel", wraplength=p(180))
+        hint.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(p(4), 0))
         self._loadout_drag = None
         for index, color in enumerate(HUD_SETUP_COLORS):
             self.loadouts_tree.tag_configure(f"hud_slot_{index}", foreground=color)
@@ -948,67 +1273,61 @@ class PedHunterApp(tk.Tk):
         self.loadouts_tree.bind("<ButtonRelease-1>", self._loadout_row_clicked)
         self.loadouts_tree.bind("<Return>", lambda _event: self._load_selected_loadout(explicit=True))
 
-        editor = self._panel(tab, "Hunting setup builder", 0, 1)
-        self.loadout_scroll = ScrollPane(editor, background=self.colors["panel"])
+        editor = self._panel(tab, "Setup builder", 0, 1)
+        self.loadout_scroll = ScrollPane(editor, background=self.colors["panel"], autohide=True)
         self.loadout_scroll.grid(row=0, column=0, sticky="nsew")
         form = self.loadout_scroll.content
         form.columnconfigure(1, weight=1)
 
-        weapon_names = sorted(self.catalog.weapons)
+        def select(variable, values):
+            return SearchSelect(form, textvariable=variable, values=values, on_change=self._refresh_loadout_preview,
+                                colors=self.colors, list_font=self._ui_font(9), width=1)
+
+        weapon_names = sorted(self.catalog.weapons, key=_listing_order)
         amp_names = ["None"] + _attachment_names_by_category(self.catalog, AMP_CATEGORIES)
         scope_names = ["None"] + _attachment_names_by_category(self.catalog, SCOPE_CATEGORIES)
         sight_names = ["None"] + _attachment_names_by_category(self.catalog, SIGHT_CATEGORIES)
-        weapon_combo = ttk.Combobox(form, textvariable=self.loadout_weapon, values=weapon_names, state="normal")
-        amp_combo = ttk.Combobox(form, textvariable=self.loadout_amp, values=amp_names, state="normal")
-        scope_combo = ttk.Combobox(form, textvariable=self.loadout_scope, values=scope_names, state="normal")
-        sight_1_combo = ttk.Combobox(form, textvariable=self.loadout_sight_1, values=sight_names, state="normal")
-        sight_2_combo = ttk.Combobox(form, textvariable=self.loadout_sight_2, values=sight_names, state="normal")
-        for combo in (weapon_combo, amp_combo, scope_combo, sight_1_combo, sight_2_combo):
-            _install_combobox_typeahead(combo, on_change=self._refresh_loadout_preview)
+
+        def spin(variable):
+            return ttk.Spinbox(form, from_=0, to=10, textvariable=variable, width=6, command=self._refresh_loadout_preview)
 
         rows = [
-            ("Name", ttk.Entry(form, textvariable=self.loadout_name)),
-            ("Weapon", weapon_combo),
-            ("Amplifier", amp_combo),
-            ("Scope", scope_combo),
-            ("Sight 1", sight_1_combo),
-            ("Sight 2", sight_2_combo),
-            ("Damage enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.damage_enhancers, width=8, command=self._refresh_loadout_preview)),
-            ("Accuracy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.accuracy_enhancers, width=8, command=self._refresh_loadout_preview)),
-            ("Economy enhancers", ttk.Spinbox(form, from_=0, to=10, textvariable=self.economy_enhancers, width=8, command=self._refresh_loadout_preview)),
+            ("Name", ttk.Entry(form, textvariable=self.loadout_name, width=1)),
+            ("Weapon", select(self.loadout_weapon, weapon_names)),
+            ("Amplifier", select(self.loadout_amp, amp_names)),
+            ("Scope", select(self.loadout_scope, scope_names)),
+            ("Sight 1", select(self.loadout_sight_1, sight_names)),
+            ("Sight 2", select(self.loadout_sight_2, sight_names)),
+            ("Damage enhancers", spin(self.damage_enhancers)),
+            ("Accuracy enhancers", spin(self.accuracy_enhancers)),
+            ("Economy enhancers", spin(self.economy_enhancers)),
         ]
         self.loadout_fields = dict(rows)
         for r, (label, widget) in enumerate(rows):
-            ttk.Label(form, text=label, style="PanelMuted.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 8), pady=3)
-            widget.grid(row=r, column=1, sticky="ew", pady=3)
+            ttk.Label(form, text=label, style="PanelMuted.TLabel").grid(row=r, column=0, sticky="w", padx=(0, p(8)), pady=p(2))
+            widget.grid(row=r, column=1, sticky="w" if isinstance(widget, ttk.Spinbox) else "ew", pady=p(2))
             widget.bind("<KeyRelease>", lambda _event: self._refresh_loadout_preview())
             widget.bind("<FocusOut>", lambda _event: self._refresh_loadout_preview())
-            widget.bind("<<ComboboxSelected>>", lambda _event: self._refresh_loadout_preview())
-
-        help_text = tk.Text(
-            form, width=1, height=1, wrap="word", bg=self.colors["panel_2"],
-            fg=self.colors["text"], relief="flat", font=self._ui_font(9), padx=10, pady=8,
-        )
-        help_text.grid(row=len(rows), column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        help_text.insert(
-            "1.0",
-            "Hunting setups are the source of truth for interpreting hunt logs: weapon + amp + scope/sights + enhancers define the cost model. "
-            "PED Hunter keeps the active setup visible in the cockpit, so you do not choose hunt/craft/mine separately when starting a session. "
-            "Amplifier, scope, and sight selectors are category-specific so items like ZX Eagle Eye only appear under Scope. "
-            "Damage enhancers increase weapon ammo/decay by 10% each; economy enhancers reduce weapon ammo/decay by 1% each; attachments add their own burn/decay.",
-        )
-        help_text.configure(state="disabled")
-        self.loadout_scroll.fit_text(help_text)
+        note = ttk.Label(form, style="PanelMuted.TLabel", text=(
+            "Click a selector to open its list, or type part of a name to narrow it. "
+            "A setup is the gear you shoot with: it sets the cost per shot behind cost, return and net. "
+            "Each damage enhancer adds 10% ammo and decay; each economy enhancer removes 1%."))
+        note.grid(row=len(rows), column=0, columnspan=2, sticky="ew", pady=(p(8), 0))
+        form.bind("<Configure>", lambda event: note.configure(wraplength=max(1, event.width - p(4)))
+                  if event.widget is form else None, add="+")  # keep ScrollPane's own binding
         self.loadout_scroll.attach()
 
         # Actions and cost feedback belong outside the scroll viewport.
         footer = ttk.Frame(editor, style="Panel.TFrame")
-        footer.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        footer.grid(row=1, column=0, sticky="ew", pady=(p(4), 0))
         footer.columnconfigure(0, weight=1)
         draft = ttk.Label(footer, textvariable=self.loadout_draft_text, style="PanelMuted.TLabel")
         draft.grid(row=0, column=0, sticky="ew")
+        # Hidden in small windows so the fields keep the height.
+        self._setup_extras = (hint, xscroll, draft, *(panel.master.grid_slaves(row=0, column=0)[0]
+                                                      for panel in (list_panel, editor)))
         preview = ttk.Label(footer, textvariable=self.loadout_preview, style="Panel.TLabel")
-        preview.grid(row=1, column=0, sticky="ew", pady=(3, 5))
+        preview.grid(row=1, column=0, sticky="ew", pady=(p(2), p(4)))
         footer.bind("<Configure>", lambda event: (
             draft.configure(wraplength=max(1, event.width)),
             preview.configure(wraplength=max(1, event.width)),
@@ -1016,155 +1335,175 @@ class PedHunterApp(tk.Tk):
         buttons = ttk.Frame(footer, style="Panel.TFrame")
         buttons.grid(row=2, column=0, sticky="ew")
         self.save_activate_button = ttk.Button(buttons, text="Save and activate", command=lambda: self._save_loadout(make_active=True), style="Accent.TButton")
-        self.save_activate_button.pack(side="left", padx=(0, 6))
+        self.save_activate_button.pack(side="left", padx=(0, p(4)))
         self.save_loadout_button = ttk.Button(buttons, text="Save", command=lambda: self._save_loadout(make_active=False))
-        self.save_loadout_button.pack(side="left", padx=(0, 6))
+        self.save_loadout_button.pack(side="left", padx=(0, p(4)))
         self.delete_loadout_button = ttk.Button(buttons, text="Delete", command=self._delete_selected_loadout, state="disabled")
         self.delete_loadout_button.pack(side="left")
+        ttk.Button(buttons, text="Weapon data…", command=self._open_weapon_data, style="Ghost.TButton").pack(side="right")
         self._new_loadout_draft()
 
-
     def _build_manufacturing_tab(self) -> None:
+        """Crafting: add the material cost the chat log does not report."""
+        p = self._px
         tab = self.manufacturing_tab
-        tab.columnconfigure(0, weight=2)
-        tab.columnconfigure(1, weight=1)
+        tab.columnconfigure(0, weight=1)
         tab.rowconfigure(0, weight=1)
-
-        builder = self._panel(tab, "Blueprint material cost", 0, 0)
-        form = ttk.Frame(builder, style="Panel.TFrame")
-        form.grid(row=0, column=0, sticky="nsew")
+        form = self._panel(tab, "Add crafting cost", 0, 0)
         form.columnconfigure(1, weight=1)
+        form.rowconfigure(0, weight=0)
 
-        blueprint_names = sorted(self.catalog.blueprints)
-        blueprint_combo = ttk.Combobox(form, textvariable=self.crafting_blueprint, values=blueprint_names, state="normal")
-        _install_combobox_typeahead(blueprint_combo, on_change=self._refresh_crafting_preview)
+        blueprint_names = sorted(self.catalog.blueprints, key=_listing_order)
+        blueprint_combo = SearchSelect(form, textvariable=self.crafting_blueprint, values=blueprint_names,
+                                       on_change=self._refresh_crafting_preview, colors=self.colors,
+                                       list_font=self._ui_font(9), width=1)
         attempts_spin = ttk.Spinbox(form, from_=1, to=1000000, textvariable=self.crafting_attempts, width=10, command=self._refresh_crafting_preview)
         blueprint_combo.bind("<KeyRelease>", lambda _event: self._refresh_crafting_preview())
-        blueprint_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_crafting_preview())
         attempts_spin.bind("<KeyRelease>", lambda _event: self._refresh_crafting_preview())
 
-        ttk.Label(form, text="Blueprint", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10), pady=5)
-        blueprint_combo.grid(row=0, column=1, sticky="ew", pady=5)
-        ttk.Label(form, text="Attempts", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=5)
-        attempts_spin.grid(row=1, column=1, sticky="w", pady=5)
-        self.crafting_preview_label = ttk.Label(form, textvariable=self.crafting_preview, style="Panel.TLabel", font=("Segoe UI", 11, "bold"), width=1, wraplength=620)
-        self.crafting_preview_label.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 8))
-        self.crafting_preview_label.bind("<Configure>", lambda event: (
-            self.crafting_preview_label.configure(wraplength=max(1, event.width - round(4 * self.display_scale)))
-        ))
-        ttk.Button(form, text="Add material cost to active session", command=self._add_crafting_cost_to_session, style="Accent.TButton").grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
-
-        help_panel = self._panel(tab, "How manufacturing offsets loot", 0, 1)
-        help_text = tk.Text(
-            help_panel,
-            height=14,
-            wrap="word",
-            bg=self.colors["panel_2"],
-            fg=self.colors["text"],
-            relief="flat",
-            font=("Segoe UI", 9),
-            padx=12,
-            pady=10,
-        )
-        help_text.grid(row=0, column=0, sticky="nsew")
-        help_text.insert(
-            "1.0",
-            "Choose a blueprint and enter the number of manufacturing attempts. PED Hunter totals the TT value of the required materials per click, multiplies by attempts, and records that input cost as a crafting event on the active session.\n\n"
-            "This mirrors LootNanny's manufacturing flow: crafting returns can still be parsed as loot/output, while the material spend is added to session cost so return %, net PED, streamer overlay, and lifetime totals stay honest.",
-        )
-        help_text.configure(state="disabled")
+        ttk.Label(form, text="Blueprint", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, p(8)), pady=p(2))
+        blueprint_combo.grid(row=0, column=1, sticky="ew", pady=p(2))
+        ttk.Label(form, text="Attempts", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, p(8)), pady=p(2))
+        attempts_spin.grid(row=1, column=1, sticky="w", pady=p(2))
+        self.crafting_preview_label = ttk.Label(form, textvariable=self.crafting_preview, style="Panel.TLabel",
+                                                font=self._ui_font(10, family="Segoe UI Semibold"), width=1, wraplength=p(400))
+        self.crafting_preview_label.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(p(8), p(4)))
+        ttk.Button(form, text="Add to this run's cost", command=self._add_crafting_cost_to_session, style="Accent.TButton").grid(row=3, column=0, columnspan=2, sticky="w")
+        note = ttk.Label(form, style="PanelMuted.TLabel", width=1, text=(
+            "Crafting spends materials the chat log doesn't report. Pick the blueprint and how many attempts you ran; "
+            "PED Hunter adds the materials' TT value to this run's cost. What you craft is still picked up as loot, "
+            "so return and net show your real crafting result."))
+        note.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(p(12), 0))
+        form.bind("<Configure>", lambda event: (
+            note.configure(wraplength=max(1, event.width - p(4))),
+            self.crafting_preview_label.configure(wraplength=max(1, event.width - p(4))),
+        ) if event.widget is form else None)
         self._refresh_crafting_preview()
 
     def _build_catalog_tab(self) -> None:
-        tab = self.catalog_tab
+        """Weapon data: a lookup window opened from Setups, not an everyday tab."""
+        p = self._px
+        self.catalog_window = window = tk.Toplevel(self)
+        window.withdraw()
+        window.title("PED Hunter · Weapon data")
+        window.configure(bg=self.colors["bg"])
+        window.geometry(f"{p(720)}x{p(420)}")
+        window.minsize(p(420), p(260))
+        window.protocol("WM_DELETE_WINDOW", window.withdraw)
+        self.catalog_tab = tab = ttk.Frame(window, style="Root.TFrame", padding=(p(8), p(8)))
+        tab.pack(fill="both", expand=True)
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=1)
-        search = ttk.Frame(tab, style="Panel.TFrame", padding=12)
-        search.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        tab.rowconfigure(2, weight=1)
+        ttk.Label(tab, style="Muted.TLabel", text="The weapon figures PED Hunter uses for cost per shot. "
+                  "Look here if a setup's cost seems off.").grid(row=0, column=0, sticky="w", pady=(0, p(8)))
+        search = ttk.Frame(tab, style="Root.TFrame")
+        search.grid(row=1, column=0, sticky="ew", pady=(0, p(8)))
         search.columnconfigure(1, weight=1)
-        ttk.Label(search, text="Weapon lookup", style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 8))
-        ttk.Entry(search, textvariable=self.catalog_query).grid(row=0, column=1, sticky="ew", padx=(0, 8))
-        ttk.Button(search, text="Search", command=self._search_catalog, style="Accent.TButton").grid(row=0, column=2)
-
-        panel = self._panel(tab, "Catalog results", 1, 0)
+        ttk.Label(search, text="Find weapon", style="Muted.TLabel").grid(row=0, column=0, sticky="w", padx=(0, p(8)))
+        entry = ttk.Entry(search, textvariable=self.catalog_query)
+        entry.grid(row=0, column=1, sticky="ew")
+        entry.bind("<KeyRelease>", lambda _event: self._search_catalog())
+        table = ttk.Frame(tab, style="Panel.TFrame")
+        table.grid(row=2, column=0, sticky="nsew")
+        table.columnconfigure(0, weight=1)
+        table.rowconfigure(0, weight=1)
+        numeric = ("ammo", "decay", "cost")
         self.catalog_tree = self._tree(
-            panel,
-            columns=("name", "category", "ammo", "decay", "cost", "aliases"),
-            headings=("Name", "Category", "Ammo", "Decay", "Cost/shot", "Aliases"),
-        )
+            table, columns=("name", "category", "ammo", "decay", "cost", "aliases"),
+            headings=("Name", "Class", "Ammo", "Decay (PED)", "Cost/shot (PED)", "Also known as"), numeric=numeric,
+            widths={"name": 190, "category": 100, "ammo": 56, "decay": 90, "cost": 112, "aliases": 130})
+        make_sortable(self.catalog_tree, numeric=numeric, text=("name", "category"))
+
+    def _open_weapon_data(self) -> None:
+        if "catalog_tree" not in self.__dict__:
+            self._build_catalog_tab()
+        weapon = self.loadout_weapon.get().strip()
+        if weapon:
+            self.catalog_query.set(weapon)
         self._search_catalog()
+        self.catalog_window.deiconify()
+        self.catalog_window.lift()
 
     def _build_wtb_tab(self) -> None:
+        p = self._px
         tab = self.wtb_tab
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
-        summary = self._panel(tab, "Trade WTB listings", 0, 0)
-        summary.columnconfigure(0, weight=1)
-        ttk.Label(summary, textvariable=self.wtb_summary_text, style="PanelMuted.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(tab, textvariable=self.wtb_summary_text, style="Muted.TLabel", width=1, anchor="w").grid(
+            row=0, column=0, sticky="ew", pady=(0, p(4)))
+        table = ttk.Frame(tab, style="Panel.TFrame")
+        table.grid(row=1, column=0, sticky="nsew")
+        table.columnconfigure(0, weight=1)
+        table.rowconfigure(0, weight=1)
         self.wtb_tree = self._tree(
-            summary,
-            columns=("time", "channel", "player", "want", "qty", "price", "message"),
-            headings=("Time", "Channel", "Player", "Wants to buy", "Qty", "Price", "Message"),
-        )
+            table, columns=("time", "player", "want", "qty", "price"),
+            headings=("Seen", "Player", "Wants to buy", "Qty", "Price"), numeric=("qty",),
+            widths={"time": 92, "player": 130, "want": 240, "qty": 50, "price": 80}, fixed=("time", "qty"))
+        make_sortable(self.wtb_tree, numeric=("qty",), text=("time", "player", "want", "price"))
+        self.wtb_tree.bind("<<TreeviewSelect>>", lambda _event: self._wtb_selected())
+        self._wtb_details: dict[str, str] = {}
+        self.wtb_detail_text = tk.StringVar(value="Select a request to read the full message.")
+        detail = ttk.Label(tab, textvariable=self.wtb_detail_text, style="Muted.TLabel")
+        detail.grid(row=2, column=0, sticky="ew", pady=(p(4), 0))
+        tab.bind("<Configure>", lambda event: detail.configure(wraplength=max(1, event.width - p(8)))
+                 if event.widget is tab else None)
 
-        help_panel = self._panel(tab, "How WTB parsing works", 1, 0)
-        text = tk.Text(
-            help_panel,
-            height=7,
-            wrap="word",
-            bg=self.colors["panel_2"],
-            fg=self.colors["text"],
-            relief="flat",
-            font=("Segoe UI", 9),
-            padx=12,
-            pady=10,
-        )
-        text.pack(fill="both", expand=True)
-        text.insert(
-            "1.0",
-            "PED Hunter scans chat rows from trade-oriented channels and looks for WTB / Want to buy portions inside mixed trade messages. If a single line contains WTB and WTS segments, only the buy portion is displayed here."
-        )
-        text.configure(state="disabled")
+    def _wtb_selected(self) -> None:
+        selection = self.wtb_tree.selection()
+        self.wtb_detail_text.set(self._wtb_details.get(selection[0], "") if selection
+                                 else "Select a request to read the full message.")
 
     def _build_setup_tab(self) -> None:
+        """Help & settings: the few settings first, then task-focused help."""
+        p = self._px
         tab = self.setup_tab
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(0, weight=1)
-        self.help_scroll = ScrollPane(tab, background=self.colors["panel"])
+        self.help_scroll = ScrollPane(tab, background=self.colors["panel"], autohide=True)
         self.help_scroll.grid(row=0, column=0, sticky="nsew")
         panel = self.help_scroll.content
         panel.columnconfigure(0, weight=1)
+
+        settings = ttk.Frame(panel, style="Panel.TFrame", padding=(p(8), p(8)))
+        settings.grid(row=0, column=0, sticky="ew")
+        settings.columnconfigure(1, weight=1)
+        ttk.Label(settings, text="SETTINGS", style="RailKicker.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, p(4)))
+        ttk.Label(settings, text="Chat log", style="PanelMuted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, p(8)))
+        self.chat_log_entry = ttk.Entry(settings, textvariable=self.chat_path, width=1)
+        self.chat_log_entry.grid(row=1, column=1, sticky="ew", padx=(0, p(4)))
+        ttk.Button(settings, text="Browse…", command=self._browse_log).grid(row=1, column=2)
+        ttk.Label(settings, text="Show money in", style="PanelMuted.TLabel").grid(row=2, column=0, sticky="w", padx=(0, p(8)), pady=(p(8), 0))
+        self.currency_picker = currency = ttk.Combobox(settings, textvariable=self.currency_mode, values=("USD", "PED"),
+                                                       state="readonly", width=6)
+        currency.grid(row=2, column=1, sticky="w", pady=(p(8), 0))
+        currency.bind("<<ComboboxSelected>>", lambda _event: currency.selection_clear())
+        options = ttk.Frame(settings, style="Panel.TFrame")
+        options.grid(row=3, column=0, columnspan=3, sticky="w", pady=(p(8), 0))
+        self.reduced_motion_button = ttk.Checkbutton(options, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all)
+        self.reduced_motion_button.grid(row=0, column=0, sticky="w", padx=(0, p(12)))
+        self.feedback_sounds_button = ttk.Checkbutton(options, text="Quiet loot and skill sounds", variable=self.feedback_sounds)
+        self.feedback_sounds_button.grid(row=0, column=1, sticky="w")
+        actions = ttk.Frame(settings, style="Panel.TFrame")
+        actions.grid(row=4, column=0, columnspan=3, sticky="w", pady=(p(8), 0))
+        self.preview_feedback_button = ttk.Button(actions, text="Preview live feedback (demo data)", command=self._preview_feedback)
+        self.preview_feedback_button.grid(row=0, column=0, sticky="w", padx=(0, p(4)))
+        self.refresh_data_button = ttk.Button(actions, text="Reload saved data", command=self._refresh_all)
+        self.refresh_data_button.grid(row=0, column=1, sticky="w")
+
         text = tk.Text(
-            panel, width=1, height=1, wrap="word", bg=self.colors["panel_2"],
-            fg=self.colors["text"], relief="flat", font=self._ui_font(), padx=12, pady=10,
+            panel, width=1, height=1, wrap="word", bg=self.colors["panel_2"], fg=self.colors["text"], relief="flat",
+            font=self._ui_font(9), padx=p(8), pady=p(8), spacing1=p(1), spacing3=p(1),
         )
-        text.grid(row=0, column=0, sticky="ew", padx=8, pady=8)
-        self.reduced_motion_button = ttk.Checkbutton(panel, text="Reduced motion", variable=self.reduced_motion, command=self._refresh_all)
-        self.reduced_motion_button.grid(row=1, column=0, sticky="w", padx=10, pady=(4, 0))
-        self.refresh_data_button = ttk.Button(panel, text="Refresh saved data", command=self._refresh_all)
-        self.refresh_data_button.grid(row=2, column=0, sticky="w", padx=10, pady=(6, 0))
-        self.feedback_sounds_button = ttk.Checkbutton(panel, text="Quiet loot and skill sounds (optional · Windows)", variable=self.feedback_sounds)
-        self.feedback_sounds_button.grid(row=3, column=0, sticky="w", padx=10, pady=(8, 0))
-        self.preview_feedback_button = ttk.Button(panel, text="Preview live feedback (demo data)", command=self._preview_feedback, style="Accent.TButton")
-        self.preview_feedback_button.grid(row=4, column=0, sticky="w", padx=10, pady=(8, 10))
-        text.insert(
-            "1.0",
-            "Getting started\n\n"
-            "1. In Entropia Universe, enable chat logging.\n"
-            "2. Select your chat.log above. The default guess is shown automatically.\n"
-            "3. Create or activate a setup; its configuration determines how the log is interpreted.\n"
-            "4. Start a new session or select an older session and Resume Selected.\n"
-            "5. PED Hunter parses new lines and writes events to a local SQLite database under AppData.\n\n"
-            "Modernization notes\n\n"
-            "LootNanny used PyQt tabs for loot, analysis, skills, combat, crafting, Twitch, config, and streamer views. "
-            "PED Hunter starts with the same useful backbone but simplifies the first-run experience into a dashboard, "
-            "event stream, catalog lookup, and setup guide. Future passes can add dedicated crafting, loadout, markup, "
-            "and streamer panels without crowding the main cockpit.",
-        )
+        text.grid(row=1, column=0, sticky="ew", padx=p(8), pady=(0, p(8)))
+        text.tag_configure("heading", font=self._ui_font(9, family="Segoe UI Semibold"), foreground=self.colors["accent"],
+                           spacing1=p(8))
+        for heading, body in HELP_SECTIONS:
+            text.insert("end", heading + "\n", "heading")
+            text.insert("end", body + "\n")
+        text.delete("end-1c", "end")
         text.configure(state="disabled")
         self.help_scroll.fit_text(text)
         self.help_scroll.attach()
-
 
     def _preview_feedback(self) -> None:
         from .preview import open_preview
@@ -1181,38 +1520,60 @@ class PedHunterApp(tk.Tk):
         self.metric_cards[key] = MetricCard(frame=frame, value=value_var, label=label_var)
 
     def _panel(self, parent: ttk.Frame, title: str, row: int, column: int) -> ttk.Frame:
-        panel = ttk.Frame(parent, style="Panel.TFrame", padding=(8, 5))
-        panel.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else 6, 0), pady=(0 if row == 0 else 5, 0))
+        p = self._px
+        panel = ttk.Frame(parent, style="Panel.TFrame", padding=(p(8), p(4), p(8), p(8)))
+        panel.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else p(8), 0), pady=(0 if row == 0 else p(8), 0))
         panel.columnconfigure(0, weight=1)
         panel.rowconfigure(1, weight=1)
-        ttk.Label(panel, text=title, style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(panel, text=title, style="PanelTitle.TLabel").grid(row=0, column=0, sticky="w", pady=(0, p(4)))
         body = ttk.Frame(panel, style="Panel.TFrame")
         body.grid(row=1, column=0, sticky="nsew")
         body.columnconfigure(0, weight=1)
         body.rowconfigure(0, weight=1)
         return body
 
-    def _tree(self, parent: ttk.Frame, *, columns: tuple[str, ...], headings: tuple[str, ...]) -> ttk.Treeview:
-        tree = ttk.Treeview(parent, columns=columns, show="headings", selectmode="browse", style="Treeview")
+    def _tree(self, parent: ttk.Frame, *, columns: tuple[str, ...], headings: tuple[str, ...],
+              widths: dict[str, int] | None = None, numeric: tuple[str, ...] = (),
+              fixed: tuple[str, ...] = ()) -> ttk.Treeview:
+        """A table: ``widths`` in logical px, ``numeric`` right-aligned, ``fixed`` never stretched."""
+        tree = ttk.Treeview(parent, columns=columns, show="headings", selectmode="browse", style="Treeview", height=3)
         yscroll = ttk.Scrollbar(parent, orient="vertical", command=tree.yview, style="Vertical.TScrollbar")
         tree.configure(yscrollcommand=yscroll.set)
         tree.grid(row=0, column=0, sticky="nsew")
-        yscroll.grid(row=0, column=1, sticky="ns", padx=(8, 0))
+        yscroll.grid(row=0, column=1, sticky="ns", padx=(self._px(4), 0))
         tree.tag_configure("odd", background="#0d1421")
         tree.tag_configure("even", background="#0a0f1a")
         tree.tag_configure("arrival", background="#123b38", foreground="#d8fffb")
+        tree.base_widths = {}
         for col, heading in zip(columns, headings):
-            tree.heading(col, text=heading)
-            width = 170 if col in {"summary", "setup", "name", "weapon", "aliases"} else 118
-            tree.column(col, width=width, minwidth=82, stretch=True, anchor="w")
+            anchor = "e" if col in numeric else "w"
+            tree.heading(col, text=heading, anchor=anchor)
+            tree.base_widths[col] = self._px((widths or {}).get(col, 110))
+            tree.column(col, width=tree.base_widths[col], minwidth=self._px(36),
+                        stretch=col not in fixed and col not in numeric, anchor=anchor)
+        tree.bind("<Configure>", lambda event: self._fit_tree(tree, event.width), add="+")
         return tree
+
+    @staticmethod
+    def _fit_tree(tree: ttk.Treeview, width: int | None = None) -> None:
+        """Share the table's width among the columns now shown (they change with the size class)."""
+        width = tree.winfo_width() if width is None else width
+        shown = tree.cget("displaycolumns")
+        shown = list(tree.cget("columns")) if "#all" in shown else list(shown)
+        base = tree.base_widths
+        spare = width - sum(base[col] for col in shown) - 2
+        flexible = [col for col in shown if str(tree.column(col, "stretch")) in ("1", "True")] or shown[-1:]
+        total = sum(base[col] for col in flexible) or 1
+        for col in shown:
+            extra = round(spare * base[col] / total) if spare > 0 and col in flexible else 0
+            tree.column(col, width=base[col] + extra)
 
     def _refresh_loadout_preview(self) -> None:
         self._update_loadout_draft()
         try:
             loadout = self._loadout_from_form()
         except ValueError as exc:
-            self.loadout_preview.set(f"Loadout needs attention: {exc}")
+            self.loadout_preview.set(f"Not ready to save: {exc}")
             return
         self.loadout_preview.set(
             f"Ammo burn: {loadout.ammo_burn} • Decay: {self._money(loadout.decay, decimals=5)} • Cost/shot: {self._money(loadout.cost_per_shot, decimals=5)}"
@@ -1475,7 +1836,7 @@ class PedHunterApp(tk.Tk):
             self.active_loadout_text.set(f"Setup: {active.name} · {self._money(active.cost_per_shot, decimals=5)}/shot")
         else:
             self.active_loadout_title.set("No active setup")
-            self.active_loadout_details.set("Activate a hunting setup before starting. This replaces the old hunt/craft/mine dropdown.")
+            self.active_loadout_details.set("Activate a hunting setup before starting.")
             self.active_loadout_text.set("No active setup — configure one before tracking for accurate costs")
         loadouts = self.store.list_loadouts()
         self._refresh_setup_rail(loadouts)
@@ -1608,6 +1969,7 @@ class PedHunterApp(tk.Tk):
         self.start_button.configure(state="disabled")
         self.resume_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
+        self._sync_run_bar()
         self.status_text.set(f"Restoring {session_id}; new log lines will be read after history is ready")
         self._begin_resume_refresh(session_id)
 
@@ -1672,6 +2034,7 @@ class PedHunterApp(tk.Tk):
         self.start_button.configure(state="disabled" if self.__dict__.get("_resume_handoff") else "normal")
         self.resume_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
+        self._sync_run_bar()
         self.status_text.set(f"Resume restoration failed; tracking has not started: {error}")
         messagebox.showerror("PED Hunter", self.status_text.get())
 
@@ -1762,19 +2125,25 @@ class PedHunterApp(tk.Tk):
     def _on_session_selected(self) -> None:
         session_id = self._selected_session_id()
         if not session_id:
-            self.selected_session_text.set("Select a recent session.")
+            self.selected_session_text.set("Select a run to resume it.")
             return
         session = self.__dict__.get("_session_summaries", {}).get(session_id) or self.store.get_session(session_id)
         if not session:
-            self.selected_session_text.set("Selected session is no longer available.")
+            self.selected_session_text.set("Selected run is no longer available.")
             return
-        status = "active" if session.ended_at is None else f"ended {session.ended_at}"
         setup = session.loadout_name or session.activity.title()
-        return_pct = _return_pct(session)
         self.selected_session_text.set(
-            f"{setup} • {status}\n"
-            f"Started {session.started_at} • {session.events} events • return {return_pct:.2f}% • net {self._money(session.net_value, signed=True)}"
+            f"{setup} · {_short_time(session.started_at)} · {self._run_status(session)} · "
+            f"net {self._money(session.net_value, signed=True)} · return {_return_pct(session):.2f}% · "
+            f"{session.events:,} events"
         )
+
+    def _run_status(self, session: SessionSummary) -> str:
+        """tracking (being read now), paused (not ended; can be resumed) or ended."""
+        if self.__dict__.get("running") and session.session_id == self._session_id_value():
+            return "tracking"
+        return "paused" if session.ended_at is None else "ended"
+
     def stop(self) -> None:
         if not self.running:
             return
@@ -2007,11 +2376,14 @@ class PedHunterApp(tk.Tk):
         return parsed, last_ingested_log_line
 
     def _refresh_crafting_preview(self) -> None:
+        if not self.crafting_blueprint.get().strip():
+            self.crafting_preview.set("Pick a blueprint to see its material cost.")
+            return
         try:
             attempts = _positive_int(self.crafting_attempts.get())
             per_attempt, _materials = calculate_blueprint_material_cost(self.catalog, self.crafting_blueprint.get())
         except ValueError as exc:
-            self.crafting_preview.set(f"Blueprint needs attention: {exc}")
+            self.crafting_preview.set(f"Not ready to add: {exc}")
             return
         total = per_attempt * attempts
         mode = self.currency_mode.get()
@@ -2181,8 +2553,13 @@ class PedHunterApp(tk.Tk):
     def _refresh_metrics(self, session: SessionSummary | None, sessions: list[SessionSummary]) -> None:
         if session is not None:
             self.__dict__.setdefault("_session_summaries", {})[session.session_id] = session
-        state = "Live" if self.running else "Idle"
-        self.hero_state.set(state)
+        self.hero_state.set("Tracking" if self.running else "Not tracking")
+        shown = session.session_id if session is not None else None
+        if shown != self.__dict__.get("_shown_session", ""):
+            self._shown_session = shown
+            if "chart_panel" in self.__dict__:
+                self._layout_body()
+        self._sync_run_bar()
         self._refresh_healing_summary(session)
         context = (session.session_id if session else None, self.currency_mode.get(), self.running,
                    session.accounting_revision if session else 0)
@@ -2197,30 +2574,32 @@ class PedHunterApp(tk.Tk):
                 self.animator.values.pop(key, None)
                 self.animator.targets.pop(key, None)
             self.session_text.set("No sessions yet — start a run to begin collecting data")
-            self.hero_session.set("No active session — start a run to begin collecting data")
+            self.hero_session.set("No active session — press New run, or resume one from Runs")
             self.hero_net.set("—")
             self.hero_return.set("—")
             self.hero_loot.set(self._money(0))
             self.hero_cost.set(self._money(0))
             self.hero_events.set("0")
-            self.repair_radar_text.set("Repair radar: start a fresh run at 100% gun + amp TT")
+            self.repair_radar_text.set("Durability tracking starts with a fresh run at full gun and amp TT")
             self._set_hero_profit_style("neutral")
             self._refresh_hunt_chart(None)
             return
 
         status = "active" if session.ended_at is None else "ended"
         setup_name = (session.loadout_name or "").partition("\n")[0].strip()
-        setup = f"Hunt · {setup_name}" if setup_name else session.activity.title()
+        setup = setup_name or session.activity.title()
         return_pct = _return_pct(session)
 
         self.session_text.set(f"{session.session_id} • {setup} • {status} • started {session.started_at}")
-        self.hero_session.set(f"{setup} • {status} • started {session.started_at}")
+        self.hero_session.set(f"{setup} · started {_short_time(session.started_at)} · "
+                              f"{'tracking' if self.running else 'paused' if session.ended_at is None else 'ended'}")
         self.animator.number("net", session.net_value, lambda value: self.hero_net.set(self._money(value, signed=True)), animate)
         self.animator.number("return", return_pct, lambda value: self.hero_return.set(f"{value:.2f}%"), animate)
         self.animator.number("loot", session.loot_value, lambda value: self.hero_loot.set(self._money(value)), animate)
         self.animator.number("cost", session.hunting_cost, lambda value: self.hero_cost.set(self._money(value)), animate)
-        self.hero_events.set(str(session.events))
-        self.repair_radar_text.set(format_repair_radar(session, self.currency_mode.get()))
+        self.hero_events.set(f"{session.events:,}")
+        radar = format_repair_radar(session, self.currency_mode.get()).removeprefix("Repair radar: ")
+        self.repair_radar_text.set(radar[:1].upper() + radar[1:])
         self._set_hero_profit_style(_profit_state(session.net_value))
         self._refresh_hunt_chart(session)
 
@@ -2241,20 +2620,20 @@ class PedHunterApp(tk.Tk):
         if totals is None:
             totals = self.store.lifetime_totals()
         if totals.session_count == 0:
-            self.lifetime_summary_text.set("No completed runs yet — start tracking to build your lifetime stats.")
+            self.lifetime_summary_text.set("No saved runs yet — your lifetime totals build up as you hunt.")
             self._set_empty_lifetime_totals()
             return
         active_note = " · includes active run" if totals.active_count else ""
         self.lifetime_summary_text.set(
-            f"{totals.session_count} stored run{'s' if totals.session_count != 1 else ''}{active_note} · weighted by PED input"
+            f"All {totals.session_count:,} saved run{'s' if totals.session_count != 1 else ''}{active_note}"
         )
         self.lifetime_vars["total_cost"].set(self._money(totals.total_cost))
         self.lifetime_vars["total_loot"].set(self._money(totals.total_loot))
         self.lifetime_vars["total_net"].set(self._money(totals.total_net, signed=True))
         self.lifetime_vars["overall_return"].set(f"{totals.overall_return_pct:.2f}%")
-        self.lifetime_vars["total_events"].set(f"{totals.total_events} events")
-        self.lifetime_vars["avg_return"].set(f"{totals.avg_return_pct:.2f}% avg")
-        self.lifetime_vars["avg_profit"].set(f"{self._money(totals.avg_profit_per_run, signed=True)}/run")
+        self.lifetime_vars["total_events"].set(f"{totals.total_events:,}")
+        self.lifetime_vars["avg_return"].set(f"{totals.avg_return_pct:.2f}%")
+        self.lifetime_vars["avg_profit"].set(self._money(totals.avg_profit_per_run, signed=True))
         self.lifetime_vars["best_run"].set(_lifetime_run_label(totals.best_session, self.currency_mode.get()))
         self.lifetime_vars["worst_run"].set(_lifetime_run_label(totals.worst_session, self.currency_mode.get()))
 
@@ -2263,11 +2642,11 @@ class PedHunterApp(tk.Tk):
         self.lifetime_vars["total_loot"].set(self._money(0))
         self.lifetime_vars["total_net"].set(self._money(0, signed=True))
         self.lifetime_vars["overall_return"].set("0.00%")
-        self.lifetime_vars["total_events"].set("0 events")
-        self.lifetime_vars["avg_return"].set("0.00% avg")
+        self.lifetime_vars["total_events"].set("0")
+        self.lifetime_vars["avg_return"].set("0.00%")
         self.lifetime_vars["best_run"].set("—")
         self.lifetime_vars["worst_run"].set("—")
-        self.lifetime_vars["avg_profit"].set(f"{self._money(0, signed=True)}/run")
+        self.lifetime_vars["avg_profit"].set(self._money(0, signed=True))
 
     def _set_hero_profit_style(self, state: str) -> None:
         suffix = {"good": "Good", "bad": "Bad"}.get(state, "Neutral")
@@ -2279,29 +2658,33 @@ class PedHunterApp(tk.Tk):
     def _refresh_sessions(self, sessions: list[SessionSummary]) -> None:
         self._session_summaries = {session.session_id: session for session in sessions}
         previous_selection = self._selected_session_id()
-        self.sessions_tree.delete(*self.sessions_tree.get_children())
+        tree = self.sessions_tree
+        tree.delete(*tree.get_children())
+        keys = getattr(tree, "sort_keys", {})
+        keys.clear()
         for index, session in enumerate(sessions):
-            return_pct = _return_pct(session)
-            setup = f"Hunt · {session.loadout_name}" if session.loadout_name else session.activity.title()
-            self.sessions_tree.insert(
+            keys[(session.session_id, "started")] = str(session.started_at or "")
+            tree.insert(
                 "",
                 "end",
                 iid=session.session_id,
                 tags=("even" if index % 2 == 0 else "odd",),
                 values=(
-                    session.started_at,
-                    setup,
-                    f"{return_pct:.2f}%",
+                    _short_time(session.started_at),
+                    session.loadout_name or session.activity.title(),
+                    f"{_return_pct(session):.2f}%",
                     self._money(session.loot_value),
                     self._money(session.hunting_cost),
                     self._money(session.net_value, signed=True),
-                    session.events,
-                    "active" if session.ended_at is None else "ended",
+                    f"{session.events:,}",
+                    "  " + self._run_status(session),
                 ),
             )
+        if hasattr(tree, "sort_state"):
+            apply_sort(tree)
 
         if not sessions:
-            self.selected_session_text.set("No saved sessions yet.")
+            self.selected_session_text.set("No saved runs yet.")
             return
 
         preferred_id = self._session_id_value()
@@ -2316,27 +2699,37 @@ class PedHunterApp(tk.Tk):
 
     def _refresh_events(self, session_id: str | None) -> None:
         tree = self.events_tree
-        rows = _recent_events(self.store, session_id, limit=80) if session_id else []
+        kinds = EVENT_FILTERS.get(self.event_filter.get()) if "event_filter" in self.__dict__ else None
+        rows = _recent_events(self.store, session_id, limit=80, kinds=kinds) if session_id else []
         ids = {str(row["id"]) for row in rows}
         same = session_id == self._event_context
         selected = tree.selection()
         view = tree.yview()
-        follow = not view or view[1] >= 0.99
         tree.delete(*tree.get_children())
-        for index, row in enumerate(rows):
+        self._event_kinds = {}
+        latest_day = str(rows[-1]["timestamp"] or "")[:10] if rows else ""
+        for index, row in enumerate(reversed(rows)):  # newest first
             iid = str(row["id"])
+            self._event_kinds[iid] = str(row["kind"])
             tag = "even" if index % 2 == 0 else "odd"
             if same and self.running and not self.reduced_motion.get() and iid not in self._event_ids and row["kind"] in {"loot", "skill"}:
                 tag = "arrival"
-            tree.insert("", "end", iid=iid, tags=(tag,), values=(row["timestamp"] or "", row["kind"], _summarize_event(row, self.currency_mode.get())))
+            tree.insert("", "end", iid=iid, tags=(tag,), values=(
+                _short_time(row["timestamp"], seconds=True, today=latest_day), _EVENT_TYPES.get(str(row["kind"]), str(row["kind"]).title()),
+                _summarize_event(row, self.currency_mode.get())))
         if selected and tree.exists(selected[0]):
             tree.selection_set(selected[0])
-        if follow and rows:
-            tree.see(str(rows[-1]["id"]))
-        elif view:
+        if same and view and view[0] > 0.01:
             tree.yview_moveto(view[0])
         self._event_context, self._event_ids = session_id, ids
         self._fade_tree_arrivals(tree, "events")
+        if "exclude_loot_button" in self.__dict__:
+            self._event_selection_changed()
+            left_out = 0
+            history = getattr(self.store, "loot_event_history", None)
+            if session_id and history is not None:
+                left_out = len(history(session_id, excluded=True, limit=100))
+            self.corrections_text.set(f"Loot corrections ({left_out} left out)…" if left_out else "Loot corrections…")
 
     def _fade_tree_arrivals(self, tree: ttk.Treeview, key: str) -> None:
         self.animator.cancel(key)
@@ -2356,7 +2749,8 @@ class PedHunterApp(tk.Tk):
             self._skill_counts = {}
             self.skill_total_text.set("0.0000 XP")
             self.skill_proc_text.set("0 skill gains")
-            self.skill_summary_text.set("No session selected — start or select a run to see skill gains.")
+            self.skill_summary_text.set("No run shown — start or resume a run to see its skill gains.")
+            apply_sort(self.skills_tree)
             return
 
         if gains is None:
@@ -2367,10 +2761,11 @@ class PedHunterApp(tk.Tk):
         self.skill_proc_text.set(f"{total_procs} skill gain{'s' if total_procs != 1 else ''}")
         if gains:
             self.skill_summary_text.set(
-                f"LootNanny-style per-session totals for {len(gains)} skill{'s' if len(gains) != 1 else ''}, sorted by XP gained."
+                f"{len(gains)} skill{'s' if len(gains) != 1 else ''} · {total_procs:,} procs · {total_xp:.4f} XP this run"
+                " · click a column heading to sort"
             )
         else:
-            self.skill_summary_text.set("No skill gains recorded for this session yet.")
+            self.skill_summary_text.set("No skill gains recorded for this run yet.")
         same = session_id == self._skill_context
         previous = self._skill_counts
         self._skill_context = session_id
@@ -2381,8 +2776,9 @@ class PedHunterApp(tk.Tk):
                 "",
                 "end",
                 tags=("arrival" if fresh else "even" if index % 2 == 0 else "odd",),
-                values=(gain.skill, f"{gain.xp:.4f}", gain.procs, f"{gain.proc_pct:.0f}%"),
+                values=(gain.skill, f"{gain.xp:.4f}", f"{gain.procs:,}", f"{gain.proc_pct:.1f}%"),
             )
+        apply_sort(self.skills_tree)
         self._fade_tree_arrivals(self.skills_tree, "skills")
 
     def _refresh_loot_chart(self, session_id: str | None) -> None:
@@ -2406,32 +2802,47 @@ class PedHunterApp(tk.Tk):
 
     def _refresh_wtb(self) -> None:
         listings = _wtb_listings(self.store, limit=240)
-        self.wtb_tree.delete(*self.wtb_tree.get_children())
+        tree = self.wtb_tree
+        selected = tree.selection()
+        tree.delete(*tree.get_children())
+        tree.sort_keys.clear()
+        self._wtb_details = {}
         if not listings:
-            self.wtb_summary_text.set("No WTB listings parsed yet — trade channels will populate here.")
+            self.wtb_summary_text.set("No buy requests seen yet. They appear here when someone posts a WTB in trade chat "
+                                      "while PED Hunter is reading your log.")
+            self._wtb_selected()
             return
-        channels = {str(item.get("channel") or "") for item in listings if item.get("channel")}
-        self.wtb_summary_text.set(f"{len(listings)} WTB listing{'s' if len(listings) != 1 else ''} from {len(channels)} trade channel{'s' if len(channels) != 1 else ''}.")
-        for index, item in enumerate(listings):
+        self.wtb_summary_text.set(
+            f"{len(listings)} buy request{'s' if len(listings) != 1 else ''} seen in trade chat, newest first. "
+            "Only the 'want to buy' part of each message is listed.")
+        any_qty = any(item.get("quantity") is not None for item in listings)
+        any_price = any(item.get("price") for item in listings)
+        tree.configure(displaycolumns=("time", "player", "want", *(("qty",) if any_qty else ()),
+                                       *(("price",) if any_price else ())))
+        self._fit_tree(tree)
+        for index, item in enumerate(reversed(listings)):
             qty = item.get("quantity")
-            price = item.get("price") or ""
-            message = str(item.get("segment") or item.get("message") or "")
-            if len(message) > 90:
-                message = f"{message[:87].rstrip()}..."
-            self.wtb_tree.insert(
+            iid = f"wtb{index}"
+            tree.sort_keys[(iid, "time")] = str(item.get("timestamp") or "")
+            self._wtb_details[iid] = (f"{item.get('speaker') or 'Someone'} in {item.get('channel') or 'trade chat'}: "
+                                      f"{item.get('message') or item.get('segment') or ''}")
+            tree.insert(
                 "",
                 "end",
+                iid=iid,
                 tags=("even" if index % 2 == 0 else "odd",),
                 values=(
-                    item.get("timestamp") or "",
-                    item.get("channel") or "",
+                    _short_time(item.get("timestamp")),
                     item.get("speaker") or "",
-                    item.get("want") or "",
+                    item.get("want") or item.get("segment") or "",
                     "" if qty is None else qty,
-                    price,
-                    message,
+                    item.get("price") or "",
                 ),
             )
+        apply_sort(tree)
+        if selected and tree.exists(selected[0]):
+            tree.selection_set(selected[0])
+        self._wtb_selected()
 
     def _draw_loot_chart(self) -> None:
         canvas = self.loot_chart_canvas
@@ -2511,6 +2922,8 @@ class PedHunterApp(tk.Tk):
             canvas.create_line(*line_points, fill="#7dd3fc", width=2, smooth=False)
 
     def _search_catalog(self) -> None:
+        if "catalog_tree" not in self.__dict__:
+            self._build_catalog_tab()
         self.catalog_tree.delete(*self.catalog_tree.get_children())
         query = self.catalog_query.get().strip()
         matches: list[WeaponRecord] = []
@@ -2518,16 +2931,17 @@ class PedHunterApp(tk.Tk):
             exact = self.catalog.find_weapon(query)
             if exact:
                 matches.append(exact)
-            q = query.casefold()
+            words = query.casefold().split()
             for weapon in self.catalog.weapons.values():
-                if len(matches) >= 50:
+                if len(matches) >= 200:
                     break
                 if weapon in matches:
                     continue
-                if q in weapon.name.casefold() or any(q in alias.casefold() for alias in weapon.aliases):
+                names = [weapon.name.casefold(), *(alias.casefold() for alias in weapon.aliases)]
+                if any(all(word in name for word in words) for name in names):
                     matches.append(weapon)
         else:
-            matches = list(self.catalog.weapons.values())[:50]
+            matches = sorted(self.catalog.weapons.values(), key=lambda weapon: _listing_order(weapon.name))[:200]
 
         for index, weapon in enumerate(matches):
             self.catalog_tree.insert(
@@ -2543,6 +2957,7 @@ class PedHunterApp(tk.Tk):
                     ", ".join(weapon.aliases),
                 ),
             )
+        apply_sort(self.catalog_tree)
 
 
 def _resize_cursor(windowing_system: str) -> str:
@@ -3648,7 +4063,11 @@ def _default_chat_log_path() -> Path:
 
 
 def _wtb_listings(store: Store, limit: int = 240) -> list[dict[str, object]]:
-    """Return parsed WTB listings from recent trade-channel chat events."""
+    """The latest ``limit`` WTB listings from trade-channel chat, oldest first.
+
+    Looks back through enough recent chat that busy non-trade channels do not
+    push the listings out.
+    """
     with store.connect() as conn:
         rows = conn.execute(
             """
@@ -3658,7 +4077,7 @@ def _wtb_listings(store: Store, limit: int = 240) -> list[dict[str, object]]:
             ORDER BY e.id DESC
             LIMIT ?
             """,
-            (limit,),
+            (limit * 25,),
         ).fetchall()
 
     listings: list[dict[str, object]] = []
@@ -3674,8 +4093,9 @@ def _wtb_listings(store: Store, limit: int = 240) -> list[dict[str, object]]:
         message = str(payload.get("message") or "")
         for item in extract_wtb_segments(channel, speaker, message):
             item["timestamp"] = str(row["timestamp"] or "")
+            item.setdefault("message", message)
             listings.append(item)
-    return listings
+    return listings[-limit:]
 
 
 def _is_trade_channel(channel: str) -> bool:
@@ -3683,17 +4103,20 @@ def _is_trade_channel(channel: str) -> bool:
     return "trade" in normalized or normalized in {"barter", "buy", "sell"}
 
 
-def _recent_events(store: Store, session_id: str, limit: int = 50) -> list[dict[str, object]]:
+def _recent_events(store: Store, session_id: str, limit: int = 50,
+                   kinds: tuple[str, ...] | None = None) -> list[dict[str, object]]:
+    """The run's latest counted events, oldest first; ``kinds`` narrows them (never chat)."""
+    wanted = "kind != 'chat'" if not kinds else f"kind IN ({','.join('?' * len(kinds))})"
     with store.connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT id, timestamp, kind, raw_message, payload
             FROM accounted_events
-            WHERE session_id = ? AND kind != 'chat'
+            WHERE session_id = ? AND {wanted}
             ORDER BY id DESC
             LIMIT ?
             """,
-            (session_id, limit),
+            (session_id, *(kinds or ()), limit),
         ).fetchall()
     return [dict(row) for row in reversed(rows)]
 
@@ -3742,7 +4165,7 @@ def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
         payload = {}
     kind = row.get("kind")
     if kind == "loot":
-        description = f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {format_money(float(payload.get('value', 0) or 0), mode)}"
+        description = f"{payload.get('quantity', 1)} x {payload.get('item_name', '?')} — {_small_money(float(payload.get('value', 0) or 0), mode)}"
         if payload.get("input_cost") is not None:
             attempt = int(payload.get("attempt_number", 0) or 0)
             total = int(payload.get("attempts_total", 0) or 0)
@@ -3778,7 +4201,38 @@ def _summarize_event(row: dict[str, object], mode: str = "USD") -> str:
             blueprint = payload.get("blueprint", "Blueprint")
             return f"Crafting input: {attempts:,} x {blueprint} — {format_money(float(payload.get('total_cost', 0) or 0), mode)}"
         return f"{payload.get('result', '?')} {payload.get('item', '')}".strip()
+    if kind == "global" and payload.get("message"):
+        return str(payload["message"])
     return str(row.get("raw_message") or "")
+
+
+def _small_money(value_ped: float, mode: str) -> str:
+    """Two decimals, or four when two would show a real amount as zero."""
+    shown = format_money(value_ped, mode)
+    if value_ped and format_money(0.0, mode) == shown:
+        return format_money(value_ped, mode, decimals=4)
+    return shown
+
+
+def _listing_order(name: str) -> tuple[bool, str]:
+    """A to Z, with code-like names (0x…) after the real ones."""
+    return name.casefold().startswith("0x"), name.casefold()
+
+
+def _short_time(value: object, *, seconds: bool = False, today: str = "") -> str:
+    """A stored ISO timestamp as "Nov 14 03:09"; only the clock on the ISO day ``today``."""
+    text = str(value or "")
+    try:
+        when = datetime.fromisoformat(text)
+    except ValueError:
+        return text
+    clock = when.strftime("%H:%M:%S" if seconds else "%H:%M")
+    if today and text[:10] == today:
+        return clock
+    today = datetime.now()
+    year = "" if when.year == today.year else f" {when.year}"
+    return f"{when.strftime('%b')} {when.day}{year} {clock}"
+
 
 def calculate_loadout_cost(
     *,
@@ -4348,50 +4802,6 @@ def _kill_trend_badge(points: list[dict[str, object]], mode: str = "PED") -> str
         return "Waiting for first craft group" if getattr(points, "has_crafting", False) else "Waiting for first kill"
     return _streamer_trend_detail(points, mode).splitlines()[0]
 
-
-
-def _install_combobox_typeahead(combo: ttk.Combobox, *, on_change) -> None:
-    """Add predictable LootNanny-style first-letter/prefix navigation.
-
-    Tk's native combobox behavior varies depending on focus/dropdown state. This
-    handler keeps a short-lived typed prefix so clicking Amplifier and pressing
-    "z" jumps to the Z entries, while typing "zx s" resolves to ZX Sinkadus.
-    """
-    combo._ped_typeahead = ""  # type: ignore[attr-defined]
-    combo._ped_typeahead_after = None  # type: ignore[attr-defined]
-
-    def clear_prefix() -> None:
-        combo._ped_typeahead = ""  # type: ignore[attr-defined]
-        combo._ped_typeahead_after = None  # type: ignore[attr-defined]
-
-    def on_key(event) -> str | None:
-        key = getattr(event, "keysym", "")
-        char = getattr(event, "char", "") or ""
-        if key in {"BackSpace", "Delete", "Left", "Right", "Home", "End", "Tab", "Return", "Escape"}:
-            return None
-        if not char or not char.isprintable():
-            return None
-
-        pending = getattr(combo, "_ped_typeahead_after", None)
-        if pending:
-            combo.after_cancel(pending)
-        combo._ped_typeahead = f"{getattr(combo, '_ped_typeahead', '')}{char}"  # type: ignore[attr-defined]
-        combo._ped_typeahead_after = combo.after(900, clear_prefix)  # type: ignore[attr-defined]
-
-        values = tuple(combo.cget("values") or ())
-        match = _typeahead_match(values, combo._ped_typeahead)  # type: ignore[attr-defined]
-        if match is None and len(combo._ped_typeahead) > 1:  # type: ignore[attr-defined]
-            combo._ped_typeahead = char  # type: ignore[attr-defined]
-            match = _typeahead_match(values, char)
-        if match is None:
-            return None
-        combo.set(match)
-        combo.icursor(tk.END)
-        combo.selection_clear()
-        on_change()
-        return "break"
-
-    combo.bind("<KeyPress>", on_key, add="+")
 
 
 # Themed streamer HUD (all themes share one model/scene); see streamer_window.py.

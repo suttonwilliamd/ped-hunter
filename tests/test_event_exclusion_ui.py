@@ -75,7 +75,7 @@ def test_history_controls_reach_old_receipt_exclude_and_restore_without_resuming
     assert '500' in window.details.get('1.0', 'end')
     window.exclude_button.invoke()
     pump(app, lambda: not window.busy)
-    assert window.tree.item(str(key), 'values')[-1] == 'Excluded'
+    assert window.tree.item(str(key), 'values')[-1] == 'Left out'
     assert str(window.restore_button.cget('state')) == 'normal'
     corrected = app.store.get_session(sid)
     assert corrected.loot_value == pytest.approx(summary.loot_value - 500)
@@ -88,7 +88,7 @@ def test_history_controls_reach_old_receipt_exclude_and_restore_without_resuming
     assert originals(app.store) == rows
     window.restore_button.invoke()
     pump(app, lambda: not window.busy)
-    assert window.tree.item(str(key), 'values')[-1] == 'Included'
+    assert window.tree.item(str(key), 'values')[-1] == 'Counted'
     assert app.store.get_session(sid).loot_value == summary.loot_value
     assert originals(app.store) == rows
     assert not errors
@@ -137,11 +137,11 @@ def test_restart_can_find_and_restore_excluded_receipt_without_starting_tracking
         history = restarted._event_history_window
         history.event_id.set(str(key))
         history.find_event()
-        assert history.tree.item(str(key), 'values')[-1] == 'Excluded'
+        assert history.tree.item(str(key), 'values')[-1] == 'Left out'
         assert str(history.restore_button.cget('state')) == 'normal'
         history.restore_button.invoke()
         pump(restarted, lambda: not history.busy)
-        assert history.tree.item(str(key), 'values')[-1] == 'Included'
+        assert history.tree.item(str(key), 'values')[-1] == 'Counted'
         assert restarted.store.get_session(sid).loot_value == pytest.approx(502.2005)
         assert not restarted.running and restarted.session_id is None
         assert restarted._log_worker is None
@@ -154,7 +154,7 @@ def test_persisted_history_controls_fit_minimum_dialog_without_hidden_actions(hi
     app, window, sid, group, key, errors = history_app
     window.geometry(f'{round(640 * app.display_scale)}x{round(440 * app.display_scale)}')
     app.update()
-    for widget in (window.run_combo, window.filter_combo, window.id_entry, window.find_button,
+    for widget in (window.run_combo, window.filter_combo,
                    window.tree, window.newest_button, window.older_button, window.exclude_button, window.restore_button):
         assert widget.winfo_ismapped()
         assert widget.winfo_width() > 10 and widget.winfo_height() > 10

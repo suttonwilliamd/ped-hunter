@@ -11,6 +11,7 @@ from ped_hunter.storage import Store
 @pytest.fixture
 def hud(tmp_path):
     app = PedHunterApp(store=Store(tmp_path / 'stability.sqlite3'))
+    app.event_filter.set('Everything')  # the Events tab shows loot only by default
     app.reduced_motion.set(True)
     app._open_streamer_window()
     app.update()

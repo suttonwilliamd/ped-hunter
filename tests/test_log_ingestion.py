@@ -178,6 +178,7 @@ def test_real_gui_start_or_resume_updates_totals_event_rows_chart_and_streamer(t
     path = tmp_path / 'chat.log'
     path.write_bytes(LOOT)  # Historical line must not inflate the new live run.
     app = PedHunterApp(store=store)
+    app.event_filter.set('Everything')  # the Events tab shows loot only by default
     errors = []
     app.report_callback_exception = lambda *args: errors.append(args)
     try:
@@ -259,6 +260,7 @@ def test_chat_burst_stays_in_raw_history_without_displacing_live_loot_and_skills
     assert kinds == {'combat': 1, 'loot': 1, 'skill': 1, 'chat': 120}
     assert path.read_bytes() == content
     app = PedHunterApp(store=source.store)
+    app.event_filter.set('Everything')  # the Events tab shows loot only by default
     try:
         app.reduced_motion.set(True)
         app.currency_mode.set('PED')

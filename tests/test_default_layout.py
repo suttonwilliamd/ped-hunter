@@ -46,39 +46,67 @@ def descendants(widget):
 
 
 def test_single_density_default(app):
-    for widget in (app.start_button, app.resume_button, app.stop_button,
+    # Idle: New run and Resume (End run replaces them while tracking); no chart until a run is shown.
+    for widget in (app.start_button, app.resume_button,
                    app.hero_net_label, app.hero_return_label, app.sessions_tree):
         assert_inside(widget, app)
-    assert app.hero_panel.winfo_height() < 190 * app.display_scale
+    assert not app.stop_button.winfo_ismapped() and not app.hunt_chart.winfo_ismapped()
+    assert app.size_class.name == "regular"
+    assert app.hero_panel.winfo_height() < 80 * app.display_scale
     row_height = int(ttk.Style(app).lookup("Treeview", "rowheight"))
     assert app.sessions_tree.winfo_height() >= max(3 * row_height, round(140 * app.display_scale))
 
 
 
-@pytest.mark.parametrize("size", ["1040x640", "980x580", "1180x720", "900x600", "820x540", "760x500"])
+@pytest.mark.parametrize("size", ["1180x720", "1040x640", "960x620", "900x600", "820x540", "700x560", "560x900",
+                                  "520x360"])
 def test_primary_controls_fit_and_top_toggle_restores(app, size):
+    """Every size class keeps the run controls, readouts and status inside the window."""
     width, height = map(int, size.split('x'))
+    sid = app.store.start_session("hunt")
+    app.store.end_session(sid)
+    app.session_id = sid
+    app._refresh_all()
     app.geometry(f'{round(width * app.display_scale)}x{round(height * app.display_scale)}')
     app.update()
-    for widget in (app.start_button, app.resume_button, app.stop_button, app.status_label, app.hero_return_label):
-        assert widget.winfo_ismapped()
-        assert widget.winfo_rootx() >= app.winfo_rootx()
-        assert widget.winfo_rootx() + widget.winfo_width() <= app.winfo_rootx() + app.winfo_width()
-    # Cockpit: hunt net in the readout strip, return beside it, durability on the command rail.
-    for label, parent in ((app.hero_session_label, app.hero_left), (app.hero_net_label, app.hero_left),
-                          (app.hero_return_label, app.hero_panel), (app.hero_repair_label, app.command_rail)):
-        assert_inside(label, parent)
-        assert label.winfo_reqwidth() <= label.winfo_width()
-    assert_inside(app.hunt_chart, app)
+    docked = app.size_class.docked
+    assert docked == (width >= 720 and height >= 600)
+    run_controls = (app.start_button, app.resume_button) if docked else (app.bar_start, app.bar_resume)
+    for widget in (*run_controls, app.status_label, app.hero_net_label, app.hero_return_label, app.notebook):
+        assert_inside(widget, app)
+    assert app.command_rail.winfo_ismapped() == docked and app.run_bar.winfo_ismapped() != docked
+    if docked:  # run context under the net, durability on the rail
+        for label, parent in ((app.hero_session_label, app.hero_left), (app.hero_repair_label, app.command_rail)):
+            assert_inside(label, parent)
+            assert label.winfo_reqwidth() <= label.winfo_width()
+    else:  # the drawer brings healing and equipment back
+        app._toggle_drawer(True)
+        app.update()
+        assert_inside(app.healing_selector, app)
+        app._toggle_drawer(False)
+        app.update()
+        assert not app.command_rail.winfo_ismapped()
+    if app.size_class.split:  # chart and tables take turns
+        assert not app.hunt_chart.winfo_ismapped()
+        app._toggle_chart_first()
+        app.update()
+        assert_inside(app.hunt_chart, app)
+        assert not app.notebook.winfo_ismapped()
+        app._toggle_chart_first()
+        app.update()
+    else:
+        assert_inside(app.hunt_chart, app)
+    assert app.hunt_chart.winfo_height() >= 140 * app.display_scale or app.size_class.split
     app.events_tab.master.select(app.events_tab)
     app.update()
-    assert_inside(app.loot_chart_canvas, app.events_tab)
-    assert app.loot_chart_canvas.winfo_height() >= 120
+    assert_inside(app.events_tree, app.events_tab)
+    assert app.loot_chart_canvas.winfo_ismapped() == (app.size_class.name == "wide")
     app.events_tab.master.select(app.dashboard_tab)
     app.update()
     app._toggle_top_area()
     app.update()
     assert not app.hero_panel.winfo_ismapped()
+    assert app.controls_panel.winfo_ismapped()
     app._toggle_top_area()
     app.update()
     assert app.hero_panel.winfo_ismapped()
@@ -227,7 +255,7 @@ def test_main_fonts_and_small_form_ignore_process_startup_point_scaling(app, mon
         app.tk.call("tk", "scaling", original)
 
 
-@pytest.mark.parametrize("size,largest", [((760, 500), 0.14), ((900, 600), 600.0)])
+@pytest.mark.parametrize("size,largest", [((1040, 640), 0.14), ((1180, 720), 600.0)])  # the loot strip shows in wide windows
 def test_event_chart_text_fits_without_covering_other_labels(app, size, largest, dual_healing_profile):
     sid = app.store.start_session("hunt")
     for index, value in enumerate([0.04, 0.09, 0.025, 0.14, 0.06, largest]):
