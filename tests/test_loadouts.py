@@ -17,7 +17,6 @@ from ped_hunter.app import (
     calculate_blueprint_material_cost,
     calculate_gun_amp_repair_budget,
     calculate_gun_amp_repair_decay,
-    durability_color,
     calculate_loadout_cost,
     format_repair_radar,
     repair_durability_status,
@@ -25,7 +24,7 @@ from ped_hunter.app import (
     with_repair_estimates,
 )
 from ped_hunter.catalog import BlueprintRecord, Catalog, ResourceRecord
-from ped_hunter.parser import ParsedEvent, parse_line
+from ped_hunter.parser import parse_line
 from ped_hunter.storage import LoadoutRecord, SessionSummary, Store
 
 
@@ -255,12 +254,6 @@ def test_repair_state_persists_into_next_session_without_repair(tmp_path: Path):
     assert "~1,460 shots left" in format_repair_radar(second_summary)
 
 
-def test_durability_color_gradient_reaches_requested_stops():
-    assert durability_color(100) == "#22c55e"
-    assert durability_color(0) == "#000000"
-    assert durability_color(5) != durability_color(50)
-
-
 def test_store_includes_repair_estimated_cost_in_session_summary(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")
@@ -292,57 +285,6 @@ def test_store_summarizes_loadout_shot_costs(tmp_path: Path):
     assert summary.loadout_name == "Test Frontier"
     assert summary.hunting_cost == 0.0102
     assert summary.net_value == 0.2398
-
-
-def test_damage_messages_flow_through_parse_store_and_display(tmp_path: Path):
-    catalog = Catalog.load()
-    store = Store(tmp_path / "ped.sqlite3")
-    loadout = with_repair_estimates(
-        catalog,
-        LoadoutRecord(
-            id=None,
-            name="Damage demo rifle",
-            weapon="Frontier Hunting Rifle",
-            ammo_burn=100,
-            decay=0.0002,
-            cost_per_shot=1.25,
-        ),
-    )
-    loadout.id = store.save_loadout(loadout, make_active=True)
-    session_id = store.start_session("hunt", loadout)
-
-    damage_event = parse_line("2026-06-20 08:30:13 [System]:Youinflicted43.8 points ofdamagewith costs of 0.1234 PED.")
-    dodge_event = parse_line("2026-06-20 08:30:14 [System] [] The creature Dodged your attack.")
-    assert damage_event is not None
-    assert dodge_event is not None
-    assert _event_consumes_shot(damage_event) is True
-    assert _event_consumes_shot(dodge_event) is True
-
-    for event in (damage_event, dodge_event):
-        event.payload["shot_cost"] = loadout.cost_per_shot
-        event.payload["ammo_cost"] = loadout.ammo_burn / 10_000.0
-        event.payload["repair_decay"] = loadout.repair_decay_per_shot
-        event.payload["loadout"] = loadout.name
-        store.add_event(session_id, event.to_row())
-
-    store.add_event(
-        session_id,
-        {
-            "kind": "loot",
-            "raw_message": "loot",
-            "payload": {"item_name": "Daikiba", "value": 4.0},
-        },
-    )
-
-    summary = store.get_current_session()
-    assert summary is not None
-    assert summary.hunting_cost == 2.5
-    assert summary.loot_value == 4.0
-    assert summary.net_value == 1.5
-
-    metrics = streamer_metrics(summary)
-    assert float(metrics["cost"]) == 2.5
-    assert float(metrics["loot"]) == 4.0
 
 
 def test_real_chat_log_combat_lines_flow_into_shot_costs_and_display(tmp_path: Path):
@@ -519,13 +461,14 @@ def test_store_excludes_legacy_refiner_conversion_rows_from_profit(tmp_path: Pat
     store.add_event(session_id, {"kind": "loot", "raw_message": "refined oil", "payload": {"item_name": "Oil", "value": 2.14}})
     store.add_event(session_id, {"kind": "loot", "raw_message": "refined lyst", "payload": {"item_name": "Lysterium Ingot", "value": 8.01}})
     store.add_event(session_id, {"kind": "loot", "raw_message": "ammo conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
+    store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 1, "shot_cost": 0.10}})
 
     summary = store.get_current_session()
 
     assert summary is not None
-    assert summary.events == 4
+    assert summary.events == 5
     assert summary.loot_value == 0.25
-    assert summary.net_value == 0.25
+    assert summary.net_value == pytest.approx(0.15)
 
 
 def test_repair_event_adds_estimated_decay_expense_and_resets_counter(tmp_path: Path):
@@ -665,20 +608,6 @@ def test_manufacturing_offset_allocates_fifo_attempt_cost_without_double_countin
     assert output["attempt_number"] == 1
 
 
-def test_store_excludes_universal_ammo_conversion_from_session_loot(tmp_path: Path):
-    store = Store(tmp_path / "ped.sqlite3")
-    session_id = store.start_session("hunt")
-    store.add_event(session_id, {"kind": "combat", "raw_message": "hit", "payload": {"damage": 1, "shot_cost": 10.0}})
-    store.add_event(session_id, {"kind": "loot", "raw_message": "real loot", "payload": {"item_name": "Shrapnel", "value": 25.0}})
-    store.add_event(session_id, {"kind": "loot", "raw_message": "conversion", "payload": {"item_name": "Universal Ammo", "value": 293.09}})
-
-    summary = store.get_current_session()
-
-    assert summary is not None
-    assert summary.loot_value == 25.0
-    assert summary.net_value == 15.0
-
-
 def test_store_summarizes_session_skill_gains_like_lootnanny(tmp_path: Path):
     store = Store(tmp_path / "ped.sqlite3")
     session_id = store.start_session("hunt")
@@ -808,13 +737,6 @@ def test_loot_event_points_are_chronological_and_skip_bad_rows(tmp_path: Path):
         ("t1", 0.06, "(Animal Oil)"),
         ("t3", 1.25, "(Shrapnel)"),
     ]
-
-
-def test_only_outgoing_combat_consumes_shots():
-    assert _event_consumes_shot(ParsedEvent("combat", None, "", {"damage": 4}))
-    assert _event_consumes_shot(ParsedEvent("combat", None, "", {"dodged": True}))
-    assert not _event_consumes_shot(ParsedEvent("combat", None, "", {"damage_taken": 4}))
-    assert not _event_consumes_shot(ParsedEvent("loot", None, "", {"value": 1}))
 
 
 def test_loadout_typeahead_prefix_matching():

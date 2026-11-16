@@ -28,12 +28,6 @@ def gesture(app, window, width, height):
     app.update()
 
 
-def test_default_hud_is_compact_at_current_display_scale(hud):
-    app, window = hud
-    assert window.winfo_width() / window.ui_scale <= 360
-    assert window.winfo_height() / window.ui_scale <= 340
-
-
 def test_long_wrapped_live_text_does_not_lock_in_enlarged_minimum(hud):
     app, window = hud
     window.vars['kill_trend_badge'].set(

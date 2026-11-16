@@ -3724,20 +3724,6 @@ def repair_durability_status(session: SessionSummary | None) -> dict[str, object
     }
 
 
-def durability_color(percent: float) -> str:
-    stops = [(100.0, (34, 197, 94)), (60.0, (234, 179, 8)), (30.0, (249, 115, 22)), (10.0, (239, 68, 68)), (0.0, (0, 0, 0))]
-    pct = max(0.0, min(100.0, percent))
-    for index in range(len(stops) - 1):
-        hi_pct, hi_rgb = stops[index]
-        lo_pct, lo_rgb = stops[index + 1]
-        if lo_pct <= pct <= hi_pct:
-            span = hi_pct - lo_pct or 1.0
-            t = (pct - lo_pct) / span
-            rgb = tuple(round(lo + ((hi - lo) * t)) for hi, lo in zip(hi_rgb, lo_rgb))
-            return "#%02x%02x%02x" % rgb
-    return "#000000"
-
-
 def format_repair_radar(session: SessionSummary | None, mode: str = "USD") -> str:
     if not session:
         return "Repair radar: start a fresh run at 100% gun + amp TT"

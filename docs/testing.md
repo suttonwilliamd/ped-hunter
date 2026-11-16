@@ -5,6 +5,43 @@ It adds no application dependency, marker requirement or CI filter. Ordinary
 `python -m pytest` discovery is unchanged (`testpaths=tests`, `pythonpath=src`,
 `addopts=-q` in `pyproject.toml`).
 
+## Routine checks versus deferred desktop checks
+
+The developer's desktop is shared with live hunts and other work. Split checks in two:
+
+**Routine (non-intrusive; any time).** `--no-gui` deselects every test listed in
+`tests/native_ui_tests.txt` (plus legacy-HUD tests). It also makes any Tk root
+(app window, HUD, dialog, messagebox, implicit default root) or `winsound` call
+raise `NativeUIRefused`. An unlisted window-opening test therefore fails loudly
+instead of reaching the screen. Pick the groups for the changed behavior and its
+consumers (table below):
+
+```powershell
+.\.venv\Scripts\python.exe tools\pytest_groups.py run catalog-loadouts -- --no-gui
+.\.venv\Scripts\python.exe -m pytest --no-gui tests\test_parser.py tests\test_wtb.py   # explicit focused files
+.\.venv\Scripts\python.exe -m pytest --no-gui                                          # every non-intrusive test, a few minutes
+```
+
+Accounting, persistence, recovery and ingestion logic is almost entirely in this
+path. Report a `--no-gui` run as "non-intrusive subset", never as the full suite.
+
+**Deferred native UI (desktop must be free).** These tests open real windows and
+may take focus or send input. Run them only when the user says they are done
+with the computer or there is reliable evidence of at least two hours of
+inactivity. Only one worker owns the desktop at a time. Until then, report them
+as pending, not passed:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -m native_ui --capture=sys -ra                  # current UI
+.\.venv\Scripts\python.exe -m pytest -m native_ui --legacy-hud --capture=sys -ra     # plus rollback HUD
+.\.venv\Scripts\python.exe tools\pytest_groups.py run desktop-ui --isolated -- -m native_ui --capture=sys -ra
+```
+
+`native_ui_tests.txt` was derived by running the suite under `--no-gui` and
+listing every refused test. A test that newly needs a window must be added there,
+which the guard enforces. Headless CI (Linux `xvfb-run`) runs everything,
+including `--legacy-hud`.
+
 ## Commands
 
 From the repository root in PowerShell:
@@ -38,7 +75,10 @@ unrecognized names remain visible. Do not rename, delete or skip tests to satisf
 the mapping. There is no automatic fallback that unexpectedly runs the full suite.
 
 `full` does not filter by the registry: unmapped tests are reported **and included**.
-It rejects `-k`, `-m` and `--deselect` rather than calling a subset full. File/node
+It rejects `-k`, `-m` and `--deselect` rather than calling a subset full.
+Tests of the retained, runtime-unused `LegacyStreamerWindow` (listed in
+`tests/legacy_streamer_tests.txt`) are deselected in every mode unless
+`--legacy-hud` is passed (e.g. `full -- --legacy-hud`); see `docs/streamer-themes.md`. File/node
 paths, `--ignore`, `--ignore-glob`, `--lf` and `--stepwise` are rejected by the group
 tool because they can hide discovery. Use ordinary pytest for an explicit
 file/node or other deliberate subset and record that scope as focused, for example:

@@ -155,8 +155,10 @@ def test_ended_and_legacy_nonlive_sessions_do_not_seed_or_rewrite_attribution(hu
     assert hunt.store.load_hunt_attribution(legacy) == (None, {})
 
 
-@pytest.mark.parametrize('field', ['cost', 'raw_cost', 'cost_pool_total', 'cost_unassigned'])
-@pytest.mark.parametrize('invalid', [-1.0, math.nan, math.inf, -math.inf])
+# Every amount field and every invalid class once; all share hunt_attribution._number,
+# so the full field x value cross product repeated the same check 16 times.
+@pytest.mark.parametrize('field,invalid', [('cost', -1.0), ('raw_cost', math.nan),
+                                           ('cost_pool_total', math.inf), ('cost_unassigned', -math.inf)])
 def test_storage_invalid_amounts_reject_the_entire_write_atomically(hunt, field, invalid):
     ids = hunt.pool()
     state, decisions = hunt.store.load_hunt_attribution(hunt.sid)
