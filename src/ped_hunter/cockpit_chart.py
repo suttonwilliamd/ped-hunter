@@ -111,8 +111,11 @@ def readout_text(t: Trajectory, step_list, focus, mode: str) -> tuple[str, list]
 
 def chart_scene(t: Trajectory, width: float, height: float, *, mode: str = "USD", scale: float = 1.0,
                 focus: int | None = None, pulse: float = 0.0, colors: ChartColors = COLORS,
-                focused_ring: bool = False) -> ChartView:
+                focused_ring: bool = False, compact: bool = False) -> ChartView:
+    """``compact`` (short charts): the landmark rows and the readout share one band;
+    the readout replaces the landmark labels only while an encounter is focused."""
     c = colors
+    band = READOUT_H if compact else READOUT_H + LANDMARK_H  # height above the plot
     items = []
 
     def add(kind, xy, fill, **kw):
@@ -123,11 +126,11 @@ def chart_scene(t: Trajectory, width: float, height: float, *, mode: str = "USD"
 
     add("rect", (0, 0, width, height), c.bg, outline="")
     plot_x0, plot_x1 = LEFT, max(LEFT + 60, width - RIGHT)
-    plot_y0, plot_y1 = READOUT_H + LANDMARK_H, max(READOUT_H + LANDMARK_H + 60, height - AXIS_H)
+    plot_y0, plot_y1 = band, max(band + 60, height - AXIS_H)
 
     if t.empty:
         add("rect", (8, 6, width - 8, READOUT_H - 6), c.panel, outline="")
-        text(20, 18, "Hunt net · encounters appear here as loot arrives", c.muted, 15)
+        text(20, 18, "Encounters appear here as loot arrives", c.muted, 15)
         add("line", (plot_x0, (plot_y0 + plot_y1) / 2, plot_x1, (plot_y0 + plot_y1) / 2), c.zero, width=2)
         text(plot_x0 - 8, (plot_y0 + plot_y1) / 2 - 10, "Break-even", c.muted, 13, anchor="ne")
         return ChartView(Scene("cockpit", round(width), round(height), scale, tuple(items), {}, {}, (), ()), (), (), "No encounters yet")
@@ -191,6 +194,9 @@ def chart_scene(t: Trajectory, width: float, height: float, *, mode: str = "USD"
     # Landmarks: standout wins labelled in two staggered rows above the plot,
     # spread apart and joined to their bars by leader lines.
     marks = [(centres[i], _signed(s.gain, mode), s) for i, s in enumerate(step_list) if s.standout]
+    show_readout = not compact or focus is not None
+    if compact and show_readout:
+        marks = []
     rows = [marks[0::2], marks[1::2]]
     for row, members in enumerate(rows):
         widths = [len(label) * 8.6 + 10 for _, label, _ in members]
@@ -201,7 +207,7 @@ def chart_scene(t: Trajectory, width: float, height: float, *, mode: str = "USD"
         for k in reversed(range(len(xs))):  # then pull back inside the right edge
             high_edge = width - 8 - widths[k] / 2 if k == len(xs) - 1 else xs[k + 1] - (widths[k] + widths[k + 1]) / 2
             xs[k] = min(xs[k], high_edge)
-        ly = READOUT_H + 2 + row * 20
+        ly = band - LANDMARK_H + 2 + row * 20
         for (cx, label, s), lx in zip(members, xs):
             add("line", (lx, ly + 19, cx, min(y(s.before), y(s.after)) - 5), c.glow, width=1, dash=(2, 3))
             text(lx, ly, label, c.glow, 14, bold=True, anchor="n")
@@ -257,10 +263,13 @@ def chart_scene(t: Trajectory, width: float, height: float, *, mode: str = "USD"
 
     # Docked readout band.
     readout, cells = readout_text(t, step_list, focus, mode)
-    add("rect", (8, 6, width - 8, READOUT_H - 4), c.panel, outline=c.focus if focused_ring else "", width=2)
+    if show_readout:
+        add("rect", (8, 6, width - 8, READOUT_H - 4), c.panel, outline=c.focus if focused_ring else "", width=2)
     x = 22
     tones = {"gain": c.gain, "loss": c.loss, "ink": c.ink, "muted": c.muted}
-    for label, value, tone in cells:
+    for label, value, tone in cells if show_readout else ():
+        if x + max(len(label) * 7.4, len(value) * 9.2) > width - 16 and x > 22:
+            break  # never draw a cell past the band
         if value:
             text(x, 12, label, c.muted, 13)
             text(x, 28, value, tones[tone], 16, bold=tone in ("gain", "loss"))

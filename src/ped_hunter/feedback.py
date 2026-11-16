@@ -163,13 +163,30 @@ class ActivityStrip(tk.Canvas):
         self.delete("all")
         w = max(self.winfo_width(), 100)
         h = int(self.cget("height"))
+        if self.compact:
+            # The rail strip follows its window's monitor scale (pixel fonts), not Tk's
+            # process-wide point scaling, like the rest of the main window.
+            k = float(getattr(self.winfo_toplevel(), "display_scale", self.winfo_fpixels("1i") / 96)) / 2
+            if h != round(48 * k):
+                h = round(48 * k)
+                self.configure(height=h)
+            fonts = (("Segoe UI", -round(24 * k), "bold"), ("Segoe UI", -round(21 * k)))
+        else:
+            k = 1.0
+            fonts = (("Segoe UI", 10, "bold"), ("Segoe UI", 9))
         moving = not self.reduced_motion.get()
         glow = (1 - self.phase) if moving else 0
         bg = "#10302f" if glow > 0.15 else "#0b1321"
         self.create_rectangle(0, 0, w, h, fill=bg, outline="")
-        self.create_rectangle(0, 0, 3, h, fill="#2dd4bf" if self.live else "#334155", outline="")
-        radius = 3 + pulse * 2
-        self.create_oval(15-radius, 16-radius, 15+radius, 16+radius, fill="#2dd4bf" if self.live else "#64748b", outline="")
-        offset = (1 - self.phase) * 5 if moving else 0
-        self.create_text(27, 15 + offset, text=self.headline, anchor="w", fill="#d8fffb", font=("Segoe UI", 9 if self.compact else 10, "bold"), width=w-40)
-        self.create_text(14, h-13, text=self.detail, anchor="w", fill="#9aaec7", font=("Segoe UI", 8 if self.compact else 9), width=w-25)
+        self.create_rectangle(0, 0, 3 * k, h, fill="#2dd4bf" if self.live else "#334155", outline="")
+        radius = (3 + pulse * 2) * k
+        self.create_oval(15 * k - radius, 16 * k - radius, 15 * k + radius, 16 * k + radius,
+                         fill="#2dd4bf" if self.live else "#64748b", outline="")
+        offset = (1 - self.phase) * 5 * k if moving else 0
+        for x, y, text, fill, font in (
+                (27 * k, 15 * k + offset, self.headline, "#d8fffb", fonts[0]),
+                (14 * k, h - 13 * k, self.detail, "#9aaec7", fonts[1])):
+            item = self.create_text(x, y, text=text, anchor="w", fill=fill, font=font)
+            while len(text) > 1 and self.bbox(item)[2] > w - 6:  # shorten; never wrap into the other line
+                text = text[:-1]
+                self.itemconfigure(item, text=text.rstrip() + "…")

@@ -49,15 +49,13 @@ def test_currency_changes_refresh_rendered_money_without_repricing(tmp_path, mon
         assert app.hero_loot.get() == "$0.00"
         app._process_lines(["2026-11-12 12:00:04 [System] [] You healed yourself 23.0 points"], sid, None)
         app.session_id = sid
+        app.event_filter.set("Everything")
         app._refresh_all()
         app._open_streamer_window()
         hud = app.streamer_window
         hud.title("PED Hunter isolated currency HUD")
         app.update()
-        picker = next(widget for section in app.root_frame.winfo_children()
-                      for widget in section.winfo_children()
-                      if isinstance(widget, ttk.Combobox)
-                      and str(widget.cget("textvariable")) == str(app.currency_mode))
+        picker = app.currency_picker  # under Help & settings
         before = asdict(store.get_session(sid))
         with store.connect() as conn:
             original_rows = [tuple(row) for row in conn.execute("SELECT * FROM events ORDER BY id")]
@@ -142,10 +140,7 @@ def test_manufacturing_preview_refreshes_small_input_prices_without_rebooking(tm
         assert booked["attempts_total"] == 9
         assert booked["cost_per_attempt"] == pytest.approx(0.03025)
         assert booked["total_cost"] == pytest.approx(0.27225)
-        picker = next(widget for section in app.root_frame.winfo_children()
-                      for widget in section.winfo_children()
-                      if isinstance(widget, ttk.Combobox)
-                      and str(widget.cget("textvariable")) == str(app.currency_mode))
+        picker = app.currency_picker  # under Help & settings
         for mode, per_attempt, total in (
             ("USD", "$0.003025", "$0.027225"),
             ("PED", "0.03025 PED", "0.27225 PED"),

@@ -60,6 +60,14 @@ desktop; leave them deferred. Off-screen painting is not representative of
 on-screen paint speed or of pixel-level appearance, so visual acceptance and
 window-resize smoothness still need the real desktop.
 
+`tools/perf/shoot.py <src-dir> <out-dir> <scale> <scenario.py>` (run through
+`hidden_run.py`) opens the real main window on a database copy
+(`%PED_PERF_DIR%/data/real.sqlite3`), drives it with a scenario script and saves
+`PrintWindow` captures as PNG: real pixels of the real widgets at the monitor's
+scale, for layout review at any window size. `tools/perf/scenarios/` has the
+size sweep and the interaction checks (selectors, sorting, filters, run state).
+It shows layout and text, not on-screen paint speed or OS-level focus behaviour.
+
 `tools/perf/bench.py` (headless) and `tools/perf/appbench.py` (the real app, via
 `hidden_run.py`) time startup, Resume, sustained appended lines, redraws and
 End run against a **copy** of a hunt database in `%PED_PERF_DIR%/data`. They

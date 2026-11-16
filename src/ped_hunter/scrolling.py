@@ -8,14 +8,15 @@ from tkinter import ttk
 class ScrollPane(ttk.Frame):
     """Keep natural-height content scrollable and keyboard-focused fields visible."""
 
-    def __init__(self, parent, *, background: str):
+    def __init__(self, parent, *, background: str, autohide: bool = False):
         super().__init__(parent, style="Panel.TFrame")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         self.canvas = tk.Canvas(self, background=background, highlightthickness=0,
                                 width=1, height=1, yscrollincrement=1)
         self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.autohide = autohide
+        self.canvas.configure(yscrollcommand=self._scrolled)
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.scrollbar.grid(row=0, column=1, sticky="ns")
         self.content = ttk.Frame(self.canvas, style="Panel.TFrame")
@@ -29,6 +30,17 @@ class ScrollPane(ttk.Frame):
         self.bind_class(self._tag, "<Prior>", lambda _event: self._scroll(-1, "pages"))
         self.bind_class(self._tag, "<Next>", lambda _event: self._scroll(1, "pages"))
         self.bind_class(self._tag, "<FocusIn>", lambda event: self.reveal(event.widget))
+
+    def _scrolled(self, first, last):
+        """``autohide``: show the scrollbar only while the content does not fit."""
+        self.scrollbar.set(first, last)
+        if not self.autohide:
+            return
+        fits = float(first) <= 0.0 and float(last) >= 1.0
+        if fits and self.scrollbar.winfo_manager():
+            self.scrollbar.grid_remove()
+        elif not fits and not self.scrollbar.winfo_manager():
+            self.scrollbar.grid()
 
     def _content_changed(self, _event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox(self.window))
