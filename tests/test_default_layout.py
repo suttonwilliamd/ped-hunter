@@ -64,9 +64,12 @@ def test_primary_controls_fit_and_top_toggle_restores(app, size):
         assert widget.winfo_ismapped()
         assert widget.winfo_rootx() >= app.winfo_rootx()
         assert widget.winfo_rootx() + widget.winfo_width() <= app.winfo_rootx() + app.winfo_width()
-    for label in (app.hero_session_label, app.hero_net_label, app.hero_return_label, app.hero_repair_label):
-        assert_inside(label, app.hero_left)
+    # Cockpit: hunt net in the readout strip, return beside it, durability on the command rail.
+    for label, parent in ((app.hero_session_label, app.hero_left), (app.hero_net_label, app.hero_left),
+                          (app.hero_return_label, app.hero_panel), (app.hero_repair_label, app.command_rail)):
+        assert_inside(label, parent)
         assert label.winfo_reqwidth() <= label.winfo_width()
+    assert_inside(app.hunt_chart, app)
     app.events_tab.master.select(app.events_tab)
     app.update()
     assert_inside(app.loot_chart_canvas, app.events_tab)

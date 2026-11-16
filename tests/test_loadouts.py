@@ -115,7 +115,7 @@ def test_repair_radar_uses_full_tt_gun_amp_budget_for_new_sessions(tmp_path: Pat
     assert round(summary.repair_decay, 5) == 0.052
     radar = format_repair_radar(summary)
     assert "Amp durability 93.6%" in radar
-    assert "~1,460 shots left" in radar
+    assert "1,460 shots left" in radar and "~" not in radar
     status = repair_durability_status(summary)
     assert status["label"] == "Amp"
     assert round(float(status["percent"]), 1) == 93.6
@@ -251,7 +251,8 @@ def test_repair_state_persists_into_next_session_without_repair(tmp_path: Path):
 
     second_status = repair_durability_status(second_summary)
     assert second_status["shots_left"] == first_status["shots_left"]
-    assert "~1,460 shots left" in format_repair_radar(second_summary)
+    radar = format_repair_radar(second_summary)
+    assert "1,460 shots left" in radar and "~" not in radar  # approximation marks stay out of the UI
 
 
 def test_store_includes_repair_estimated_cost_in_session_summary(tmp_path: Path):
