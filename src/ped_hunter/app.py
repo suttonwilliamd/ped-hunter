@@ -34,7 +34,9 @@ from .sounds import CuePlayer
 from .log_tail import LogTail
 from .parser import ParsedEvent, extract_wtb_segments, is_conversion_output_item, parse_line
 from .scrolling import ScrollPane
-from .resume_handoff import claim_resume_handoff, has_resume_handoff, read_resume_handoff
+from .resume_handoff import (
+    claim_resume_handoff, complete_resume_handoff, has_resume_handoff, read_resume_handoff,
+)
 from .storage import LifetimeTotals, LoadoutRecord, SessionResumeState, SessionSummary, SkillGainSummary, Store
 
 
@@ -1676,7 +1678,15 @@ class PedHunterApp(tk.Tk):
                     if parsed:
                         self._log_queue.put(("parsed", parsed))
                 if handoff is not None and tail.acknowledge_handoff():
-                    handoff = None
+                    completed, handoff = handoff, None
+                    try:
+                        complete_resume_handoff(self.store.db_path, completed)
+                    except (OSError, ValueError) as exc:
+                        # Tracking continues; the retained claim keeps blocking
+                        # the next Resume until an operator reconciles it.
+                        self._log_queue.put(("error", f"Resume handoff receipt not retired: {exc}"))
+                    else:
+                        self._log_queue.put(("status", f"Resume handoff complete; reading new lines from {path.name}"))
                 if now - last_activity >= LOG_IDLE_WARNING_SECONDS:
                     notice = (f"No changes in {path.name} for 30s — if playing, check Entropia's chat logging and the selected file")
                     if notice != last_notice:

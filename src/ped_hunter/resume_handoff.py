@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import uuid
 from pathlib import Path
 
 
@@ -30,8 +31,53 @@ def _reconciled_archives(db_path: Path):
     return pending.parent.glob(pending.name + '.claimed.verified-*')
 
 
+def _completed_receipts(db_path: Path):
+    pending, _claimed = _paths(db_path)
+    return pending.parent.glob(pending.name + '.claimed.completed-*')
+
+
+def _load_receipt(path: Path) -> dict | None:
+    try:
+        if path.stat().st_size > 65536:
+            return None
+        data = json.loads(path.read_bytes())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _orphaned_archives(db_path: Path, session_id: str | None = None) -> list[Path]:
+    """Verified archives whose successor cursor was never published or claimed.
+
+    Staging archives the old claim only after its successor is written; the
+    successor records ``reconciled_from_sha256``. Once a later pending, claimed
+    or completed receipt references an archive, that archive is accounted for.
+    An unreadable archive is always treated as orphaned (fail closed).
+    """
+    pending, claimed = _paths(db_path)
+    referenced = set()
+    for path in [pending, claimed, *_completed_receipts(db_path), *_reconciled_archives(db_path)]:
+        data = _load_receipt(path) if path.exists() else None
+        if data and isinstance(data.get('reconciled_from_sha256'), str):
+            referenced.add(data['reconciled_from_sha256'])
+    orphans = []
+    for archive in _reconciled_archives(db_path):
+        try:
+            raw = archive.read_bytes()
+        except OSError:
+            orphans.append(archive)
+            continue
+        if hashlib.sha256(raw).hexdigest() in referenced:
+            continue
+        data = _load_receipt(archive)
+        if session_id is not None and data is not None and data.get('session_id') != session_id:
+            continue  # A lost successor for another run cannot be this run's cursor.
+        orphans.append(archive)
+    return orphans
+
+
 def has_resume_handoff(db_path: Path) -> bool:
-    return any(path.exists() for path in _paths(db_path)) or any(_reconciled_archives(db_path))
+    return any(path.exists() for path in _paths(db_path)) or bool(_orphaned_archives(db_path))
 
 
 def _setup_context(setup: dict | None) -> dict | None:
@@ -136,7 +182,7 @@ def read_resume_handoff(db_path: Path, session_id: str, log_path: Path,
     if claimed.exists():
         raise ValueError("A previous handoff is claimed but not verified complete; reconcile its receipt before Resume")
     if not pending.exists():
-        if any(_reconciled_archives(db_path)):
+        if _orphaned_archives(db_path, session_id):
             raise ValueError('A reconciled archive exists without a successor cursor; preserve and reconcile it before Resume')
         return None
     try:
@@ -168,3 +214,21 @@ def claim_resume_handoff(db_path: Path, expected: dict) -> None:
     with claimed.open("x", encoding="utf-8") as stream:
         json.dump(receipt, stream, ensure_ascii=False)
     pending.unlink()
+
+
+def complete_resume_handoff(db_path: Path, handoff: dict) -> Path:
+    """Retire the claim once the reader has committed the whole handoff gap.
+
+    Called only after ``LogTail.acknowledge_handoff`` proved the reader reached
+    the target with the source prefix intact. The receipt is preserved
+    verbatim under a ``.completed-`` name, so ordinary Resume-at-EOF works again.
+    """
+    _pending, claimed = _paths(db_path)
+    receipt = json.loads(claimed.read_text(encoding="utf-8"))
+    receipt.pop("status", None)
+    receipt.pop("claimed_utc", None)
+    if receipt != handoff:
+        raise ValueError("Claimed receipt does not match the completed handoff")
+    completed = Path(str(claimed) + ".completed-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
+    claimed.rename(completed)
+    return completed
