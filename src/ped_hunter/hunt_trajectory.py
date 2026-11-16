@@ -17,6 +17,7 @@ Rule (``ALLOCATION_RULE``):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import functools
 import hashlib
 import json
 import logging
@@ -86,12 +87,20 @@ def _num(value) -> float | None:
     return number if math.isfinite(number) else None
 
 
+@functools.lru_cache(maxsize=512)
+def _setup_from_key(key) -> str:
+    try:
+        return str(json.loads(key)[1] or "")
+    except (ValueError, TypeError, IndexError):
+        return ""
+
+
 def _setup_name(point) -> str:
     key = point.get("context_key")
     if key:
         try:
-            return str(json.loads(key)[1] or "")
-        except (ValueError, TypeError, IndexError):
+            return _setup_from_key(key)  # a run has a handful of setups, each on thousands of groups
+        except TypeError:  # unhashable: not a context key
             return ""
     return ""
 

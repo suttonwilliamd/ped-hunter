@@ -42,6 +42,30 @@ listing every refused test. A test that newly needs a window must be added there
 which the guard enforces. Headless CI (Linux `xvfb-run`) runs everything,
 including `--legacy-hud`.
 
+## Hidden-desktop runs (windows without touching the screen)
+
+`tools/perf/hidden_run.py <timeout-seconds> <exe> [args...]` starts a process on
+a separate Windows desktop that is never displayed. Its Tk windows are real, but
+nothing appears on screen, takes focus or receives the user's input, so native
+checks and the performance harness can run while the desktop is in use:
+
+```powershell
+.\.venv\Scripts\python.exe tools\perf\hidden_run.py 1500 .\.venv\Scripts\python.exe -m pytest -m native_ui --capture=sys -ra --ignore=tests\test_streamer_no_popups_native.py
+```
+
+The child has no console: send output to a file (`--junitxml`, or a wrapper that
+redirects stdout). Tests that move the real pointer (`SetCursorPos`, as in
+`test_streamer_no_popups_native.py`) and sounds are **not** isolated by a
+desktop; leave them deferred. Off-screen painting is not representative of
+on-screen paint speed or of pixel-level appearance, so visual acceptance and
+window-resize smoothness still need the real desktop.
+
+`tools/perf/bench.py` (headless) and `tools/perf/appbench.py` (the real app, via
+`hidden_run.py`) time startup, Resume, sustained appended lines, redraws and
+End run against a **copy** of a hunt database in `%PED_PERF_DIR%/data`. They
+never open `%LOCALAPPDATA%/ped-hunter`. Compare two source trees by running both
+with `PYTHONPATH` pointed at each.
+
 ## Commands
 
 From the repository root in PowerShell:

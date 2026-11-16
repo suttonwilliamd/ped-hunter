@@ -82,31 +82,65 @@ def rasterize(scene,path=None):
     if path is not None:image.save(path)
     return image,audit
 
+_CREATE={'text':'create_text','line':'create_line','oval':'create_oval','polygon':'create_polygon','rectangle':'create_rectangle'}
+
 def paint_canvas(canvas,scene):
-    """No listeners here; window binds once. Replace all drawing in one UI callback."""
+    """No listeners here; window binds once. Bring the canvas to this scene in one UI callback.
+
+    The drawing is the same as deleting and recreating every item. When the
+    scene has the previous one's item sequence (the usual live update: a few
+    numbers changed), only the differing coordinates/options are applied.
+    """
     import tkinter.font as tkfont
-    canvas.delete('all');fonts=[];s=scene.scale
-    canvas.configure(background=scene.items[0].fill)
+    state=canvas.__dict__
+    drawn=canvas.find_all()
+    intact=drawn==state.get('_streamer_ids')  # nothing else has drawn on or cleared it
+    if intact and state.get('_streamer_painted')==scene:
+        return
+    # Named fonts and measured widths outlive one repaint: creating a font per
+    # text item and re-measuring unchanged labels was most of a redraw.
+    known=state.setdefault('_streamer_font_cache',{});widths=state.setdefault('_streamer_width_cache',{})
+    def font(z,bold,underline):
+        key=(z,bold,underline)
+        if key not in known:known[key]=tkfont.Font(canvas,family='Segoe UI',size=-z,weight='bold' if bold else 'normal',underline=underline)
+        return known[key]
+    def measure(t,z,bold,underline):
+        key=(t,z,bold,underline)
+        if key not in widths:widths[key]=font(z,bold,underline).measure(t)
+        return widths[key]
+    fonts=[];specs=[];s=scene.scale
     for i in scene.items:
         xy=tuple(v*s for v in i.xy)
         tags=((i.target,) if i.target else ())+(('affordance:'+i.affordance,) if i.affordance else ())
         kw=dict(fill=i.fill,tags=tags)
         if i.kind=='text':
-            cache={}
-            def font(z):
-                if z not in cache:cache[z]=tkfont.Font(canvas,family='Segoe UI',size=-z,weight='bold' if i.bold else 'normal',underline=i.underline)
-                return cache[z]
-            text,size,_,_=fitted(i,s,lambda t,z:font(z).measure(t))
-            fonts.append(font(size));canvas.create_text(*xy,text=text,font=fonts[-1],anchor=i.anchor,**kw)
-        elif i.kind=='line':canvas.create_line(*xy,width=max(1,i.width*s),dash=tuple(max(1,round(v*s)) for v in i.dash),**kw)
+            text,size,_,_=fitted(i,s,lambda t,z:measure(t,z,i.bold,i.underline))
+            fonts.append(font(size,i.bold,i.underline));specs.append(('text',xy,dict(text=text,font=fonts[-1],anchor=i.anchor,**kw)))
+        elif i.kind=='line':specs.append(('line',xy,dict(width=max(1,i.width*s),dash=tuple(max(1,round(v*s)) for v in i.dash),**kw)))
         else:
-            opts=dict(outline=i.outline,width=max(1,i.width*s),**kw)
-            if i.dash:opts['dash']=tuple(max(1,round(v*s)) for v in i.dash)
-            if i.kind=='ellipse':canvas.create_oval(*xy,**opts)
-            elif i.kind=='round':canvas.create_polygon(*rounded(xy,16*s),**opts)
-            elif i.kind=='polygon':canvas.create_polygon(*xy,**opts)
-            else:canvas.create_rectangle(*xy,**opts)
+            opts=dict(outline=i.outline,width=max(1,i.width*s),dash=tuple(max(1,round(v*s)) for v in i.dash),**kw)
+            if i.kind=='ellipse':specs.append(('oval',xy,opts))
+            elif i.kind=='round':specs.append(('polygon',tuple(rounded(xy,16*s)),opts))
+            elif i.kind=='polygon':specs.append(('polygon',xy,opts))
+            else:specs.append(('rectangle',xy,opts))
+    background=scene.items[0].fill
+    if state.get('_streamer_background')!=background:
+        canvas.configure(background=background);canvas._streamer_background=background
+    previous=state.get('_streamer_specs') or ()
+    if intact and len(previous)==len(specs) and all(old[0]==spec[0] for old,spec in zip(previous,specs)):
+        for item,old,spec in zip(drawn,previous,specs):
+            if old[1]!=spec[1]:canvas.coords(item,*spec[1])
+            changed={key:value for key,value in spec[2].items() if old[2][key]!=value}
+            if changed:canvas.itemconfigure(item,**changed)
+    else:
+        canvas.delete('all')
+        drawn=tuple(getattr(canvas,_CREATE[kind])(*xy,**opts) for kind,xy,opts in specs)
     canvas._streamer_fonts=fonts
+    if len(known)>96:  # a drag-resize walks through many pixel sizes; keep what is drawn
+        used={id(f) for f in fonts}
+        for key in [key for key,value in known.items() if id(value) not in used]:del known[key]
+    if len(widths)>4096:widths.clear()
+    canvas._streamer_painted=scene;canvas._streamer_specs=specs;canvas._streamer_ids=drawn
     # Semantic records retain complete names/state independently of fitted text.
     # This is not a claim that the native Canvas exposes a screen-reader role.
     canvas._streamer_controls=scene.controls

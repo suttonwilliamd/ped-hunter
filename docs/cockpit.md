@@ -38,3 +38,7 @@ still explains how healing is priced.
 
 The chart only reads stored attribution (`live=False`); the streamer HUD stays
 the single writer of attribution state.
+
+While the main window is minimized the chart and cost-per-hour are not rebuilt
+on live updates (the HUD keeps its own projection); they are rebuilt once, from
+the current run, when the window is restored.

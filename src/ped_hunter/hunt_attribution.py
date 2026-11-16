@@ -621,6 +621,18 @@ class HuntAttribution:
 
     def update(self, session_id, raw_points, live: bool):
         cache_key = (session_id, getattr(raw_points, 'accounting_revision', 0))
+        version = getattr(raw_points, 'source_version', None)
+        repeat = (cache_key, bool(live), version)
+        if version is not None and repeat == self.__dict__.get('_repeat_key'):
+            # Same trend content as the last successful update of this run:
+            # that evaluation (and any save it made) already stands.
+            previous = self._repeat_result
+            result = ActivityPoints()
+            result.extend(previous)
+            result.__dict__.update(previous.__dict__)
+            result.attribution_changed_ids = set()
+            return result
+        self._repeat_key = None
         if cache_key != self._session_id:
             saved, decisions = self.store.load_hunt_attribution(session_id)
             self._session_id, self._state, self._decisions = cache_key, saved, decisions
@@ -655,6 +667,7 @@ class HuntAttribution:
             self._decisions.update(changes)
         # No cache/state publication before the atomic save above succeeds.
         self._endpoints = {point['event_id']: self._endpoint(point) for point in result[-16:]}
+        self._repeat_key, self._repeat_result = repeat, result
         return result
 
     @staticmethod

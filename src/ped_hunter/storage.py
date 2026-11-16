@@ -4,11 +4,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import math
 import sqlite3
+import threading
 from typing import Iterator
 import uuid
 
@@ -100,6 +101,11 @@ class Store:
     def __init__(self, db_path: Path | str | None = None) -> None:
         self.db_path = Path(db_path) if db_path else self.default_db_path()
         self.recovery_message: str | None = None
+        # session id -> mutation token at this Store's last full durability replay
+        self._repair_replayed: dict[str, int] = {}
+        self._held = threading.local()
+        # session id -> (mutation token, last skill event id, xp by skill, gains by skill)
+        self._skill_totals: dict[str, tuple] = {}
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._ensure_schema()
 
@@ -110,12 +116,41 @@ class Store:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
+        held = getattr(self._held, "conn", None)
+        if held is not None:
+            try:
+                yield held
+            finally:
+                # What closing a private connection did: drop anything uncommitted.
+                if held.in_transaction:
+                    held.rollback()
+            return
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
             yield conn
         finally:
             conn.close()
+
+    @contextmanager
+    def hold(self) -> Iterator[None]:
+        """Reuse one connection for this thread's calls inside the block.
+
+        Opening and closing a connection per call costs several milliseconds
+        (the last close checkpoints the write-ahead log), which dominates a
+        batch of appended events or one display refresh. Each call still
+        commits by itself and the connection closes with the block, so the
+        database file is complete on disk between operations, as before.
+        """
+        if getattr(self._held, "conn", None) is not None:
+            yield
+            return
+        with self.connect() as conn:
+            self._held.conn = conn
+            try:
+                yield
+            finally:
+                self._held.conn = None
 
     def get_selected_healing_tool(self) -> str | None:
         with self.connect() as conn:
@@ -150,16 +185,22 @@ class Store:
             conn.commit()
 
     def _ensure_schema(self) -> None:
+        # A write-ahead log left behind means the last writer did not close
+        # cleanly (crash, kill, power loss): the case a deep check exists for.
+        try:
+            unclean = Path(f"{self.db_path}-wal").stat().st_size > 0
+        except OSError:
+            unclean = False
         try:
             self._ensure_schema_once()
-            self._verify_integrity()
+            self._verify_integrity(force=unclean)
         except sqlite3.DatabaseError as exc:
             if not _is_malformed_database_error(exc):
                 raise
             backup_path = self._quarantine_malformed_database()
             self.recovery_message = f"Recovered from malformed database; backup saved to {backup_path}"
             self._ensure_schema_once()
-            self._verify_integrity()
+            self._verify_integrity(force=True)
 
     def _ensure_schema_once(self) -> None:
         with self.connect() as conn:
@@ -312,6 +353,7 @@ class Store:
                 CREATE INDEX IF NOT EXISTS idx_loadouts_active ON loadouts(active);
                 """
             )
+            conn.executescript(_SUMMARY_CACHE_SCHEMA)
             sessions_repair_added = False
             self._ensure_column(conn, "sessions", "loadout_id", "INTEGER")
             self._ensure_column(conn, "sessions", "loadout_snapshot", "TEXT")
@@ -329,12 +371,36 @@ class Store:
         if sessions_repair_added:
             self._backfill_session_repair_summary()
 
-    def _verify_integrity(self) -> None:
+    def _verify_integrity(self, *, force: bool = False) -> None:
+        """Full page/index verification, which reads the whole file.
+
+        Opening the schema already rejects a file that is not a database. The
+        deep check runs after an unclean close and otherwise weekly, so a large
+        history does not delay every launch by its full read time.
+        """
+        now = datetime.now()
         with self.connect() as conn:
+            if not force:
+                row = conn.execute(
+                    "SELECT value FROM app_settings WHERE key = ?", (_INTEGRITY_KEY,)).fetchone()
+                try:
+                    checked = datetime.fromisoformat(row["value"]) if row else None
+                except (TypeError, ValueError):
+                    checked = None
+                if checked is not None and timedelta(0) <= now - checked < _INTEGRITY_INTERVAL:
+                    return
             row = conn.execute("PRAGMA integrity_check").fetchone()
-        result = str(row[0] if row else "")
-        if result.casefold() != "ok":
-            raise sqlite3.DatabaseError(f"database integrity check failed: {result}")
+            result = str(row[0] if row else "")
+            if result.casefold() != "ok":
+                raise sqlite3.DatabaseError(f"database integrity check failed: {result}")
+            try:
+                conn.execute(
+                    "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (_INTEGRITY_KEY, now.isoformat(timespec="seconds")))
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # Read-only or busy: the next open checks again.
 
     def _quarantine_malformed_database(self) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -898,8 +964,12 @@ class Store:
                 finalize_healing_event(conn, session_id, int(cursor.lastrowid), timestamp, payload)
                 conn.execute("UPDATE events SET payload = ? WHERE id = ?",
                              (json.dumps(payload, ensure_ascii=False), cursor.lastrowid))
+                # Completing the row inserted by this same transaction is not an
+                # edit of committed history: no reader has seen the earlier text.
+                conn.execute("UPDATE session_event_mutations SET mutations = mutations - 1 WHERE session_id = ?",
+                             (session_id,))
             if not healing:  # Healing is not a weapon shot or repair reset.
-                self._recompute_session_repair_state(conn, session_id)
+                self._advance_session_repair_state(conn, session_id, event["kind"], timestamp, payload)
             conn.commit()
         return payload
 
@@ -953,9 +1023,43 @@ class Store:
             conn.execute("INSERT INTO events (session_id, timestamp, kind, raw_message, payload) VALUES (?, ?, ?, ?, ?)", (session_id, timestamp, event["kind"], event["raw_message"], json.dumps(payload, ensure_ascii=False)))
             conn.commit()
 
+    def _advance_session_repair_state(
+        self, conn: sqlite3.Connection, session_id: str, kind: str, timestamp: str | None, payload: object,
+    ) -> None:
+        """Apply one appended event to the durability counters without a replay.
+
+        The counters are the shots/decay after the run's last repair in
+        (timestamp, id) order. An appended shot that sorts after every repair
+        adds to them; anything else (a repair, an out-of-order line, history
+        edited since this Store last replayed it) takes the full replay.
+        """
+        mutations = conn.execute(
+            "SELECT mutations FROM session_event_mutations WHERE session_id = ?", (session_id,)).fetchone()
+        token = int(mutations[0]) if mutations else 0
+        repairs = conn.execute(
+            "SELECT MAX(COALESCE(timestamp, '')), COUNT(*) FROM events WHERE session_id = ? AND kind = 'repair'",
+            (session_id,)).fetchone()
+        if (kind == "repair" or not isinstance(payload, dict) or self._repair_replayed.get(session_id) != token
+                or (kind == "combat" and repairs[1] and repairs[0] > (timestamp or ""))):
+            self._recompute_session_repair_state(conn, session_id)
+            self._repair_replayed[session_id] = token
+            return
+        session_row = conn.execute(
+            "SELECT loadout_id, loadout_snapshot, repair_shots, repair_decay FROM sessions WHERE id = ?",
+            (session_id,)).fetchone()
+        if session_row is None:
+            self._recompute_session_repair_state(conn, session_id)
+            return
+        repair_shots = int(session_row["repair_shots"] or 0)
+        repair_decay = float(session_row["repair_decay"] or 0.0)
+        if kind == "combat":
+            if payload.get("shot_cost") is not None:
+                repair_shots += 1
+            repair_decay += float(payload.get("repair_decay") or 0.0)
+        self._store_session_repair_state(conn, session_id, session_row, repair_shots, repair_decay, bool(repairs[1]))
+
     def _recompute_session_repair_state(self, conn: sqlite3.Connection, session_id: str) -> None:
         session_row = conn.execute("SELECT loadout_id, loadout_snapshot FROM sessions WHERE id = ?", (session_id,)).fetchone()
-        loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
         rows = conn.execute(
             """
             SELECT kind, payload
@@ -983,7 +1087,11 @@ class Store:
                 repair_shots = 0
                 repair_decay = 0.0
                 had_repair = True
+        self._store_session_repair_state(conn, session_id, session_row, repair_shots, repair_decay, had_repair)
 
+    @staticmethod
+    def _store_session_repair_state(conn, session_id, session_row, repair_shots, repair_decay, had_repair) -> None:
+        loadout_id = int(session_row["loadout_id"]) if session_row and session_row["loadout_id"] is not None else None
         conn.execute(
             "UPDATE sessions SET repair_shots = ?, repair_decay = ? WHERE id = ?",
             (repair_shots, repair_decay, session_id),
@@ -1124,28 +1232,15 @@ class Store:
             conn.commit()
 
     def get_current_session(self) -> SessionSummary | None:
-        with self.connect() as conn:
-            row = conn.execute(_SESSION_SUMMARY_SQL + """
-                WHERE s.ended_at IS NULL
-                GROUP BY s.id
-                ORDER BY s.started_at DESC
-                LIMIT 1
-                """
-            ).fetchone()
-        if not row:
-            return None
-        return _session_from_row(row)
+        sessions = self._session_summaries("WHERE s.ended_at IS NULL ORDER BY s.started_at DESC LIMIT 1")
+        return sessions[0] if sessions else None
 
     def get_last_contributed_session(self) -> SessionSummary | None:
-        with self.connect() as conn:
-            row = conn.execute(
-                _SESSION_SUMMARY_SQL + """
-                GROUP BY s.id
-                ORDER BY COALESCE(MAX(e.timestamp), s.started_at) DESC, s.started_at DESC
-                LIMIT 1
-                """
-            ).fetchone()
-        return _session_from_row(row) if row else None
+        last: dict[str, str | None] = {}
+        sessions = self._session_summaries("ORDER BY s.started_at DESC", last_timestamps=last)
+        if not sessions:
+            return None
+        return max(sessions, key=lambda item: (last[item.session_id] or item.started_at, item.started_at))
 
     def get_session_resume_state(self, session_id: str) -> SessionResumeState | None:
         with self.connect() as conn:
@@ -1155,39 +1250,94 @@ class Store:
         return SessionResumeState(row["ended_at"], _loadout_snapshot(row["loadout_snapshot"])) if row else None
 
     def get_session(self, session_id: str) -> SessionSummary | None:
-        with self.connect() as conn:
-            row = conn.execute(
-                _SESSION_SUMMARY_SQL + """
-                WHERE s.id = ?
-                GROUP BY s.id
-                LIMIT 1
-                """,
-                (session_id,),
-            ).fetchone()
-        return _session_from_row(row) if row else None
+        sessions = self._session_summaries("WHERE s.id = ?", (session_id,))
+        return sessions[0] if sessions else None
 
     def list_recent_sessions(self, limit: int = 5) -> list[SessionSummary]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                _SESSION_SUMMARY_SQL + """
-                GROUP BY s.id
-                ORDER BY s.started_at DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
-        return [_session_from_row(row) for row in rows]
+        return self._session_summaries("ORDER BY s.started_at DESC LIMIT ?", (limit,))
 
     def list_all_sessions(self) -> list[SessionSummary]:
         """Return every stored session newest-first for aggregate reporting."""
+        return self._session_summaries("ORDER BY s.started_at DESC")
+
+    def _session_summaries(
+        self, selection: str, params: tuple = (), *, last_timestamps: dict | None = None,
+    ) -> list[SessionSummary]:
+        """Summaries from saved per-run totals plus only the events added since.
+
+        Recorded events are append-only, so a run's totals up to an event ID
+        stay valid until its membership changes (accounting revision) or a
+        stored row is edited/deleted (mutation token, kept by triggers for any
+        writer). Either change replays that run from its events.
+        """
+        summaries: list[SessionSummary] = []
+        stale: list[tuple] = []
         with self.connect() as conn:
-            rows = conn.execute(
-                _SESSION_SUMMARY_SQL + """
-                GROUP BY s.id
-                ORDER BY s.started_at DESC
-                """
-            ).fetchall()
-        return [_session_from_row(row) for row in rows]
+            conn.execute("BEGIN")  # One snapshot for the tokens and the events they describe.
+            for row in conn.execute(_SESSION_ROWS_SQL + selection, params).fetchall():
+                session_id = row["id"]
+                tokens = (int(row["accounting_revision"]), int(row["mutations"]))
+                totals, upto = None, 0
+                if row["totals"] is not None and tokens == (row["cached_revision"], row["cached_mutations"]):
+                    try:
+                        totals = json.loads(row["totals"])
+                        if not isinstance(totals, dict) or set(totals) != _TOTALS_SHAPE:
+                            totals = None
+                    except ValueError:
+                        totals = None
+                    upto = int(row["upto_event_id"]) if totals is not None else 0
+                newest = int(conn.execute(
+                    "SELECT COALESCE(MAX(id), 0) FROM events WHERE session_id = ?", (session_id,)).fetchone()[0])
+                cached = totals is not None
+                if not cached or newest > upto:
+                    span = (session_id, upto, newest)
+                    delta = conn.execute(_SESSION_DELTA_SQL, span).fetchone()
+                    latest = conn.execute(_SESSION_LATEST_SQL, span * len(_LATEST_KEYS)).fetchone()
+                    base = totals or dict.fromkeys(_TOTALS_SHAPE, 0)
+                    totals = {key: base[key] + (delta[key] or 0) for key in _SUM_KEYS}
+                    for key in _LATEST_KEYS:
+                        totals[key] = base[key] if latest[key] is None else latest[key]
+                    stamps = [value for value in (base["last_timestamp"], delta["last_timestamp"]) if value]
+                    totals["last_timestamp"] = max(stamps) if stamps else None
+                    if not cached or newest - upto >= _TOTALS_SAVE_EVERY or row["ended_at"] is not None:
+                        stale.append((session_id, newest, *tokens, json.dumps(totals)))
+                if last_timestamps is not None:
+                    last_timestamps[session_id] = totals["last_timestamp"]
+                summaries.append(_session_from_row(row, totals))
+        if stale:
+            self._save_session_totals(stale)
+        return summaries
+
+    def _save_session_totals(self, entries: list[tuple]) -> None:
+        """Best effort: a busy or read-only database only means recomputing later."""
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=0)
+        except sqlite3.Error:
+            return
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            for session_id, upto, revision, mutations, totals in entries:
+                current = conn.execute(
+                    """SELECT COALESCE(a.revision, 0), COALESCE(m.mutations, 0) FROM sessions s
+                       LEFT JOIN event_accounting a ON a.session_id = s.id
+                       LEFT JOIN session_event_mutations m ON m.session_id = s.id WHERE s.id = ?""",
+                    (session_id,)).fetchone()
+                if current is None or tuple(current) != (revision, mutations):
+                    continue  # History changed after it was read; never publish the older view.
+                conn.execute(
+                    """INSERT INTO session_totals (session_id, upto_event_id, revision, mutations, totals)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(session_id) DO UPDATE SET upto_event_id = excluded.upto_event_id,
+                           revision = excluded.revision, mutations = excluded.mutations, totals = excluded.totals
+                       WHERE excluded.upto_event_id >= session_totals.upto_event_id
+                          OR excluded.revision != session_totals.revision
+                          OR excluded.mutations != session_totals.mutations""",
+                    (session_id, upto, revision, mutations, totals))
+            conn.commit()
+        except sqlite3.Error:
+            pass
+        finally:
+            conn.close()
 
     def _backfill_session_repair_summary(self) -> None:
         with self.connect() as conn:
@@ -1256,17 +1406,25 @@ class Store:
         the session view.
         """
         with self.connect() as conn:
+            conn.execute("BEGIN")
+            mutations = conn.execute(
+                "SELECT mutations FROM session_event_mutations WHERE session_id = ?", (session_id,)).fetchone()
+            token = int(mutations[0]) if mutations else 0
+            known = self._skill_totals.get(session_id)
+            if known is None or known[0] != token:
+                known = (token, 0, {}, {})  # first read, or stored rows were edited: replay
             rows = conn.execute(
                 """
-                SELECT payload
+                SELECT id, payload
                 FROM events
-                WHERE session_id = ? AND kind = 'skill'
+                WHERE session_id = ? AND kind = 'skill' AND id > ?
+                ORDER BY id
                 """,
-                (session_id,),
+                (session_id, known[1]),
             ).fetchall()
 
-        totals: dict[str, float] = {}
-        procs: dict[str, int] = {}
+        totals: dict[str, float] = dict(known[2])
+        procs: dict[str, int] = dict(known[3])
         for row in rows:
             try:
                 payload = json.loads(str(row["payload"] or "{}"))
@@ -1278,6 +1436,8 @@ class Store:
                 continue
             totals[skill] = totals.get(skill, 0.0) + xp
             procs[skill] = procs.get(skill, 0) + 1
+        if rows:  # published complete; later reads copy, never modify, these totals
+            self._skill_totals[session_id] = (token, int(rows[-1]["id"]), totals, procs)
 
         total_procs = sum(procs.values())
         return [
@@ -1291,10 +1451,83 @@ class Store:
         ]
 
 
-_SESSION_SUMMARY_SQL = """
+_INTEGRITY_KEY = "storage.integrity_checked_at"
+_INTEGRITY_INTERVAL = timedelta(days=7)
+_TOTALS_SAVE_EVERY = 256  # appended events before a live run's saved totals advance
+
+_SUMMARY_CACHE_SCHEMA = """
+    CREATE INDEX IF NOT EXISTS idx_events_session_kind ON events(session_id, kind);
+    CREATE TABLE IF NOT EXISTS session_totals (
+        session_id TEXT PRIMARY KEY,
+        upto_event_id INTEGER NOT NULL,
+        revision INTEGER NOT NULL,
+        mutations INTEGER NOT NULL,
+        totals TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS session_event_mutations (
+        session_id TEXT PRIMARY KEY,
+        mutations INTEGER NOT NULL
+    );
+    CREATE TRIGGER IF NOT EXISTS count_event_update
+    AFTER UPDATE OF session_id, timestamp, kind, payload ON events
+    WHEN NOT (OLD.kind = 'manufacturing_allocation' AND NEW.kind = OLD.kind AND NEW.session_id = OLD.session_id)
+    BEGIN
+        INSERT OR IGNORE INTO session_event_mutations (session_id, mutations) VALUES (OLD.session_id, 0);
+        INSERT OR IGNORE INTO session_event_mutations (session_id, mutations) VALUES (NEW.session_id, 0);
+        UPDATE session_event_mutations SET mutations = mutations + 1
+        WHERE session_id IN (OLD.session_id, NEW.session_id);
+    END;
+    CREATE TRIGGER IF NOT EXISTS count_event_delete
+    AFTER DELETE ON events
+    BEGIN
+        INSERT OR IGNORE INTO session_event_mutations (session_id, mutations) VALUES (OLD.session_id, 0);
+        UPDATE session_event_mutations SET mutations = mutations + 1 WHERE session_id = OLD.session_id;
+    END;
+    CREATE TRIGGER IF NOT EXISTS count_event_exclusion_insert
+    AFTER INSERT ON event_exclusions
+    BEGIN
+        INSERT OR IGNORE INTO session_event_mutations (session_id, mutations)
+            SELECT session_id, 0 FROM events WHERE id = NEW.event_id;
+        UPDATE session_event_mutations SET mutations = mutations + 1
+        WHERE session_id = (SELECT session_id FROM events WHERE id = NEW.event_id);
+    END;
+    CREATE TRIGGER IF NOT EXISTS count_event_exclusion_delete
+    AFTER DELETE ON event_exclusions
+    BEGIN
+        INSERT OR IGNORE INTO session_event_mutations (session_id, mutations)
+            SELECT session_id, 0 FROM events WHERE id = OLD.event_id;
+        UPDATE session_event_mutations SET mutations = mutations + 1
+        WHERE session_id = (SELECT session_id FROM events WHERE id = OLD.event_id);
+    END;
+    CREATE TRIGGER IF NOT EXISTS delete_session_totals
+    AFTER DELETE ON sessions
+    BEGIN
+        DELETE FROM session_totals WHERE session_id = OLD.id;
+        DELETE FROM session_event_mutations WHERE session_id = OLD.id;
+    END;
+"""
+
+_SUM_KEYS = ("events", "loot_value", "combat_damage", "healing_cost", "estimated_healing_uses",
+             "unpriced_heal_events", "hunting_cost")
+_LATEST_KEYS = ("last_input_cost", "manufacturing_attempt", "manufacturing_attempts_total",
+                "manufacturing_attempts_remaining")
+_TOTALS_SHAPE = frozenset((*_SUM_KEYS, *_LATEST_KEYS, "last_timestamp"))
+
+_SESSION_ROWS_SQL = """
     SELECT s.id, s.started_at, s.ended_at, s.activity, s.loadout_snapshot,
            s.repair_shots, s.repair_decay, COALESCE(a.revision, 0) AS accounting_revision,
-           COUNT(e.id) AS events,
+           COALESCE(m.mutations, 0) AS mutations, t.upto_event_id, t.totals,
+           t.revision AS cached_revision, t.mutations AS cached_mutations
+    FROM sessions s
+    LEFT JOIN event_accounting a ON a.session_id = s.id
+    LEFT JOIN session_event_mutations m ON m.session_id = s.id
+    LEFT JOIN session_totals t ON t.session_id = s.id
+"""
+
+# Totals of one run's accounted events with upto < id <= newest.
+_SESSION_DELTA_SQL = """
+    SELECT COUNT(e.id) AS events,
+           MAX(e.timestamp) AS last_timestamp,
            COALESCE(SUM(CASE
                WHEN e.kind = 'loot'
                     AND json_valid(e.payload)
@@ -1323,15 +1556,23 @@ _SESSION_SUMMARY_SQL = """
                     COALESCE(json_extract(e.payload, '$.estimated_cost'), json_extract(e.payload, '$.repair_cost'), 0)
                 WHEN e.kind IN ('craft', 'manufacturing_offset') AND json_valid(e.payload) THEN json_extract(e.payload, '$.total_cost')
                 ELSE 0
-            END), 0) AS hunting_cost,
-           COALESCE((SELECT json_extract(e2.payload, '$.input_cost') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.input_cost') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS last_input_cost,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempt_number') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempt_number') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempt,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempts_total') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_total') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_total,
-           COALESCE((SELECT json_extract(e2.payload, '$.attempts_remaining') FROM accounted_events e2 WHERE e2.session_id = s.id AND e2.kind IN ('craft', 'loot') AND json_valid(e2.payload) AND json_type(e2.payload, '$.attempts_remaining') IS NOT NULL ORDER BY e2.id DESC LIMIT 1), 0) AS manufacturing_attempts_remaining
-    FROM sessions s
-    LEFT JOIN event_accounting a ON a.session_id = s.id
-    LEFT JOIN accounted_events e ON e.session_id = s.id
+            END), 0) AS hunting_cost
+    FROM accounted_events e
+    WHERE e.session_id = ? AND e.id > ? AND e.id <= ?
 """
+
+
+def _latest_value_sql(field: str) -> str:
+    # NULL: no such receipt in the span (keep the saved value); a JSON null reads as 0, as before.
+    return (f"(SELECT COALESCE(json_extract(e.payload, '$.{field}'), 0) FROM accounted_events e "
+            "WHERE e.session_id = ? AND e.id > ? AND e.id <= ? AND e.kind IN ('craft', 'loot') "
+            f"AND json_valid(e.payload) AND json_type(e.payload, '$.{field}') IS NOT NULL "
+            "ORDER BY e.id DESC LIMIT 1)")
+
+
+_SESSION_LATEST_SQL = "SELECT " + ", ".join(
+    f"{_latest_value_sql(field)} AS {key}" for key, field in zip(
+        _LATEST_KEYS, ("input_cost", "attempt_number", "attempts_total", "attempts_remaining")))
 
 
 
@@ -1353,9 +1594,9 @@ def _loadout_snapshot(encoded: str | None) -> dict[str, object] | None:
     return None
 
 
-def _session_from_row(row: sqlite3.Row) -> SessionSummary:
-    loot_value = float(row["loot_value"] or 0)
-    hunting_cost = float(row["hunting_cost"] or 0)
+def _session_from_row(row: sqlite3.Row, totals: Mapping[str, object]) -> SessionSummary:
+    loot_value = float(totals["loot_value"] or 0)
+    hunting_cost = float(totals["hunting_cost"] or 0)
     loadout_snapshot = _loadout_snapshot(row["loadout_snapshot"])
     loadout_name = _single_line_text(loadout_snapshot.get("name")) or None if loadout_snapshot else None
     return SessionSummary(
@@ -1364,21 +1605,21 @@ def _session_from_row(row: sqlite3.Row) -> SessionSummary:
         ended_at=row["ended_at"],
         activity=row["activity"],
         loot_value=loot_value,
-        combat_damage=float(row["combat_damage"] or 0),
+        combat_damage=float(totals["combat_damage"] or 0),
         hunting_cost=hunting_cost,
         net_value=loot_value - hunting_cost,
-        events=int(row["events"] or 0),
+        events=int(totals["events"] or 0),
         loadout_name=loadout_name,
         loadout_snapshot=loadout_snapshot,
         repair_shots=int(row["repair_shots"] or 0),
         repair_decay=float(row["repair_decay"] or 0),
-        last_input_cost=float(row["last_input_cost"] or 0),
-        manufacturing_attempt=int(row["manufacturing_attempt"] or 0),
-        manufacturing_attempts_total=int(row["manufacturing_attempts_total"] or 0),
-        manufacturing_attempts_remaining=int(row["manufacturing_attempts_remaining"] or 0),
-        healing_cost=float(row["healing_cost"] or 0),
-        estimated_healing_uses=int(row["estimated_healing_uses"] or 0),
-        unpriced_heal_events=int(row["unpriced_heal_events"] or 0),
+        last_input_cost=float(totals["last_input_cost"] or 0),
+        manufacturing_attempt=int(totals["manufacturing_attempt"] or 0),
+        manufacturing_attempts_total=int(totals["manufacturing_attempts_total"] or 0),
+        manufacturing_attempts_remaining=int(totals["manufacturing_attempts_remaining"] or 0),
+        healing_cost=float(totals["healing_cost"] or 0),
+        estimated_healing_uses=int(totals["estimated_healing_uses"] or 0),
+        unpriced_heal_events=int(totals["unpriced_heal_events"] or 0),
         accounting_revision=int(row["accounting_revision"]),
     )
 
