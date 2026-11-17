@@ -22,6 +22,39 @@
         "https://joinentropia.com/wiki/categories/fap.html",
         "https://joinentropia.com/wiki/items/fap/278.html"
       ]
+    },
+    {
+      "name": "Vivo S10",
+      "source_url": "https://api.entropianexus.com/medicaltools/196",
+      "note": "Cost 0.0133 PED/use = Nexus decay 1.33 PEC, no ammo (Entropia Nexus API and item page). Entropia Central lists 1.35 PEC (0.0135 PED); the catalog keeps the Nexus figure as the structured source the rest of this catalog uses. Charged once per use: each use prints one direct-heal line; 'Received Effect Over Time: Heal' appears only when the effect starts, and smaller tick lines are never charged. HoT share 20% is derived from the user's chat log (direct receipts 11.6-15.2 = 80% of 14.3-19.0; ticks <= 1.9 every ~2 s), not published. Capped, diminished or ambiguous receipts stay unpriced and are counted as such.",
+      "behavior": {
+        "has_hot": true,
+        "hot_activation": "direct_receipt",
+        "hot_fraction": 0.2,
+        "hot_duration": 10.0,
+        "hot_tick_interval": 2.0,
+        "hot_trigger": "use",
+        "behavior_source": "https://api.entropianexus.com/medicaltools/196",
+        "evidence": "Duration: Nexus description 'Part of the healing done with this tool is gained over a 10 second period' (EffectsOnUse/EffectsOnEquip empty). Fraction and tick interval: user chat log 2026-11-17, run ph-99668ce85773: direct receipts 11.6-15.2 every ~2 s with no new marker per cast, ticks 0.1-1.9 every ~2 s for ~10 s after the last cast."
+      },
+      "cost_sources": [
+        {
+          "source": "https://api.entropianexus.com/medicaltools/196",
+          "decay_pec": 1.33,
+          "used": true
+        },
+        {
+          "source": "https://entropianexus.com/items/medicaltools/tools/Vivo~S10",
+          "decay_pec": 1.33,
+          "total_cost_pec": 1.33,
+          "used": true
+        },
+        {
+          "source": "Entropia Central (user-reported, not independently fetched)",
+          "decay_pec": 1.35,
+          "used": false
+        }
+      ]
     }
   ]
 }

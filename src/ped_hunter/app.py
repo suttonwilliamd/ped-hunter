@@ -1023,13 +1023,17 @@ class PedHunterApp(tk.Tk):
         def detail(label, name):
             tool = self.catalog.healing_tools.get(name)
             if (tool is None or not tool.cost_verified or tool.cost_per_use is None or tool.tracking_limit
-                    or (label == "HoT" and not tool.has_hot)
+                    or (label != "Heal" and not tool.has_hot)
                     or (tool.has_hot and (tool.hot_fraction is None or tool.hot_duration is None))):
                 return ""
             unit = "cast" if tool.has_hot else "use"
             return f"{label} {self._money(tool.cost_per_use, decimals=5)}/{unit}"
-        self.healing_detail.set(" · ".join(part for part in (
-            detail("Heal", self.healing_tool.get()), detail("HoT", self.hot_tool.get())) if part))
+        heal_name, hot_name = self.healing_tool.get(), self.hot_tool.get()
+        if heal_name == hot_name:  # One tool in both slots is still charged once per use.
+            self.healing_detail.set(detail("Heal/HoT", hot_name))
+        else:
+            self.healing_detail.set(" · ".join(part for part in (
+                detail("Heal", heal_name), detail("HoT", hot_name)) if part))
         uses = session.estimated_healing_uses if session else 0
         self.healing_totals.set(f"Healing {self._money(session.healing_cost if session else 0, decimals=5)}"
                                 + (f" · {uses:,} uses" if uses else ""))

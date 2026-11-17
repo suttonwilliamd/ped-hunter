@@ -456,3 +456,48 @@ def test_zero_healing_is_not_a_billable_activation(worker, text):
     summary = app.store.get_session(sid)
     assert (summary.healing_cost, summary.estimated_healing_uses) == (0, 0)
     assert "healing_cost" not in rows(worker)[0]["payload"]
+
+
+
+VIVO = "Vivo S10"
+MARKER = "Received Effect Over Time: Heal"
+# Two real Vivo S10 clusters from the chat log: the marker only starts an effect; refresh casts
+# (14.6, 14.9, 13.6) have no marker; small lines are ticks of the stacked effect.
+VIVO_LOG = [
+    (0, MARKER), (0, "You healed yourself 13.4 points"), (1, "You healed yourself 0.5 points"),
+    (2, "You healed yourself 14.6 points"), (3, "You healed yourself 1.1 points"),
+    (5, "You healed yourself 1.1 points"), (7, "You healed yourself 1.1 points"),
+    (8, "You healed yourself 25.0 points"),  # Frontier FAP when selected, otherwise out of range.
+    (9, "You healed yourself 1.1 points"), (12, "You healed yourself 0.1 points"),
+    (40, MARKER), (40, "You healed yourself 12.6 points"), (41, "You healed yourself 0.3 points"),
+    (42, "You healed yourself 14.9 points"), (43, "You healed yourself 1.1 points"),
+    (44, "You healed Test Avatar with 13.6 points"), (45, "You healed yourself 1.5 points"),
+    (47, "You healed yourself 1.5 points"), (49, "You healed yourself 1.5 points"),
+]
+
+
+@pytest.mark.parametrize("heal, hot, fap_casts", [(FAP, VIVO, 1), (VIVO, VIVO, 0), (VIVO, None, 0), (None, VIVO, 0)])
+def test_vivo_s10_charges_once_per_activation_never_per_tick_or_per_list(worker, heal, hot, fap_casts):
+    app, sid = worker
+    # An earlier unknown effect (marker with no HoT selected) must not leave later Vivo uses free.
+    ingest(worker, line(0, MARKER), line(1, "You healed yourself 13.0 points"))
+    app.store.set_selected_healing_tool(heal)
+    app.store.set_selected_hot_tool(hot)
+    before = app.store.get_session(sid)
+    ingest(worker, *(f"2026-11-08 10:{1 + s // 60:02d}:{s % 60:02d} [System] [] {text}" for s, text in VIVO_LOG))
+    summary = app.store.get_session(sid)
+    vivo_casts = 5
+    expected = vivo_casts * 0.0133 + fap_casts * 0.02
+    assert summary.healing_cost - before.healing_cost == pytest.approx(expected)
+    assert summary.hunting_cost - before.hunting_cost == pytest.approx(expected)
+    assert summary.estimated_healing_uses - before.estimated_healing_uses == vivo_casts + fap_casts
+    new = [r["payload"] for r in rows(worker) if r["timestamp"] >= "2026-11-08T10:01:00"]
+    booked = [p for p in new if p.get("healing_cost")]
+    assert [p["healed"] for p in booked if p["healing_tool"] == VIVO] == [13.4, 14.6, 12.6, 14.9, 13.6]
+    ticks = [p for p in new if p.get("healing_action") == "self" and p["healed"] < 2]
+    assert ticks and all(p["healing_cost_status"] == "hot_tick" and "healing_cost" not in p for p in ticks)
+    assert all("healing_cost" not in p for p in new if p.get("healing_action") == "effect_start")
+    other = next(p for p in booked if p["healing_target"] == "Test Avatar")
+    assert other["healing_allocation_eligible"] is False
+    unpriced = summary.unpriced_heal_events - before.unpriced_heal_events
+    assert unpriced == (1 - fap_casts)  # Without FAP selected the 25.0 line is left unpriced, not free.

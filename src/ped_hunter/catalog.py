@@ -61,6 +61,10 @@ class HealingToolRecord:
     verification_note: str = ""
     max_tt: float | None = None
     secondary_healing: bool = False
+    # "direct_receipt": every use prints one direct-heal line (the HoT marker appears only when the
+    # effect starts), so each matching receipt is one activation and smaller tick lines are never charged.
+    hot_activation: str | None = None
+    hot_tick_interval: float | None = None
 
     @property
     def cost_per_use(self) -> float | None:
@@ -209,6 +213,11 @@ def _load_attachment_records(path: Path) -> dict[str, AttachmentRecord]:
     return attachments
 
 
+_HEALING_BEHAVIOR_KEYS = frozenset(
+    {"has_hot", "hot_activation", "hot_tick_interval", "hot_fraction", "hot_duration", "hot_trigger",
+     "behavior_source"})
+
+
 def _load_healing_records(path: Path) -> dict[str, HealingToolRecord]:
     raw = _load_json(path) or {"items": []}
     verification = _load_json(path.with_name("healing_verification.json")) or {}
@@ -216,6 +225,10 @@ def _load_healing_records(path: Path) -> dict[str, HealingToolRecord]:
     records = {}
     for item in raw.get("items", []):
         check = checks.get((item["source_url"], item["name"]), {})
+        # Curated behavior the Nexus import cannot derive (e.g. a HoT stated only in prose).
+        behavior = {key: value for key, value in (check.get("behavior") or {}).items()
+                    if key in _HEALING_BEHAVIOR_KEYS}
+        item = {**item, **behavior}
         record = HealingToolRecord(
             name=item["name"],
             decay=float(item["decay"]) if item.get("decay") is not None else None,
@@ -239,6 +252,8 @@ def _load_healing_records(path: Path) -> dict[str, HealingToolRecord]:
             verification_note=check.get("note", item.get("verification_note", "")),
             max_tt=float(check.get("max_tt", item.get("max_tt"))) if check.get("max_tt", item.get("max_tt")) is not None else None,
             secondary_healing=bool(item.get("secondary_healing", False)),
+            hot_activation=item.get("hot_activation"),
+            hot_tick_interval=float(item["hot_tick_interval"]) if item.get("hot_tick_interval") is not None else None,
         )
         records[record.name] = record
     return records
