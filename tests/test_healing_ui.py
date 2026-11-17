@@ -274,3 +274,12 @@ def test_native_legacy_warning_complete_and_fits_existing_summary_after_resize(a
     assert pixels >= 10 * hud._content_scale - 1
     assert not hud.kill_chart.bind('<Enter>') and not hud.chart_note.bind('<Enter>')
     assert not hasattr(hud, 'damage_slot')
+
+
+def test_native_vivo_s10_selectable_in_both_heal_and_hot_lists(app):
+    assert "Vivo S10" in app.hot_selector.cget("values") and "Vivo S10" in app.healing_selector.cget("values")
+    select(app, "Vivo S10")
+    select_hot(app, "Vivo S10")
+    reopened = Store(app.store.db_path)
+    assert (reopened.get_selected_healing_tool(), reopened.get_selected_hot_tool()) == ("Vivo S10", "Vivo S10")
+    assert app.healing_detail.get().startswith("Heal/HoT ") and "/cast" in app.healing_detail.get()  # Priced once.

@@ -1023,13 +1023,17 @@ class PedHunterApp(tk.Tk):
         def detail(label, name):
             tool = self.catalog.healing_tools.get(name)
             if (tool is None or not tool.cost_verified or tool.cost_per_use is None or tool.tracking_limit
-                    or (label == "HoT" and not tool.has_hot)
+                    or (label != "Heal" and not tool.has_hot)
                     or (tool.has_hot and (tool.hot_fraction is None or tool.hot_duration is None))):
                 return ""
             unit = "cast" if tool.has_hot else "use"
             return f"{label} {self._money(tool.cost_per_use, decimals=5)}/{unit}"
-        self.healing_detail.set(" · ".join(part for part in (
-            detail("Heal", self.healing_tool.get()), detail("HoT", self.hot_tool.get())) if part))
+        heal_name, hot_name = self.healing_tool.get(), self.hot_tool.get()
+        if heal_name == hot_name:  # One tool in both slots is still charged once per use.
+            self.healing_detail.set(detail("Heal/HoT", hot_name))
+        else:
+            self.healing_detail.set(" · ".join(part for part in (
+                detail("Heal", heal_name), detail("HoT", hot_name)) if part))
         uses = session.estimated_healing_uses if session else 0
         self.healing_totals.set(f"Healing {self._money(session.healing_cost if session else 0, decimals=5)}"
                                 + (f" · {uses:,} uses" if uses else ""))
@@ -1038,6 +1042,9 @@ class PedHunterApp(tk.Tk):
         tools = [self.catalog.healing_tools.get(var.get()) for var in (self.healing_tool, self.hot_tool)]
         notes = "\n".join(f"{tool.name}: {tool.verification_note or tool.tracking_limit or 'selected-profile estimate'}\n{tool.source_url}"
                           for tool in tools if tool)
+        session = self.store.get_session(self.session_id) if self.session_id else None
+        run = (f"\n\nThis run: {session.estimated_healing_uses:,} heals costed, "
+               f"{session.unpriced_heal_events:,} not costed." if session else "")
         messagebox.showinfo(
             "Healing cost",
             "Pick the healing tool you use and, if you have one, your heal-over-time (HoT) tool. "
@@ -1046,8 +1053,10 @@ class PedHunterApp(tk.Tk):
             "Changing them affects future heals only; costs already recorded stay as they are.\n\n"
             "A HoT is charged once per cast, not per tick. Heals the log does not clearly show "
             "(silent uses, overlapping effects, a second identical heal in the same second) are left "
-            "uncosted rather than guessed."
-            + (f"\n\nDetails for the selected tools\n{notes}" if notes else ""),
+            "uncosted rather than guessed. So are heals that land outside the selected tools' heal "
+            "range, such as a heal capped at full health, a heal while moving, or a tool you have not "
+            "selected; they are counted as \"not costed\". Heals other avatars give you never cost you anything."
+            + run + (f"\n\nDetails for the selected tools\n{notes}" if notes else ""),
             parent=self,
         )
 
@@ -1902,6 +1911,7 @@ class PedHunterApp(tk.Tk):
         active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
         self._last_ingested_log_line = None
+        self._resume_handoff = None  # A finished cutover cursor must not bind a new run's reader.
         self._prepared_resume = None
         self._full_refresh_pending = False
         self.store.end_other_active_sessions()
@@ -2149,6 +2159,7 @@ class PedHunterApp(tk.Tk):
             return
         self._stop_log_worker()
         self._resume_pending = None
+        self._resume_handoff = None
         self._prepared_resume = None
         if self.session_id:
             self.store.end_session(self.session_id)

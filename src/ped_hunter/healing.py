@@ -20,6 +20,11 @@ HEALING_SOURCES = ("/medicaltools", "/medicalchips", "/materials/1447", "/materi
 PERIODIC_EFFECTS = {"heal over time", "regeneration per second", "lifesteal added"}
 HOT_EFFECTS = {"heal over time", "regeneration per second"}
 RESTORATION_BEHAVIOR_SOURCE = "https://forum.entropiauniverse.com/t/modern-mindforce-guide-for-2020/255948"
+# An effect whose duration is unknown (generic marker without a selected HoT, or another
+# avatar's effect) blocks pricing only this long after its last evidence: the longest HoT
+# duration in the bundled catalog (Restoration Chip, Modified: 60 s). It used to be a
+# permanent flag, which left every later heal of the run unpriced.
+UNKNOWN_EFFECT_WINDOW = 60.0
 
 
 def _number(value) -> float | None:
@@ -173,6 +178,93 @@ def _book(payload: dict, profile: dict, kind: str, anchor: int, eligible: bool, 
     return True
 
 
+def _direct_receipt_profiles(*profiles: dict) -> list[dict]:
+    """Selected HoT tools whose every use prints one direct receipt; one entry per tool name."""
+    found = {}
+    for profile in profiles:
+        if profile.get("name") and profile.get("has_hot") and profile.get("hot_activation") == "direct_receipt":
+            found.setdefault(profile["name"], profile)
+    return list(found.values())
+
+
+def _tick_bound(profile: dict) -> float | None:
+    """Largest possible tick line: every concurrently stacked cast ticking in the same message."""
+    fraction, duration = _number(profile.get("hot_fraction")), _number(profile.get("hot_duration"))
+    interval, rate = _number(profile.get("hot_tick_interval")), _number(profile.get("uses_per_minute"))
+    maximum, minimum = _number(profile.get("heal_max")), _number(profile.get("heal_min"))
+    if not (fraction and duration and interval and rate and maximum and minimum is not None) or rate > 60:
+        return None
+    stacks = math.floor(duration * rate / 60) + 1
+    bound = stacks * fraction * maximum * min(1.0, interval / duration) + .050001
+    # Usable only when a tick can never be mistaken for the smallest direct receipt.
+    return bound if bound < minimum * (1 - fraction) - .050001 else None
+
+
+def _finalize_direct_receipt(payload, state, direct, heal, hot, amount, now, event_id, action, diminished) -> None:
+    """One charge per direct receipt of a direct-receipt HoT tool; ticks and markers are never charged.
+
+    Independent of the effect-marker lifecycle: Vivo-style tools print the marker only when the
+    effect starts, so refresh casts and casts on others are visible only as direct receipts.
+    """
+    casts = state.setdefault("direct_casts", {})
+    bounds = {}
+    for profile in direct:
+        bounds[profile["name"]] = _tick_bound(profile)
+        if bounds[profile["name"]] is None:
+            _unpriced(payload, "unresolved_activation",
+                      f"{profile['name']} direct-receipt metadata is incomplete or ticks overlap direct heals; not charged.")
+            return
+    tick_of = [p for p in direct if amount <= bounds[p["name"]]]
+    if tick_of:
+        recent = [(casts[p["name"]], p) for p in tick_of if p["name"] in casts
+                  and 0 <= now - casts[p["name"]][0] <= _number(p["hot_duration"]) + _number(p["hot_tick_interval"])]
+        if recent:
+            (_, anchor), profile = max(recent, key=lambda item: item[0][0])
+            payload.update({"healing_cost_status": "hot_tick", "healing_activation_event_id": anchor,
+                            "healing_tool": profile["name"]})
+        else:
+            _unpriced(payload, "unresolved_activation",
+                      "Tick-sized receipt without a recent priced cast (capped/diminished cast or other source); never charged.")
+        return
+    names = {p["name"] for p in direct}
+    matches = [("hot", p) for p in direct if _range(p, amount, 1 - p["hot_fraction"])]
+    ambiguous = False
+    for profile in (heal, hot):
+        if not profile.get("name") or profile["name"] in names:
+            continue
+        names.add(profile["name"])
+        if profile.get("has_hot") or profile.get("tracking_limit"):
+            maximum = _number(profile.get("heal_max"))
+            ambiguous = ambiguous or maximum is None or amount <= maximum + .050001
+        elif _range(profile, amount):
+            matches.append(("instant", profile))
+    if diminished:
+        _unpriced(payload, "unresolved_activation", "Diminished receipt cannot be matched to a tool's heal range; not charged.")
+    elif ambiguous or len(matches) > 1:
+        _unpriced(payload, "unresolved_activation", "Receipt fits more than one selected tool; not charged.")
+    elif not matches:
+        _unpriced(payload, "unresolved_activation",
+                  "Receipt matches no selected tool's direct-heal range (capped or other source); not charged.")
+    else:
+        kind, profile = matches[0]
+        other = "" if action == "self" else "Healing another avatar has no supported local loot recipient."
+        if _book(payload, profile, kind, event_id, action == "self", other):
+            payload["healing_inference"] = (
+                "Selected-profile estimate: one activation per direct-heal receipt; HoT ticks are not charged."
+                if kind == "hot" else payload["healing_inference"])
+            if kind == "hot":
+                casts[profile["name"]] = [now, event_id]
+
+
+def _mark_unknown(state: dict, now: float | None) -> None:
+    """Uncertainty from an effect of unknown duration, bounded in time."""
+    if now is None:
+        state["unknown_pending"] = True  # Window starts at the next timestamped observation.
+    else:
+        until = max(_number(state.get("uncertain_until")) or 0.0, now + UNKNOWN_EFFECT_WINDOW)
+        state["uncertain_until"] = until
+
+
 def _save_inference_state(conn, session_id, state, before):
     after = json.dumps(state, sort_keys=True)
     if after != before:
@@ -199,7 +291,7 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
     if selection.get("enabled") is False:
         active = state.get("active")
         if active or action in {"effect_start", "received"}:
-            state["unknown_effect"] = True
+            _mark_unknown(state, _time(timestamp))
             if isinstance(active, dict):
                 active["observed"] = True
                 if active.get("booked_event_id"):
@@ -207,11 +299,13 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
         _save_inference_state(conn, session_id, state, before)
         _unpriced(payload, "not_selected", "Legacy cutover gap has no healing context; no retrospective inference.")
         return
+    # Legacy permanent flag (no time recorded): superseded by the bounded window below.
+    state.pop("unknown_effect", None)
     now = _time(timestamp)
     if now is None:
         active = state.get("active")
         if action == "effect_start" or (action == "received" and active):
-            state["unknown_effect"] = True
+            _mark_unknown(state, None)
             if isinstance(active, dict) and active.get("booked_event_id"):
                 payload["healing_invalidates_activation_ids"] = [active["event_id"]]
         if action == "diminished":
@@ -231,9 +325,12 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
     ):
         _unpriced(payload, "unresolved_activation", "Persisted activation is invalid; this observation is unpriced.")
         return
+    if state.pop("unknown_pending", False):
+        _mark_unknown(state, now)
     if active:
         elapsed = now - active["time"]
-        duration = _number(active["profile"].get("hot_duration"))
+        # An effect of unknown duration cannot outlive the longest known HoT.
+        duration = _number(active["profile"].get("hot_duration")) or UNKNOWN_EFFECT_WINDOW
         if elapsed < 0:
             _unpriced(payload, "unresolved_activation", "Out-of-order observation predates the retained activation.")
             return
@@ -251,13 +348,14 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
         external_at = _number(state.get("external_at"))
         duration = _number(profile.get("hot_duration"))
         if not duration:
-            state["unknown_effect"] = True
+            _mark_unknown(state, now)
         if active:
             old_duration = _number(active["profile"].get("hot_duration"))
             if old_duration is None:
-                state["unknown_effect"] = True
+                _mark_unknown(state, active["time"])
             else:
-                state["uncertain_until"] = max(uncertain_until, active["time"] + old_duration, now + (duration or 0))
+                state["uncertain_until"] = max(_number(state.get("uncertain_until")) or 0.0,
+                                               active["time"] + old_duration, now + (duration or 0))
         state["active"] = {
             "event_id": event_id, "time": now, "profile": profile,
             "observed": False, "overlap": bool(active or uncertain_until), 
@@ -265,12 +363,12 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
                         or ("external_at" in state and external_at is None),
         }
         if state["active"]["external"]:
-            state["unknown_effect"] = True  # Local selection cannot supply an external effect's duration.
+            _mark_unknown(state, now)  # Local selection cannot supply an external effect's duration.
         _unpriced(payload, "effect_pending", "Generic effect marker; awaiting outgoing evidence, not proof of local cast.")
     elif action == "received":
         state["external_at"] = now
         if active:
-            state["unknown_effect"] = True
+            _mark_unknown(state, now)
             active["external"] = True
             if active.get("booked_event_id"):
                 payload["healing_invalidates_activation_ids"] = [active["event_id"]]
@@ -282,11 +380,17 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
         amount = _number(payload.get("healed")) or 0.0
         diminished = bool(state.pop("diminished", False))
         instant = heal if not heal.get("has_hot") else {}
+        direct = _direct_receipt_profiles(heal, selection.get("hot") or {})
         if amount <= 0:
             if active:
                 active["observed"] = True
             _unpriced(payload, "no_positive_heal", "No positive healing receipt.")
-        elif state.get("unknown_effect") or uncertain_until:
+        elif direct:
+            if active:
+                active["observed"] = True
+            _finalize_direct_receipt(payload, state, direct, heal, selection.get("hot") or {},
+                                     amount, now, event_id, action, diminished)
+        elif _number(state.get("uncertain_until")):
             if active:
                 active["observed"] = True
             _unpriced(payload, "unresolved_activation", "Unknown effect lifecycle or overlapping casts; no paid activation inferred.")

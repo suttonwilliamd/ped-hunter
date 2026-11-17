@@ -24,7 +24,7 @@ def test_exact_type_m_source_units_and_search_do_not_alias_type_a():
     assert (weapon.ammo, weapon.decay, weapon.cost_per_shot) == pytest.approx((212, 0.0011, 0.0223))
     assert (weapon.min_tt, weapon.max_tt) == (0, 10)
     assert weapon.category == "Mining Laser (Low)"
-    assert catalog.resolve_weapon_name("Basic Mining Laser, Type A (L)") != NAME
+    assert catalog.resolve_weapon_name("Basic Mining Laser, Type Z (L)") != NAME
     assert calculate_loadout_cost(catalog=catalog, weapon_name=NAME) == pytest.approx((212, 0.0011))
     root = Path(__file__).resolve().parents[1] / "data/catalog"
     source = json.loads((root / "weapon_supplements.json").read_text())["items"][0]
@@ -46,11 +46,11 @@ def test_no_unverified_mining_laser_attachment_or_enhancer_costs(modifier):
 
 
 @pytest.mark.parametrize("method", ["cli", "tool"])
-def test_real_catalog_refresh_keeps_exact_type_m_once_and_preserves_type_a(tmp_path, monkeypatch, method):
+def test_real_catalog_refresh_keeps_exact_type_m_once_and_preserves_neighbor(tmp_path, monkeypatch, method):
     legacy = {
         "weapons.json": {"data": {
             " basic mining laser, type m (l) ": {"type": "Ranged", "ammo": 9999, "decay": 0.11},
-            "Basic Mining Laser, Type A (L)": {"type": "Mining Laser (Low)", "ammo": 400, "decay": 0.01},
+            "Basic Mining Laser, Type Z (L)": {"type": "Mining Laser (Low)", "ammo": 400, "decay": 0.01},
         }},
         **{name: {"data": {}} for name in ("attachments.json", "scopes.json", "sights.json", "resources.json", "crafting.json")},
     }
@@ -73,7 +73,7 @@ def test_real_catalog_refresh_keeps_exact_type_m_once_and_preserves_type_a(tmp_p
     (target / "weapons.json").write_text(json.dumps({"items": rows}))
     catalog = Catalog.load(target)
     assert catalog.find_weapon(NAME).cost_per_shot == pytest.approx(0.0223)
-    assert catalog.find_weapon("Basic Mining Laser, Type A (L)").cost_per_shot == pytest.approx(0.05)
+    assert catalog.find_weapon("Basic Mining Laser, Type Z (L)").cost_per_shot == pytest.approx(0.05)
     assert matches[0]["source_url"] == "https://api.entropianexus.com/weapons/3058"
 
 
