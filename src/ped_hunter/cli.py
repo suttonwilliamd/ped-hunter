@@ -122,6 +122,11 @@ def build_parser(*, redact_errors: bool = False) -> argparse.ArgumentParser:
     reconcile.add_argument('--expect-proof', help='Exact proof_sha256 from a prior inspection')
     reconcile.add_argument('--handoff-id', help='Unique short operator label required with --stage')
 
+    recover = sub.add_parser("recover-healing", help="Re-price heals left unpriced by the stuck unknown-effect flag (dry run unless --apply)")
+    recover.add_argument("--db", default=None, help="Path to the PED Hunter sqlite DB")
+    recover.add_argument("--session", action="append", help="Run ID (repeatable); default: every run")
+    recover.add_argument("--apply", action="store_true", help="Write the recovery; requires the GUI to be closed")
+
     stats = sub.add_parser("stats", help="Show recent session stats")
     stats.add_argument("--db", default=None, help="Path to the PED Hunter sqlite DB")
     stats.add_argument("--limit", type=int, default=5)
@@ -153,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         return _monitor(Path(args.chat_log), Path(args.db) if args.db else None, args.activity, args.once)
     if args.cmd == 'reconcile-resume':
         return _reconcile_resume(args)
+    if args.cmd == "recover-healing":
+        return _recover_healing(Path(args.db) if args.db else None, args.session, args.apply)
     if args.cmd == "stats":
         return _stats(Path(args.db) if args.db else None, args.limit)
     if args.cmd == "weapon":
@@ -192,6 +199,41 @@ def _reconcile_resume(args) -> int:
         # Never echo private paths or raw source content in operator output.
         print(f'Resume reconciliation refused ({type(exc).__name__}); preserve the original receipt and inspect file access/database health', file=sys.stderr)
     return 2
+
+
+def _recover_healing(db_path: Path | None, sessions: list[str] | None, apply: bool) -> int:
+    import sqlite3
+    from datetime import datetime
+    from .catalog import Catalog
+    from .healing_recovery import recover_sessions
+    from .storage import Store
+    db_path = db_path or Store.default_db_path()
+    if not db_path.exists():
+        print("Database not found", file=sys.stderr)
+        return 2
+    tools = Catalog.load().healing_tools
+    try:
+        if not apply:
+            reports = recover_sessions(db_path, sessions, tools, apply=False)
+        else:
+            with _single_gui_instance():  # Never edit history under a running tracker.
+                backups = db_path.parent / "backups"
+                backups.mkdir(parents=True, exist_ok=True)
+                backup = backups / f"ped-hunter-before-heal-recovery-{datetime.now():%Y%m%d-%H%M%S}.sqlite3"
+                source, target = sqlite3.connect(db_path), sqlite3.connect(backup)
+                try:
+                    source.backup(target)
+                finally:
+                    target.close()
+                    source.close()
+                reports = recover_sessions(db_path, sessions, tools, apply=True)
+                print(json.dumps({"backup": str(backup)}))
+    except (RuntimeError, ValueError, sqlite3.Error) as exc:
+        print(f"Healing recovery refused: {exc}", file=sys.stderr)
+        return 2
+    for report in reports:
+        print(json.dumps(report, sort_keys=True))
+    return 0
 
 
 def _gui_lock_path() -> Path:

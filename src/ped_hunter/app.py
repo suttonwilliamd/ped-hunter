@@ -1042,6 +1042,9 @@ class PedHunterApp(tk.Tk):
         tools = [self.catalog.healing_tools.get(var.get()) for var in (self.healing_tool, self.hot_tool)]
         notes = "\n".join(f"{tool.name}: {tool.verification_note or tool.tracking_limit or 'selected-profile estimate'}\n{tool.source_url}"
                           for tool in tools if tool)
+        session = self.store.get_session(self.session_id) if self.session_id else None
+        run = (f"\n\nThis run: {session.estimated_healing_uses:,} heals costed, "
+               f"{session.unpriced_heal_events:,} not costed." if session else "")
         messagebox.showinfo(
             "Healing cost",
             "Pick the healing tool you use and, if you have one, your heal-over-time (HoT) tool. "
@@ -1050,8 +1053,10 @@ class PedHunterApp(tk.Tk):
             "Changing them affects future heals only; costs already recorded stay as they are.\n\n"
             "A HoT is charged once per cast, not per tick. Heals the log does not clearly show "
             "(silent uses, overlapping effects, a second identical heal in the same second) are left "
-            "uncosted rather than guessed."
-            + (f"\n\nDetails for the selected tools\n{notes}" if notes else ""),
+            "uncosted rather than guessed. So are heals that land outside the selected tools' heal "
+            "range, such as a heal capped at full health, a heal while moving, or a tool you have not "
+            "selected; they are counted as \"not costed\". Heals other avatars give you never cost you anything."
+            + run + (f"\n\nDetails for the selected tools\n{notes}" if notes else ""),
             parent=self,
         )
 

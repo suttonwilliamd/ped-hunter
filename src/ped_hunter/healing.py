@@ -20,6 +20,11 @@ HEALING_SOURCES = ("/medicaltools", "/medicalchips", "/materials/1447", "/materi
 PERIODIC_EFFECTS = {"heal over time", "regeneration per second", "lifesteal added"}
 HOT_EFFECTS = {"heal over time", "regeneration per second"}
 RESTORATION_BEHAVIOR_SOURCE = "https://forum.entropiauniverse.com/t/modern-mindforce-guide-for-2020/255948"
+# An effect whose duration is unknown (generic marker without a selected HoT, or another
+# avatar's effect) blocks pricing only this long after its last evidence: the longest HoT
+# duration in the bundled catalog (Restoration Chip, Modified: 60 s). It used to be a
+# permanent flag, which left every later heal of the run unpriced.
+UNKNOWN_EFFECT_WINDOW = 60.0
 
 
 def _number(value) -> float | None:
@@ -251,6 +256,15 @@ def _finalize_direct_receipt(payload, state, direct, heal, hot, amount, now, eve
                 casts[profile["name"]] = [now, event_id]
 
 
+def _mark_unknown(state: dict, now: float | None) -> None:
+    """Uncertainty from an effect of unknown duration, bounded in time."""
+    if now is None:
+        state["unknown_pending"] = True  # Window starts at the next timestamped observation.
+    else:
+        until = max(_number(state.get("uncertain_until")) or 0.0, now + UNKNOWN_EFFECT_WINDOW)
+        state["uncertain_until"] = until
+
+
 def _save_inference_state(conn, session_id, state, before):
     after = json.dumps(state, sort_keys=True)
     if after != before:
@@ -277,7 +291,7 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
     if selection.get("enabled") is False:
         active = state.get("active")
         if active or action in {"effect_start", "received"}:
-            state["unknown_effect"] = True
+            _mark_unknown(state, _time(timestamp))
             if isinstance(active, dict):
                 active["observed"] = True
                 if active.get("booked_event_id"):
@@ -285,11 +299,13 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
         _save_inference_state(conn, session_id, state, before)
         _unpriced(payload, "not_selected", "Legacy cutover gap has no healing context; no retrospective inference.")
         return
+    # Legacy permanent flag (no time recorded): superseded by the bounded window below.
+    state.pop("unknown_effect", None)
     now = _time(timestamp)
     if now is None:
         active = state.get("active")
         if action == "effect_start" or (action == "received" and active):
-            state["unknown_effect"] = True
+            _mark_unknown(state, None)
             if isinstance(active, dict) and active.get("booked_event_id"):
                 payload["healing_invalidates_activation_ids"] = [active["event_id"]]
         if action == "diminished":
@@ -309,9 +325,12 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
     ):
         _unpriced(payload, "unresolved_activation", "Persisted activation is invalid; this observation is unpriced.")
         return
+    if state.pop("unknown_pending", False):
+        _mark_unknown(state, now)
     if active:
         elapsed = now - active["time"]
-        duration = _number(active["profile"].get("hot_duration"))
+        # An effect of unknown duration cannot outlive the longest known HoT.
+        duration = _number(active["profile"].get("hot_duration")) or UNKNOWN_EFFECT_WINDOW
         if elapsed < 0:
             _unpriced(payload, "unresolved_activation", "Out-of-order observation predates the retained activation.")
             return
@@ -329,13 +348,14 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
         external_at = _number(state.get("external_at"))
         duration = _number(profile.get("hot_duration"))
         if not duration:
-            state["unknown_effect"] = True
+            _mark_unknown(state, now)
         if active:
             old_duration = _number(active["profile"].get("hot_duration"))
             if old_duration is None:
-                state["unknown_effect"] = True
+                _mark_unknown(state, active["time"])
             else:
-                state["uncertain_until"] = max(uncertain_until, active["time"] + old_duration, now + (duration or 0))
+                state["uncertain_until"] = max(_number(state.get("uncertain_until")) or 0.0,
+                                               active["time"] + old_duration, now + (duration or 0))
         state["active"] = {
             "event_id": event_id, "time": now, "profile": profile,
             "observed": False, "overlap": bool(active or uncertain_until), 
@@ -343,12 +363,12 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
                         or ("external_at" in state and external_at is None),
         }
         if state["active"]["external"]:
-            state["unknown_effect"] = True  # Local selection cannot supply an external effect's duration.
+            _mark_unknown(state, now)  # Local selection cannot supply an external effect's duration.
         _unpriced(payload, "effect_pending", "Generic effect marker; awaiting outgoing evidence, not proof of local cast.")
     elif action == "received":
         state["external_at"] = now
         if active:
-            state["unknown_effect"] = True
+            _mark_unknown(state, now)
             active["external"] = True
             if active.get("booked_event_id"):
                 payload["healing_invalidates_activation_ids"] = [active["event_id"]]
@@ -370,7 +390,7 @@ def finalize_healing_event(conn, session_id: str, event_id: int, timestamp: str 
                 active["observed"] = True
             _finalize_direct_receipt(payload, state, direct, heal, selection.get("hot") or {},
                                      amount, now, event_id, action, diminished)
-        elif state.get("unknown_effect") or uncertain_until:
+        elif _number(state.get("uncertain_until")):
             if active:
                 active["observed"] = True
             _unpriced(payload, "unresolved_activation", "Unknown effect lifecycle or overlapping casts; no paid activation inferred.")

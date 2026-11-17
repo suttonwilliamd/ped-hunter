@@ -501,3 +501,48 @@ def test_vivo_s10_charges_once_per_activation_never_per_tick_or_per_list(worker,
     assert other["healing_allocation_eligible"] is False
     unpriced = summary.unpriced_heal_events - before.unpriced_heal_events
     assert unpriced == (1 - fap_casts)  # Without FAP selected the 25.0 line is left unpriced, not free.
+
+
+def stamp(seconds, text):
+    return f"2026-11-15 14:{15 + seconds // 60:02d}:{seconds % 60:02d} [System] [] {text}"
+
+
+# Real chat-log shapes. Another avatar's HoT on you: generic marker, then caster-labelled
+# receipts. Your own HoT started while no HoT tool is selected: marker, direct heals, ticks.
+EXTERNAL_HOT = [(3, MARKER), (3, "You were healed 12.2 points by Synthetic Avatar"),
+                (5, "You were healed 0.6 points by Synthetic Avatar"), (6, "You were healed 8.7 points by Synthetic Avatar"),
+                (14, "You were healed 0.2 points by Synthetic Avatar")]
+UNSELECTED_HOT = [(3, MARKER), (3, "You healed yourself 12.1 points"), (5, "You healed yourself 1.0 points"),
+                  (5, "You healed yourself 14.6 points"), (7, "You healed yourself 1.5 points"),
+                  (13, "You healed yourself 0.6 points")]
+
+
+@pytest.mark.parametrize("effect", [EXTERNAL_HOT, UNSELECTED_HOT], ids=["external", "unselected_own_hot"])
+def test_unknown_effect_blocks_pricing_only_while_it_can_last_not_for_the_rest_of_the_run(worker, effect):
+    # Regression: one unknown effect set a permanent flag, so every later heal of the run,
+    # including plain in-range FAP heals hours later, was recorded but never costed.
+    app, sid = worker
+    app.store.set_selected_healing_tool(FAP)
+    ingest(worker, stamp(0, "You healed yourself 25.7 points"), *(stamp(s, text) for s, text in effect),
+           stamp(30, "You healed yourself 23.4 points"),  # Inside the effect window: not provable.
+           stamp(120, "You healed yourself 22.1 points"), stamp(123, "You healed yourself 27.1 points"),
+           stamp(2400, "You healed yourself 24.2 points"))
+    summary = app.store.get_session(sid)
+    booked = [r["payload"]["healed"] for r in rows(worker) if r["payload"].get("healing_cost")]
+    assert booked == [25.7, 22.1, 27.1, 24.2]
+    assert summary.healing_cost == pytest.approx(4 * 0.02)
+    assert summary.estimated_healing_uses == 4
+    # Nothing from the effect itself is costed; own direct/tick lines stay visible as not costed.
+    effect_rows = [r["payload"] for r in rows(worker) if r["timestamp"] <= "2026-11-15T14:15:30"][1:]
+    assert all("healing_cost" not in p for p in effect_rows)
+
+
+def test_run_stuck_by_the_old_permanent_flag_prices_its_next_heals(worker):
+    app, sid = worker
+    app.store.set_selected_healing_tool(FAP)
+    with app.store.connect() as conn:  # State exactly as the old engine left the live run.
+        conn.execute("INSERT INTO healing_inference_state(session_id, state) VALUES (?, ?)",
+                     (sid, json.dumps({"version": 1, "unknown_effect": True})))
+        conn.commit()
+    ingest(worker, stamp(0, "You healed yourself 23.0 points"), stamp(3, "You healed yourself 26.1 points"))
+    assert app.store.get_session(sid).estimated_healing_uses == 2
