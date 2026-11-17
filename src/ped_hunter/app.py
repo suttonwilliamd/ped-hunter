@@ -1906,6 +1906,7 @@ class PedHunterApp(tk.Tk):
         active_loadout = with_repair_estimates(self.catalog, active_loadout)
         self.current_log_path = path
         self._last_ingested_log_line = None
+        self._resume_handoff = None  # A finished cutover cursor must not bind a new run's reader.
         self._prepared_resume = None
         self._full_refresh_pending = False
         self.store.end_other_active_sessions()
@@ -2153,6 +2154,7 @@ class PedHunterApp(tk.Tk):
             return
         self._stop_log_worker()
         self._resume_pending = None
+        self._resume_handoff = None
         self._prepared_resume = None
         if self.session_id:
             self.store.end_session(self.session_id)

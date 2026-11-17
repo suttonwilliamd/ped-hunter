@@ -303,3 +303,22 @@ def test_orphaned_archive_blocks_only_its_own_run_until_a_successor_references_i
     Path(str(db) + ".resume.json.claimed.completed-x").write_text(json.dumps({"reconciled_from_sha256": digest}))
     assert read_resume_handoff(db, "run-a", log, None) is None
     assert not has_resume_handoff(db)
+
+
+def test_new_run_started_after_a_completed_handoff_is_tracked(handoff_run):
+    # Regression: Start reused the finished cutover cursor, so the new run's
+    # reader refused to open and nothing was recorded.
+    app, _sid, path, _plan, _context, _old_rows, errors = handoff_run
+    app._refresh_all = lambda: None
+    append(path, encoded(GAP))
+    app.resume_selected_session()
+    assert app._log_queue.get(timeout=5) == ("parsed", 3)
+    assert app._log_queue.get(timeout=5)[0] == "status"  # Handoff completes.
+    app.stop()
+    app.start()
+    new_sid = app.session_id
+    append(path, encoded([FUTURE]))
+    assert app._log_queue.get(timeout=5) == ("parsed", 1)
+    app._stop_log_worker()
+    assert not errors
+    assert app.store.get_session(new_sid).hunting_cost == pytest.approx(0.0223)
