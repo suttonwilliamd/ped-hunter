@@ -123,6 +123,39 @@ def test_new_entry_repeatedly_creates_distinct_setups_without_changing_existing(
     assert (saved.ammo_burn, saved.decay, saved.cost_per_shot) == pytest.approx((65, 0.00001, 0.00651))
 
 
+def test_pf1_setup_saves_and_reopens_with_exact_variant_and_cost(editor):
+    fill(editor, "Hyp", "Hyperion Aurora PF-1 (L)")
+    assert editor._save_loadout(make_active=False)
+    base_id = editor.selected_loadout_id
+    select(editor, "new", explicit=True)
+    fill(editor, "Hyp improved", "Hyperion Aurora PF-1, Improved (L)")
+    assert editor._save_loadout(make_active=False)
+    improved_id = editor.selected_loadout_id
+
+    select(editor, base_id, explicit=True)
+    assert editor.loadout_weapon.get() == "Hyperion Aurora PF-1 (L)"
+    editor._refresh_loadout_preview()
+    assert not editor.loadout_preview.get().startswith("Not ready")
+    saved = editor.store.get_loadout(base_id)
+    assert (saved.weapon, saved.ammo_burn) == ("Hyperion Aurora PF-1 (L)", 118)
+    assert (saved.decay, saved.cost_per_shot) == pytest.approx((0.00049, 0.01229))
+    improved = editor.store.get_loadout(improved_id)
+    assert (improved.weapon, improved.ammo_burn) == ("Hyperion Aurora PF-1, Improved (L)", 165)
+
+
+@pytest.mark.parametrize("text, message", [
+    ("Hyperion Aurora PF-1", "'Hyperion Aurora PF-1' matches 6 weapons; choose one from the list"),
+    ("Retired Blaster (L)", "choose a known weapon ('Retired Blaster (L)' is not in this catalog)"),
+])
+def test_ambiguous_or_unknown_weapon_text_names_the_problem_and_saves_nothing(editor, text, message):
+    original = records(editor)
+    fill(editor, "Draft", text)
+    editor._refresh_loadout_preview()
+    assert editor.loadout_preview.get() == f"Not ready to save: {message}"
+    assert not editor._save_loadout(make_active=False)
+    assert records(editor) == original
+
+
 @pytest.mark.parametrize("name", ["Existing rifle", "  Existing rifle  "])
 def test_new_duplicate_name_cannot_upsert_existing_setup(editor, name):
     original = records(editor)

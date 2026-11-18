@@ -1593,8 +1593,16 @@ class PedHunterApp(tk.Tk):
         if not name:
             raise ValueError("name is required")
         weapon_name = self.loadout_weapon.get().strip()
-        weapon = self.catalog.find_weapon(weapon_name) if weapon_name else None
+        # An exact name/alias, or text naming a single weapon. Ambiguous text is refused:
+        # "Hyperion Aurora PF-1" would otherwise save whichever of PF-1, PF-1 Improved,
+        # PF-10... came first, not necessarily the variant meant.
+        candidates = self.catalog.weapon_candidates(weapon_name) if weapon_name else []
+        if len(candidates) > 1:
+            raise ValueError(f"'{weapon_name}' matches {len(candidates)} weapons; choose one from the list")
+        weapon = self.catalog.weapons.get(candidates[0]) if candidates else None
         if not weapon:
+            if weapon_name:
+                raise ValueError(f"choose a known weapon ('{weapon_name}' is not in this catalog)")
             raise ValueError("choose a known weapon")
         if not _attachment_in_categories(self.catalog, self.loadout_amp.get(), AMP_CATEGORIES):
             raise ValueError("amplifier must be an amp, not a scope or sight")
