@@ -127,13 +127,31 @@ class Catalog:
             healing_tools=healing_tools,
         )
 
-    def resolve_weapon_name(self, query: str) -> str | None:
+    def exact_weapon_name(self, query: str) -> str | None:
+        """The catalog name ``query`` names exactly (any case) or by alias; never a partial match.
+
+        An exact-case name wins, so names differing only in case (legacy "RIP"/"Rip"
+        entries) each resolve to themselves.
+        """
+        text = query.strip()
+        if text in self.weapons:
+            return text
+        key = text.casefold()
+        return self._weapon_key_map().get(key) or self.aliases.get(key)
+
+    def weapon_candidates(self, query: str) -> list[str]:
+        """The one exact name for ``query``, else every name containing it (any case)."""
+        exact = self.exact_weapon_name(query)
+        if exact:
+            return [exact]
         key = query.casefold().strip()
-        if key in self._weapon_key_map():
-            return self._weapon_key_map()[key]
-        alias = self.aliases.get(key)
-        if alias:
-            return alias
+        return [name for name in self.weapons if key and key in name.casefold()]
+
+    def resolve_weapon_name(self, query: str) -> str | None:
+        exact = self.exact_weapon_name(query)
+        if exact:
+            return exact
+        key = query.casefold().strip()
         for name in self.weapons:
             if key in name.casefold():
                 return name
